@@ -23,6 +23,7 @@ docker: docker run --gpus all -it --rm --name rico_test rwthika/ros2-ml:latest
     - Check out the rwthika website and work on those
 
 - Create a simulation of the robot
+    - Isaac sim?  https://catalog.ngc.nvidia.com/orgs/nvidia/containers/isaac-sim
     - Go cheap on this. Can steal the URDF from another project. 
     - Being able to Visualize the robot on Rviz
 
