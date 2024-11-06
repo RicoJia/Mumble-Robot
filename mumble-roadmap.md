@@ -11,7 +11,7 @@
 - Test the algorithms in there
 
 
-### Create A 2D Lidar Robot
+### Create A 2D Lidar Robot (1-2 weeks)
 
 Objective: Set Up the physical robot with a 2D Lidar, docker, and ROS 2 simulation and nav stack
 
@@ -33,7 +33,7 @@ docker: docker run --gpus all -it --rm --name rico_test rwthika/ros2-ml:latest
     - Local Planner
 
 
-### Cartographer Implementation 
+### Cartographer Implementation (4 weeks)
 
-### Test with 3D Lidar Implementation
+### Test with 3D Lidar Implementation (4 weeks)
 
