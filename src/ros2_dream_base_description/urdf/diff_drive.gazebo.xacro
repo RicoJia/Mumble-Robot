@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <robot name="dream_gazebo_diff_drive" xmlns:xacro="http://www.ros.org/wiki/xacro">
     <!-- Notes: load urdf, then load diff params -->
-    <xacro:include filename="$(find dream_base_description)/urdf/diff_drive.urdf.xacro" />
-    <xacro:property name="diff_params" value="${load_yaml('$(find dream_base_description)/config/diff_params.yaml')}" />`
+    <xacro:include filename="$(find ros2_dream_base_description)/urdf/diff_drive.urdf.xacro" />
+    <xacro:property name="diff_params" value="${xacro.load_yaml('$(find ros2_dream_base_description)/config/diff_params.yaml')}" />`
 
     <gazebo>
         <!-- Notes: use params loaded from yaml -->
