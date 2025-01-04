@@ -12,32 +12,40 @@ curpath = os.path.realpath(__file__)
 thisPath = os.path.dirname(curpath)
 
 class ReadLine:
-	def __init__(self, s):
-		self.buf = bytearray()
-		self.s = s
+    def __init__(self, s):
+        self.buf = bytearray()
+        self.s = s
 
-	def readline(self):
-		i = self.buf.find(b"\n")
-		if i >= 0:
-			r = self.buf[:i+1]
-			self.buf = self.buf[i+1:]
-			return r
-		while True:
-			i = max(1, min(512, self.s.in_waiting))
-			data = self.s.read(i)
-			i = data.find(b"\n")
-			if i >= 0:
-				r = self.buf + data[:i+1]
-				self.buf[0:] = data[i+1:]
-				return r
-			else:
-				self.buf.extend(data)
+    def readline(self):
+        i = self.buf.find(b"\n")
+        if i >= 0:
+            r = self.buf[:i+1]
+            self.buf = self.buf[i+1:]
+            return r
+        while True:
+            # Check how much data is available in the buffer
+            i = max(1, min(512, self.s.in_waiting or 1))
+            data = self.s.read(i)
+
+            # Handle timeout or no data received
+            if not data:
+                raise TimeoutError("No data received before timeout.")
+
+            # Rico: the original function had a bug
+            # Look for newline in the received data
+            i = data.find(b"\n")
+            if i >= 0:
+                r = self.buf + data[:i+1]
+                self.buf[0:] = data[i+1:]
+                return r
+            else:
+                self.buf.extend(data)
 
 
 class BaseController:
 
 	def __init__(self, uart_dev_set, buad_set):
-		self.ser = serial.Serial(uart_dev_set, buad_set, timeout=1)
+		self.ser = serial.Serial(uart_dev_set, buad_set, timeout=0.1)
 		self.rl = ReadLine(self.ser)
 		self.command_queue = queue.Queue()
 		self.command_thread = threading.Thread(target=self.process_commands, daemon=True)
@@ -102,10 +110,44 @@ class BaseController:
 	def gimbal_dev_close(self):
 		self.ser.close()
 
+def test_oled():
+    base.send_command({"T":3,"lineNum":0,"Text":"this is line0"})
+    base.send_command({"T":3,"lineNum":1,"Text":"this is rico1"})
+    base.send_command({"T":3,"lineNum":2,"Text":"this is rico2"})
+    base.send_command({"T":3,"lineNum":3,"Text":"this is line3"})
+    response = base.on_data_received()
+    print("Response from UGV:", response)
+
+def test_imu():
+    # Adopted from: https://github.com/waveshareteam/ugv_rpi/blob/main/tutorial_en/08%20Microcontroller%20JSON%20Command%20Set.ipynb
+    # 128 doesn't return anything; two consecutive 126 will return the imu info
+    commands = [
+        # {"T":125},
+        # {"T":126},
+        {"T":126},
+        {"T":126},
+        {"T":128},
+        {"T":128},
+    ]
+    # commands = [
+    #     {"T":i} for i in range(120, 140, 1)
+    # ]
+    for c in commands:
+        try:
+            base.send_command(c)
+            response1 = base.on_data_received()
+            response2 = base.on_data_received()
+            print(f"Sent: {c}, Response from UGV:", response1, response2)
+        except:
+            pass
+
+
 base = BaseController('/dev/serial0', 115200)
 base.ser.reset_input_buffer()
 base.ser.reset_output_buffer()
-base.base_default_oled()
+# base.base_default_oled()
+# response = base.on_data_received()
+# print("Response from UGV:", response)
 # for i in range(12): # max speed: 0.5m/s
 #     base.base_speed_ctrl(0.05*i,0.05*i)
 #     time.sleep(1.0)
@@ -114,13 +156,8 @@ base.base_default_oled()
 # base.base_speed_ctrl(0.5, 0.5)
 # time.sleep(1.0)
 # base.base_speed_ctrl(0, 0)
-# # # Modifying the Display Content on the OLED Screen
-# # base.send_command({"T":3,"lineNum":0,"Text":"this is rico0"})
-# base.send_command({"T":3,"lineNum":0,"Text":"this is line0"})
-# base.send_command({"T":3,"lineNum":1,"Text":"this is rico1"})
-# base.send_command({"T":3,"lineNum":2,"Text":"this is rico2"})
-# base.send_command({"T":3,"lineNum":3,"Text":"this is line3"})
+# # Modifying the Display Content on the OLED Screen
 # # Implement an infinite loop to continuously monitor serial port data.
 
-response = base.on_data_received()
-print("Response from UGV:", response)
+test_imu()
+# test_oled()
