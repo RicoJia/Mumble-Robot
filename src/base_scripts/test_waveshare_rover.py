@@ -41,115 +41,74 @@ class ReadLine:
             else:
                 self.buf.extend(data)
 
-
 class BaseController:
+    def __init__(self, uart_dev_set, buad_set):
+        self.ser = serial.Serial(uart_dev_set, buad_set, timeout=0.1)
+        self.rl = ReadLine(self.ser)
+        self.command_queue = queue.Queue()
+        self.command_thread = threading.Thread(target=self.process_commands, daemon=True)
+        self.command_thread.start()
 
-	def __init__(self, uart_dev_set, buad_set):
-		self.ser = serial.Serial(uart_dev_set, buad_set, timeout=0.1)
-		self.rl = ReadLine(self.ser)
-		self.command_queue = queue.Queue()
-		self.command_thread = threading.Thread(target=self.process_commands, daemon=True)
-		self.command_thread.start()
+    def on_data_received(self):
+        # firmware may require an acknowledgment from us, like a handshake
+        data_read = json.loads(self.rl.readline().decode('utf-8'))  # Rico TODO: Must have for data transactions. Otherwise OLED won't change
+        self.ser.reset_input_buffer()
+        return data_read
 
+    def send_command(self, data):
+        self.command_queue.put(data)
 
-	def on_data_received(self):
-     # firmware may require an acknoledge from us, like a handshake
-		data_read = json.loads(self.rl.readline().decode('utf-8')) # Rico TODO: Must have for data transactions. Otherwise OLED won't change
-		self.ser.reset_input_buffer()
-		return data_read
+    def process_commands(self):
+        while True:
+            data = self.command_queue.get()
+            self.ser.write((json.dumps(data) + '\n').encode("utf-8"))
 
+    def base_json_ctrl(self, input_json):
+        self.send_command(input_json)
 
-	def send_command(self, data):
-		self.command_queue.put(data)
+    def base_speed_ctrl(self, input_left, input_right):
+        # max speed: 0.5. It could be as fast as 2m/s on wood surfaces
+        data = {"T": 1, "L": input_left, "R": input_right}
+        self.send_command(data)
 
+    def raw_imu_info(self):
+        self.send_command({"T": 126})
+        resp = self.on_data_received()
+        return resp
 
-	def process_commands(self):
-		while True:
-			data = self.command_queue.get()
-			self.ser.write((json.dumps(data) + '\n').encode("utf-8"))
+    def base_oled(self, input_line, input_text):
+        data = {"T": 3, "lineNum": input_line, "Text": input_text}
+        self.send_command(data)
 
-	def base_json_ctrl(self, input_json):
-		self.send_command(input_json)
-
-
-	def gimbal_emergency_stop(self):
-		data = {"T":0}
-		self.send_command(data)
-
-
-	def base_speed_ctrl(self, input_left, input_right):
-     # max speed: 0.5. It could be as fast as 2m/s on wood surfaces
-		data = {"T":1,"L":input_left,"R":input_right}
-		self.send_command(data)
-
-
-	def gimbal_ctrl(self, input_x, input_y, input_speed, input_acceleration):
-		data = {"T":133,"X":input_x,"Y":input_y,"SPD":input_speed,"ACC":input_acceleration}
-		self.send_command(data)
-
-
-	def gimbal_base_ctrl(self, input_x, input_y, input_speed):
-		data = {"T":141,"X":input_x,"Y":input_y,"SPD":input_speed}
-		self.send_command(data)
-
-
-	def base_oled(self, input_line, input_text):
-		data = {"T":3,"lineNum":input_line,"Text":input_text}
-		self.send_command(data)
-
-
-	def base_default_oled(self):
-		data = {"T":-3}
-		self.send_command(data)
-
-	def lights_ctrl(self, pwmA, pwmB):
-		data = {"T":132,"IO4":pwmA,"IO5":pwmB}
-		self.send_command(data)
-
-
-	def gimbal_dev_close(self):
-		self.ser.close()
+    def base_default_oled(self):
+        data = {"T": -3}
+        self.send_command(data)
 
 def test_oled():
-    base.send_command({"T":3,"lineNum":0,"Text":"this is line0"})
-    base.send_command({"T":3,"lineNum":1,"Text":"this is rico1"})
-    base.send_command({"T":3,"lineNum":2,"Text":"this is rico2"})
-    base.send_command({"T":3,"lineNum":3,"Text":"this is line3"})
+    base.send_command({"T": 3, "lineNum": 0, "Text": "this is line0"})
+    base.send_command({"T": 3, "lineNum": 1, "Text": "this is rico1"})
+    base.send_command({"T": 3, "lineNum": 2, "Text": "this is rico2"})
+    base.send_command({"T": 3, "lineNum": 3, "Text": "this is line3"})
     response = base.on_data_received()
     print("Response from UGV:", response)
 
 def test_imu():
     # Adopted from: https://github.com/waveshareteam/ugv_rpi/blob/main/tutorial_en/08%20Microcontroller%20JSON%20Command%20Set.ipynb
-    # 128 doesn't return anything; two consecutive 126 will return the imu info
-    commands = [
-        # {"T":125},
-        # {"T":126},
-        {"T":126},
-        {"T":126},
-        {"T":128},
-        {"T":128},
-    ]
-    # commands = [
-    #     {"T":i} for i in range(120, 140, 1)
-    # ]
-    for c in commands:
-        try:
-            base.send_command(c)
-            response1 = base.on_data_received()
-            response2 = base.on_data_received()
-            print(f"Sent: {c}, Response from UGV:", response1, response2)
-        except:
-            pass
-
+    # two consecutive 126 will return the imu info
+    while True:
+        start = time.time()
+        resp = base.raw_imu_info()
+        print(f"time: {time.time() - start}, Response from UGV:", resp)
 
 base = BaseController('/dev/serial0', 115200)
 base.ser.reset_input_buffer()
 base.ser.reset_output_buffer()
+base.send_command({"T":143,"cmd":0})    # turn off echo mode
 # base.base_default_oled()
 # response = base.on_data_received()
 # print("Response from UGV:", response)
-# for i in range(12): # max speed: 0.5m/s
-#     base.base_speed_ctrl(0.05*i,0.05*i)
+# for i in range(12):  # max speed: 0.5m/s
+#     base.base_speed_ctrl(0.05 * i, 0.05 * i)
 #     time.sleep(1.0)
 #     response = base.on_data_received()
 #     print("Response from UGV:", response)
