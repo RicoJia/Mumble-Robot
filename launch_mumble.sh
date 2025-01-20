@@ -6,10 +6,12 @@
 
 # TODO: not sure if aarch 64 is what we need
 ARCH=$(uname -m)
+CURRENT_DIR=$(dirname $(realpath docker-compose.yml))
 if [ "$ARCH" = "aarch64" ]; then
-    docker compose --profile arm up
+    CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up -d
 fi
 
 if [ "$ARCH" = "x86_64" ]; then
-    docker compose --profile amd64 up
+    # docker compose --profile amd64 up -d
+    CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up  # TODO: to change to arm
 fi

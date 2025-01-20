@@ -3,12 +3,17 @@ services:
     build:
       context: ./mumble_physical_runtime
       dockerfile: Dockerfile_mumble_physical_runtime
-      platforms: 
-        - linux/arm/v8  # Build only for arm. So if the image is built for amd64, it will fail
+      # TODO: to recover
+      # platforms: 
+      #   - linux/arm/v8  # Build only for arm. So if the image is built for amd64, it will fail
+      args:
+        - WORKDIRECTORY=/home/mumble_physical_runtime/src
     container_name: mumble_physical_runtime_container
     command: /bin/bash
     stdin_open: true  # Keep stdin open to allow interactive mode, docker run -i
     tty: true         # Allocate a pseudo-TTY, docker run -t
     profiles:
       - arm
+    volumes:
+      - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_physical_runtime/src  # Mount current directory
 
