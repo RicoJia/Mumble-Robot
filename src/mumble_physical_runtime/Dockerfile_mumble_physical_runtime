@@ -1,0 +1,44 @@
+# DOCKER_BUILDKIT=1 docker build -f Dockerfile_mumble_physical_runtime -t mumble_physical_runtime .
+FROM ros:humble
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    ROS_DISTRO=humble \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+ARG ROS_DISTRO=humble
+
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    ros-${ROS_DISTRO}-ros-base \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# # Give the image the same user privilege as the host user
+# # Unique numbers for each group and user. 1000 is the first regular number
+# ARG UNAME="mumble_physical"
+# # Sets default value if docker build --build-arg UID=1000 is not provided.
+# # So, one caveat of this script is on Rpi, UID, GID have to be 1000.
+# ARG UID=1000
+# ARG GID=1000
+# RUN groupadd -f -g $GID $UNAME
+# RUN id -u $UNAME || useradd -m -u $UID -g $GID -s /bin/bash $UNAME
+# # RUN adduser --disabled-password --gecos '' ${UNAME}
+# RUN adduser ${UNAME} sudo
+# # adding UNAME to sudoers
+# RUN echo "${UNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# USER $UNAME
+
+# # Env variables will persist across images
+# ENV WORKDIRECTORY="/home/Mumble-Robot"
+# ENV PATH="${WORKDIRECTORY}/src/mumble_physical_runtime/bin:${PATH}"
+# WORKDIR ${WORKDIRECTORY}
+
+# RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
+#     echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc && \
+#     echo 'source "${WORKDIRECTORY}/src/dream_mobile_platform/dream_bashrc.sh"' >> ~/.bashrc
+# # Using /bin/bash to keep the container alive
+# # ENTRYPOINT or command will create a new shell. That shell gets the parent shells' env var as indicated in CMD, but not functions. 
+# # That's why we do NOT put feature flags in a dream_bashrc.sh
+# # This will read the local dream_feature_flags
+# ENTRYPOINT ["/bin/bash", "-c", "source ${WORKDIRECTORY}/src/dream_mobile_platform/dream_feature_flags && exec \"$@\"", "--"]
+CMD /bin/bash

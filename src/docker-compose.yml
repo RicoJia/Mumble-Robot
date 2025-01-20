@@ -1,0 +1,11 @@
+services:
+  runtime:
+    build:
+      context: ./mumble_physical_runtime
+      dockerfile: Dockerfile_mumble_physical_runtime
+    container_name: mumble_physical_runtime_container
+    platform: linux/amd64  # Specify x86_64 architecture
+    command: /bin/bash
+    stdin_open: true  # Keep stdin open to allow interactive mode
+    # tty: true         # Allocate a pseudo-TTY
+
