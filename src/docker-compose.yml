@@ -3,9 +3,12 @@ services:
     build:
       context: ./mumble_physical_runtime
       dockerfile: Dockerfile_mumble_physical_runtime
+      platforms: 
+        - linux/arm/v8  # Build only for arm. So if the image is built for amd64, it will fail
     container_name: mumble_physical_runtime_container
-    platform: linux/amd64  # Specify x86_64 architecture
     command: /bin/bash
-    stdin_open: true  # Keep stdin open to allow interactive mode
-    # tty: true         # Allocate a pseudo-TTY
+    stdin_open: true  # Keep stdin open to allow interactive mode, docker run -i
+    tty: true         # Allocate a pseudo-TTY, docker run -t
+    profiles:
+      - arm
 
