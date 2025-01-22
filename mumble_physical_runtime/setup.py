@@ -4,7 +4,7 @@ package_name = 'mumble_physical_runtime'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='0.0.1',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -15,11 +15,12 @@ setup(
     zip_safe=True,
     maintainer='ricojia',
     maintainer_email='ricoruotongjia@gmail.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='Small Package For Mumble Robot Physical I/O',
+    license='BSD-2',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'imu_broadcaster = mumble_physical_runtime.imu_broadcaster:main',
         ],
     },
 )

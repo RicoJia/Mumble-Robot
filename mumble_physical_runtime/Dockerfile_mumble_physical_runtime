@@ -1,5 +1,7 @@
 # DOCKER_BUILDKIT=1 docker build -f Dockerfile_mumble_physical_runtime -t mumble_physical_runtime .
-FROM ros:humble
+# DOCKER_BUILDKIT=1 docker build --platform linux/arm64/v8 -f Dockerfile_mumble_physical_runtime -t mumble_physical_runtime_rpi .
+# FROM ros:humble-ros-core  # This did not work with apt-get
+FROM osrf/ros:humble-desktop
 
 ENV DEBIAN_FRONTEND=noninteractive \
     ROS_DISTRO=humble \
@@ -11,6 +13,7 @@ ARG ROS_DISTRO=humble
 RUN apt-get update && apt-get install -y \
     python3-pip \
     ros-${ROS_DISTRO}-ros-base \
+    python3-colcon-common-extensions \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Give the image the same user privilege as the host user
@@ -27,18 +30,11 @@ RUN adduser ${UNAME} sudo
 # adding UNAME to sudoers
 RUN echo "${UNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 USER $UNAME
-
 # Env variables will persist across images
 ARG WORKDIRECTORY="TO_GET_FROM_DOCKER_COMPOSE"
 # mumble_physical_runtime/bin
 ENV PATH="${WORKDIRECTORY}/src/bin:${PATH}"
 WORKDIR ${WORKDIRECTORY}
 
-# RUN bash -c  "source /opt/ros/noetic/setup.bash" && \
-#     echo '[[ -f "${WORKDIRECTORY}/devel/setup.bash" ]] && source "${WORKDIRECTORY}/devel/setup.bash"' >> ~/.bashrc && \
-# # Using /bin/bash to keep the container alive
-# # ENTRYPOINT or command will create a new shell. That shell gets the parent shells' env var as indicated in CMD, but not functions. 
-# # That's why we do NOT put feature flags in a dream_bashrc.sh
-# # This will read the local dream_feature_flags
-# ENTRYPOINT ["/bin/bash", "-c", "source ${WORKDIRECTORY}/src/dream_mobile_platform/dream_feature_flags && exec \"$@\"", "--"]
+RUN echo "source /opt/ros/humble/setup.bash" >> /home/$UNAME/.bashrc
 CMD /bin/bash
