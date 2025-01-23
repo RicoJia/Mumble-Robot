@@ -1,19 +1,26 @@
-# DOCKER_BUILDKIT=1 docker build -f Dockerfile_mumble_physical_runtime -t mumble_physical_runtime .
-# DOCKER_BUILDKIT=1 docker build --platform linux/arm64/v8 -f Dockerfile_mumble_physical_runtime -t mumble_physical_runtime_rpi .
-# FROM ros:humble-ros-core  # This did not work with apt-get
-FROM osrf/ros:humble-desktop
+# docker buildx build --platform linux/arm64/v8 -f Dockerfile_mumble_physical_runtime -t mumble_physical_runtime_rpi . --load
+# docker tag mumble_physical_runtime_rpi:latest ricojia/mumble_physical_runtime_rpi:latest
+# docker push ricojia/mumble_physical_runtime_rpi:latest
+FROM ros:humble-ros-base
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    ROS_DISTRO=humble \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
-ARG ROS_DISTRO=humble
-
 RUN apt-get update && apt-get install -y \
     python3-pip \
-    ros-${ROS_DISTRO}-ros-base \
-    python3-colcon-common-extensions \
+    vim \
+    byobu \
+    # v4l-utils \
+    # wget \
+    # unzip \
+    # git \
+    # # useful for git complete
+    bash-completion \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    RUN apt-get update && apt-get install -y \
+        python3-colcon-common-extensions \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Give the image the same user privilege as the host user
