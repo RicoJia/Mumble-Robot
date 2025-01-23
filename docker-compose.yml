@@ -1,7 +1,7 @@
 services:
   # runtime:
   app:
-    image: mumble_physical_runtime_rpi:latest  # Use this tag if available
+    image: ricojia/mumble_physical_runtime_rpi:latest  # Use this tag if available
     pull_policy: if_not_present  # Pull from the registry if it's not available locally
     build:
       context: ./mumble_physical_runtime  # This is the directory where the Dockerfile is located

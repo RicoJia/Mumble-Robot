@@ -8,10 +8,11 @@
 ARCH=$(uname -m)
 CURRENT_DIR=$(dirname $(realpath docker-compose.yml))
 if [ "$ARCH" = "aarch64" ]; then
-    CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up --build -d
+    # CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up --build -d
+    CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up -d
 fi
 
 if [ "$ARCH" = "x86_64" ]; then
     # docker compose --profile amd64 up -d
-    CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up --build  # TODO: to change to arm
+    CURRENT_DIR=$CURRENT_DIR docker compose --profile amd up --build  # TODO: to change to arm
 fi
