@@ -1,6 +1,5 @@
 services:
-  # runtime:
-  app:
+  rpi_runtime:
     image: ricojia/mumble_physical_runtime_rpi:latest  # Use this tag if available
     pull_policy: if_not_present  # Pull from the registry if it's not available locally
     build:
@@ -9,7 +8,7 @@ services:
       platforms: 
         - linux/arm/v8  # Build only for arm. So if the image is built for amd64, it will fail
       args:
-        - WORKDIRECTORY=/home/mumble_physical_runtime/src
+        - WORKDIRECTORY=/home/mumble_physical_runtime
     container_name: mumble_physical_runtime_container
     command: /bin/bash
     stdin_open: true  # Keep stdin open to allow interactive mode, docker run -i
@@ -18,4 +17,23 @@ services:
       - arm
     volumes:
       - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_physical_runtime/src  # Mount current directory
+    network_mode: host  # Use host network mode so topics can be heard
 
+  # This needs to be removed if we have a simulation runtime. This is a mirror of rpi
+  test_runtime:
+    image: ricojia/mumble_physical_runtime:latest
+    pull_policy: if_not_present
+    build:
+      context: ./mumble_physical_runtime
+      dockerfile: Dockerfile_mumble_physical_runtime
+      args:
+        - WORKDIRECTORY=/home/mumble_physical_runtime
+    container_name: mumble_physical_runtime_container
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    profiles:
+      - amd
+    volumes:
+      - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_physical_runtime/src  # Mount current directory
+    network_mode: host  # Use host network mode so topics can be heard

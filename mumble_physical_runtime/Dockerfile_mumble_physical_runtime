@@ -14,16 +14,24 @@ RUN apt-get update && apt-get install -y \
     # v4l-utils \
     # wget \
     # unzip \
-    # git \
+    git \
     # # useful for git complete
     bash-completion \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-    RUN apt-get update && apt-get install -y \
-        python3-colcon-common-extensions \
+# Must have - without these, ros topics will not work.
+RUN apt-get update && apt-get install -y \
+    python3-colcon-common-extensions \
+    ros-humble-rclpy \
+    ros-humble-rmw-fastrtps-cpp \
+    ros-humble-rmw-cyclonedds-cpp \
+    ros-humble-ros2topic \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Give the image the same user privilege as the host user
+RUN python3 -m pip install \
+    pyserial
+
 # Unique numbers for each group and user. 1000 is the first regular number
 ARG UNAME="mumble_physical_runtime"
 # Sets default value if docker build --build-arg UID=1000 is not provided.
@@ -43,5 +51,11 @@ ARG WORKDIRECTORY="TO_GET_FROM_DOCKER_COMPOSE"
 ENV PATH="${WORKDIRECTORY}/src/bin:${PATH}"
 WORKDIR ${WORKDIRECTORY}
 
-RUN echo "source /opt/ros/humble/setup.bash" >> /home/$UNAME/.bashrc
+RUN echo "source /opt/ros/humble/setup.bash" >> /home/$UNAME/.bashrc  && \
+    echo '"\e[A": history-search-backward' >> /home/${UNAME}/.inputrc && \
+    echo '"\e[B": history-search-forward' >> /home/${UNAME}/.inputrc && \
+    echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> ~/.bashrc && \
+    echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> ~/.bashrc && \
+    echo "source ${WORKDIRECTORY}/src/bin/mumble_physical_runtime_bashrc.sh" >> ~/.bashrc
+
 CMD /bin/bash
