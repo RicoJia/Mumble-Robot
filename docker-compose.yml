@@ -36,4 +36,5 @@ services:
       - amd
     volumes:
       - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_physical_runtime/src  # Mount current directory
+      - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
     network_mode: host  # Use host network mode so topics can be heard

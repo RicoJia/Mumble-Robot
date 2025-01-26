@@ -13,3 +13,5 @@ EOF
 }
 
 print_opening_msg_mumble_physical_runtime
+colcon_build
+source_setup
