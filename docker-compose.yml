@@ -1,14 +1,7 @@
 services:
   rpi_runtime:
     image: ricojia/mumble_physical_runtime_rpi:latest  # Use this tag if available
-    pull_policy: if_not_present  # Pull from the registry if it's not available locally
-    build:
-      context: ./mumble_physical_runtime  # This is the directory where the Dockerfile is located
-      dockerfile: Dockerfile_mumble_physical_runtime
-      platforms: 
-        - linux/arm/v8  # Build only for arm. So if the image is built for amd64, it will fail
-      args:
-        - WORKDIRECTORY=/home/mumble_physical_runtime
+    pull_policy: always  # Always pull the latest image
     container_name: mumble_physical_runtime_container
     command: /bin/bash
     stdin_open: true  # Keep stdin open to allow interactive mode, docker run -i
