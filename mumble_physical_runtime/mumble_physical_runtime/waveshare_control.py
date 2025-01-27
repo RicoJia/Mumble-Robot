@@ -58,8 +58,10 @@ class BaseController:
 
     def on_data_received(self):
         # firmware may require an acknowledgment from us, like a handshake
+        line = self.rl.readline().decode("utf-8")
+        # print("line: ", line)
         data_read = json.loads(
-            self.rl.readline().decode("utf-8")
+            line
         )  # Rico TODO: Must have for data transactions. Otherwise OLED won't change
         self.ser.reset_input_buffer()
         return data_read
@@ -81,6 +83,13 @@ class BaseController:
         self.send_command(data)
 
     def raw_imu_info(self):
+        """
+        Resp looks like:
+        {'T': 1002, 'r': 0.024750011, 'p': 0.236115932, 'y': 93.8493042,
+        'ax': -8.212890625, 'ay': -5.517578125, 'az': 994.8242188,
+        'gx': 2.032500029, 'gy': -0.098750114, 'gz': -0.057500005,
+        'mx': 6, 'my': 84, 'mz': -100, 'temp': 0}
+        """
         self.send_command({"T": 126})
         resp = self.on_data_received()
         return resp
@@ -113,6 +122,6 @@ def test_imu(base):
 
 
 if __name__ == "__main__":
-    base = BaseController("/dev/serial0", 115200)
+    base = BaseController("/dev/ttyAMA0", 115200)
     test_imu(base)
     # test_oled()

@@ -8,7 +8,13 @@
 # ./launch_mumble.sh [build_rpi]
 #   build_rpi: Optional argument to build the Raspberry Pi container on x86_64 architecture.
 
-
+check_sudo() {
+  if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root. Please use 'sudo'." >&2
+    exit 1
+  fi
+}
+check_sudo
 
 ARCH=$(uname -m)
 CURRENT_DIR=$(dirname $(realpath docker-compose.yml))

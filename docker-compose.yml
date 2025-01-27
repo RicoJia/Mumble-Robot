@@ -10,6 +10,12 @@ services:
       - arm
     volumes:
       - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_physical_runtime/src  # Mount current directory
+    devices:
+      - "/dev/serial0:/dev/serial0"  # Bind the entire /dev directory
+      - "/dev/serial1:/dev/serial1"  # Bind the entire /dev directory
+    environment:
+      - WORKDIRECTORY=/home/mumble_physical_runtime
+    privileged: true  # Enable privileged mode for full device access
     network_mode: host  # Use host network mode so topics can be heard
 
   # This needs to be removed if we have a simulation runtime. This is a mirror of rpi

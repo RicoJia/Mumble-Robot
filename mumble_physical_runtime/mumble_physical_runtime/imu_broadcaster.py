@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+# Run this node: ros2_sudo run mumble_physical_runtime imu_broadcaster
 
 import rclpy
 from rclpy.node import Node
-from mumble_physical_runtime.waveshare_control import BaseController
+from mumble_physical_runtime.waveshare_control import BaseController, test_imu
 from sensor_msgs.msg import Imu
 from functools import partial
 
@@ -11,19 +12,18 @@ imu_msg = Imu()
 
 
 def publish_imu_data(base, imu_pub, node):
-    # resp = base.raw_imu_info()
+    data = base.raw_imu_info()
+    # TODO Remember to remove
     imu_msg.header.stamp = node.get_clock().now().to_msg()
     imu_msg.header.frame_id = "imu_link"
-    # imu_msg.orientation.x = resp['orientation']['x']
-    # imu_msg.orientation.y = resp['orientation']['y']
-    # imu_msg.orientation.z = resp['orientation']['z']
-    # imu_msg.orientation.w = resp['orientation']['w']
-    # imu_msg.angular_velocity.x = resp['angular_velocity']['x']
-    # imu_msg.angular_velocity.y = resp['angular_velocity']['y']
-    # imu_msg.angular_velocity.z = resp['angular_velocity']['z']
-    # imu_msg.linear_acceleration.x = resp['linear_acceleration']['x']
-    # imu_msg.linear_acceleration.y = resp['linear_acceleration']['y']
-    # imu_msg.linear_acceleration.z = resp['linear_acceleration']['z']
+    # Assign angular velocity values
+    imu_msg.angular_velocity.x = data["gx"]
+    imu_msg.angular_velocity.y = data["gy"]
+    imu_msg.angular_velocity.z = data["gz"]
+    # Assign linear acceleration values
+    imu_msg.linear_acceleration.x = data["ax"]
+    imu_msg.linear_acceleration.y = data["ay"]
+    imu_msg.linear_acceleration.z = data["az"]
     imu_pub.publish(imu_msg)
     # TODO Remember to remove
     print(f"Rico: {imu_msg}")
@@ -33,9 +33,8 @@ def main(args=None):
     rclpy.init(args=args)
     # namespace?
     node = Node("imu_broadcaster")
-    base = BaseController("/dev/serial0", 115200, mock=True)
+    base = BaseController("/dev/ttyAMA0", 115200, mock=False)
     imu_pub = node.create_publisher(Imu, "imu_data", 10)
-    # TODO Remember to remove
     print(f"Rico: Hello! I am the IMU broadcaster")
     timer = node.create_timer(
         READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
