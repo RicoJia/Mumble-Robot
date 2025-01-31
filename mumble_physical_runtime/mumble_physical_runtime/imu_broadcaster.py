@@ -4,12 +4,13 @@
 import rclpy
 from rclpy.node import Node
 from mumble_physical_runtime.waveshare_control import BaseController, test_imu
+from mumble_physical_runtime.srv import MotorCommand
+from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import Imu
 from functools import partial
 
 READ_PERIOD = 1.0 / 40  # 40Hz
 imu_msg = Imu()
-
 
 def publish_imu_data(base, imu_pub, node):
     data = base.raw_imu_info()
@@ -33,12 +34,15 @@ def main(args=None):
     rclpy.init(args=args)
     # namespace?
     node = Node("imu_broadcaster")
-    base = BaseController("/dev/ttyAMA0", 115200, mock=False)
+    # base = BaseController("/dev/ttyAMA0", 115200, mock=False)
     imu_pub = node.create_publisher(Imu, "imu_data", 10)
     print(f"Rico: Hello! I am the IMU broadcaster")
-    timer = node.create_timer(
-        READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
-    )
-    rclpy.spin(node)
+    # timer = node.create_timer(
+    #     READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
+    # )
+
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+    executor.spin()
     node.destroy_node()
     rclpy.shutdown()
