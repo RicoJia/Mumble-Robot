@@ -16,7 +16,6 @@ services:
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
     environment:
       - WORKDIRECTORY=/home/mumble_physical_runtime
-      - SSH_AUTH_SOCK=/ssh-agent
     privileged: true  # Enable privileged mode for full device access
     network_mode: host  # Use host network mode so topics can be heard
 
@@ -28,7 +27,8 @@ services:
       context: ./mumble_physical_runtime
       dockerfile: Dockerfile_mumble_physical_runtime
       args:
-        - WORKDIRECTORY=/home/mumble_physical_runtime
+        - WORKDIRECTORY=/home/mumble_robot
+        - PACKAGE_DIR=/home/mumble_robot/src/mumble_physical_runtime
     container_name: mumble_physical_runtime_container
     command: /bin/bash
     stdin_open: true
@@ -36,9 +36,7 @@ services:
     profiles:
       - amd
     volumes:
-      - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_physical_runtime/src  # Mount current directory
+      - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_robot/src/mumble_physical_runtime # Mount current directory
+      - ${CURRENT_DIR}/mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
-      - /home/ricojia/.ssh:/home/mumble_physical_runtime/.ssh:ro  # For git ssh authentication
     network_mode: host  # Use host network mode so topics can be heard
-    environment:
-      - SSH_AUTH_SOCK=/ssh-agent

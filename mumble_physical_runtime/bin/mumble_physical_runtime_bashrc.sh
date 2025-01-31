@@ -1,7 +1,5 @@
-colcon_build(){
+colcon_build_source(){
     colcon build --symlink-install
-}
-source_setup(){
     source install/setup.bash
 }
 print_opening_msg_mumble_physical_runtime(){
@@ -24,11 +22,5 @@ sudo_ros_preserve_env(){
 
 alias ros2_sudo='sudo_ros_preserve_env ros2'
 
-TODO
 print_opening_msg_mumble_physical_runtime
-colcon_build
-source_setup
-
-eval $(ssh-agent)
-ssh-add /home/mumble_physical_runtime/.ssh/id_rsa
-ssh-add /home/mumble_physical_runtime/.ssh/id_ed25519
+colcon_build_source
