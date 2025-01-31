@@ -9,13 +9,12 @@ services:
     profiles:
       - arm
     volumes:
-      - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_physical_runtime/src  # Mount current directory
+      - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_robot/src/mumble_physical_runtime # Mount current directory
+      - ${CURRENT_DIR}/mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
     devices:
       - "/dev/serial0:/dev/serial0"  # Bind the entire /dev directory
       - "/dev/serial1:/dev/serial1"  # Bind the entire /dev directory
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
-    environment:
-      - WORKDIRECTORY=/home/mumble_physical_runtime
     privileged: true  # Enable privileged mode for full device access
     network_mode: host  # Use host network mode so topics can be heard
 
