@@ -26,9 +26,6 @@ services:
     build:
       context: ./mumble_physical_runtime
       dockerfile: Dockerfile_mumble_physical_runtime
-      args:
-        - WORKDIRECTORY=/home/mumble_robot
-        - PACKAGE_DIR=/home/mumble_robot/src/mumble_physical_runtime
     container_name: mumble_physical_runtime_container
     command: /bin/bash
     stdin_open: true
