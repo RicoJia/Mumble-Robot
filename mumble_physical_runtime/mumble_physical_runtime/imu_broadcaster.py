@@ -4,7 +4,7 @@
 import rclpy
 from rclpy.node import Node
 from mumble_physical_runtime.waveshare_control import BaseController, test_imu
-from mumble_physical_runtime.srv import MotorCommand
+from mumble_interfaces.srv import MotorCommand
 from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import Imu
 from functools import partial
