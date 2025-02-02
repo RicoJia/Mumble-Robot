@@ -12,6 +12,11 @@ from functools import partial
 READ_PERIOD = 1.0 / 40  # 40Hz
 imu_msg = Imu()
 
+def motor_command(request, response):
+    print(request)
+    return response
+    
+
 def publish_imu_data(base, imu_pub, node):
     data = base.raw_imu_info()
     # TODO Remember to remove
@@ -40,6 +45,8 @@ def main(args=None):
     # timer = node.create_timer(
     #     READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
     # )
+
+    node.create_service(MotorCommand, "motor_command", motor_command)
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)
