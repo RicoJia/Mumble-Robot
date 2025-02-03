@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'imu_broadcaster = mumble_physical_runtime.imu_broadcaster:main',
+            'serial_interface = mumble_physical_runtime.serial_interface:main',
+            'test_service_caller = mumble_physical_runtime.test_service_caller:main',
         ],
     },
 )
