@@ -5,7 +5,9 @@ from mumble_interfaces.srv import MotorCommand
 import threading
 
 RATE = 40
-EXECUTION_DURATION = 3.0/RATE # makes the exeuction rate slightly longer to account for any small timing delays.
+EXECUTION_DURATION = (
+    8.0 / RATE
+)  # makes the exeuction rate slightly longer to account for any small timing delays. 0.2s
 
 # TODO: I'd like to measure how fast the service can respond to Commands
 def call_motor_service_periodically(node, client, rate_hz=1.0):
@@ -14,11 +16,11 @@ def call_motor_service_periodically(node, client, rate_hz=1.0):
 
     i = 0.0
     while rclpy.ok():
-        i+=1.0
+        i += 1.0
         request = MotorCommand.Request()
         request.left_speed = i
         request.right_speed = 0.0
-        request.duration_s = 1.0/RATE
+        request.duration_s = EXECUTION_DURATION
 
         future = client.call_async(request)
         node.get_logger().info("Sent motor command request.")
@@ -26,11 +28,12 @@ def call_motor_service_periodically(node, client, rate_hz=1.0):
         print(future.result())
         rate.sleep()
 
+
 def main():
     rclpy.init()
-    node = Node('motor_command_caller')
-    client = node.create_client(MotorCommand, 'motor_command')
-    spin_thread = threading.Thread(target = rclpy.spin, args=(node, ), daemon=True)
+    node = Node("motor_command_caller")
+    client = node.create_client(MotorCommand, "motor_command")
+    spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     spin_thread.start()
 
     while not client.wait_for_service(timeout_sec=1.0):
@@ -40,9 +43,10 @@ def main():
         call_motor_service_periodically(node, client, rate_hz=RATE)  # Call at 2 Hz
     except KeyboardInterrupt:
         node.get_logger().info("Shutting down...")
-    
+
     node.destroy_node()
     rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
