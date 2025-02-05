@@ -18,8 +18,8 @@ def call_motor_service_periodically(node, client, rate_hz=1.0):
     while rclpy.ok():
         i += 1.0
         request = MotorCommand.Request()
-        request.left_speed = i
-        request.right_speed = 0.0
+        request.left_speed = 0.5
+        request.right_speed = 0.5
         request.duration_s = EXECUTION_DURATION
 
         future = client.call_async(request)

@@ -122,6 +122,6 @@ def test_imu(base):
 
 
 if __name__ == "__main__":
-    base = BaseController("/dev/ttyAMA0", 115200)
+    base = BaseController("/dev/ttyS0", 115200)
     test_imu(base)
     # test_oled()
