@@ -18,10 +18,11 @@ MOTOR_COMMAND_END_TIME = time.perf_counter()
 MOTOR_STOP_CHECK_PERIOD = 1.0/60.0  #0.1s
 TEN_SECONDS = 10.0
 
-def motor_command(request, response):
+def motor_command(base,request, response):
     print(request)
     global MOTOR_COMMAND_END_TIME
     MOTOR_COMMAND_END_TIME = time.perf_counter() + request.duration_s
+    base.base_speed_ctrl(request.left_speed, request.right_speed)
     return response
     
 
@@ -55,15 +56,15 @@ def main(args=None):
     rclpy.init(args=args)
     # namespace?
     node = Node("serial_interface")
-    # base = BaseController("/dev/ttyAMA0", 115200, mock=False)
+    base = BaseController("/dev/ttyAMA0", 115200, mock=False)
     imu_pub = node.create_publisher(Imu, "imu_data", 10)
     callback_group = ReentrantCallbackGroup()
     print(f"Hello! I am the serial_interface")
-    # timer = node.create_timer(
-    #     READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
-    # )
+    timer = node.create_timer(
+        READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
+    )
 
-    node.create_service(MotorCommand, "motor_command", motor_command, callback_group=callback_group)
+    node.create_service(MotorCommand, "motor_command", partial(motor_command, base), callback_group=callback_group)
     node.create_timer(MOTOR_STOP_CHECK_PERIOD, motor_stop_check_cb)
 
     executor = MultiThreadedExecutor()
