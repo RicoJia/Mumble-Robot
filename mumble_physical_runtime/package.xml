@@ -3,9 +3,9 @@
 <package format="3">
   <name>mumble_physical_runtime</name>
   <version>0.0.1</version>
-  <description>Rico's Mumble Robot</description>
+  <description>Onboard Package That Contains Sensor and Motor Driver Code</description>
   <maintainer email="ricoruotongjia@gmail.com">ricojia</maintainer>
-  <license>TODO: BSD-2 Clause</license>
+  <license>BSD-2</license>
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>

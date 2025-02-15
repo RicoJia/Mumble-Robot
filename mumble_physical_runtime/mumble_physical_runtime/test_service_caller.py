@@ -9,7 +9,7 @@ EXECUTION_DURATION = (
     8.0 / RATE
 )  # makes the exeuction rate slightly longer to account for any small timing delays. 0.2s
 
-# TODO: I'd like to measure how fast the service can respond to Commands
+# the service can respond to Commands ~45hz
 def call_motor_service_periodically(node, client, rate_hz=1.0):
     """Calls the motor_command service at a fixed rate."""
     rate = node.create_rate(rate_hz)  # Set rate (Hz)

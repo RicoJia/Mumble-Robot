@@ -59,7 +59,6 @@ class BaseController:
     def on_data_received(self):
         # firmware may require an acknowledgment from us, like a handshake
         line = self.rl.readline().decode("utf-8")
-        # print("line: ", line)
         data_read = json.loads(
             line
         )  # Rico TODO: Must have for data transactions. Otherwise OLED won't change

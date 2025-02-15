@@ -19,7 +19,6 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(gazebo_ros REQUIRED)
 
-
 # xacro is NOT a package
 
 # Include directories
