@@ -9,9 +9,12 @@ services:
     command: /bin/bash
     stdin_open: true
     tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
     profiles:
       - amd
     volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
       - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_onboard # Mount current directory
       - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
       # Change me if needed
