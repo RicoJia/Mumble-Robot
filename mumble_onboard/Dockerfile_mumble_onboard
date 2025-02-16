@@ -8,21 +8,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
-# # Note: technically, we want to reduce the amount of layers. But for faster builds, we have multiple layers
-# RUN apt-get update && apt-get install -y \
-#     vim \
-#     ccache \
-#     # camera service
-#     python3-pip \
-#     python3-catkin-tools \
-#     v4l-utils \
-#     wget \
-#     unzip \
-#     git \
-#     # useful for git complete
-#     bash-completion \
-#     && rm -rf /var/lib/apt/lists/*
-
 RUN apt-get update && apt-get install -y \
     python3-pip \
     vim \
@@ -47,7 +32,6 @@ RUN apt-get update && apt-get install -y \
     ros-humble-ros2topic \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-
 # Ceres and Google dependencies
 RUN apt-get update && apt-get install -y \
     liblapack-dev \
@@ -68,6 +52,9 @@ RUN apt-get update && apt-get install -y \
 
 RUN apt-get update && apt-get install -y \
     gdb \
+    ros-humble-pcl-ros \
+    libpcl-dev \
+    pcl-tools \
     libsuitesparse-dev
 
 RUN pip3 install open3d
@@ -96,17 +83,17 @@ ENV CUSTOM_INSTALL_PATH="/home/${UNAME}/custom_installs"
 RUN mkdir -p $CCACHE_DIR && chmod -R 777 $CCACHE_DIR
 # RUN mkdir -p ${CUSTOM_INSTALL_PATH}
 
+# Switch to user
+USER ${UNAME}
 # Env variables will persist across images
 ENV WORKDIRECTORY=/home/mumble_robot
+# Data is the SLAM course directory
+ENV DATA_DIRECTORY=/home/mumble_robot/data
 ENV PKG_NAME=mumble_onboard
 ENV PACKAGE_DIR=/home/mumble_robot/src/${PKG_NAME}
 # mumble_physical_runtime/bin
 ENV PATH="$PACKAGE_DIR/bin:${PATH}"
 WORKDIR ${WORKDIRECTORY}
-
-# Switch to user
-USER ${UNAME}
-WORKDIR $WORKDIRECTORY
 
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/$UNAME/.bashrc  && \
     echo '"\e[A": history-search-backward' >> /home/${UNAME}/.inputrc && \

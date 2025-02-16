@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   onboard:
     image: ricojia/mumble_onboard:latest
@@ -16,5 +14,7 @@ services:
     volumes:
       - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_onboard # Mount current directory
       - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
+      # Change me if needed
+      - /home/ricojia/file_exchange_port/Deep-Blue-Academy-SLAM/slam_in_autonomous_driving/data/:/home/mumble_robot/data/
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
     network_mode: host  # Use host network mode so topics can be heard
