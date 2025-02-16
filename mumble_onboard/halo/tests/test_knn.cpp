@@ -15,11 +15,30 @@ TEST(TestKNN, test_bruteforce) {
       second(new halo::PointCloudType);
   pcl::io::loadPCDFile(first_scan_path, *first);
   pcl::io::loadPCDFile(second_scan_path, *second);
-  halo::view_cloud(first);
-  std::cout << "hello" << std::endl;
+  //   halo::view_cloud(first);
   float voxel_size = 0.05f;
   halo::downsample_point_cloud(first, voxel_size);
   halo::downsample_point_cloud(second, voxel_size);
-  halo::view_cloud(first);
+  //   halo::view_cloud(first);
+  std::vector<halo::NNMatch> matches;
+  {
+    halo::RAIITimer timer;
+    matches = halo::brute_force_nn(first, second, false);
+  }
+  // for (auto &match : matches) {
+  //     std::cout << "Match: " << match.idx_in_this_cloud << " -> "
+  //               << match.closest_pt_idx_in_other_cloud << std::endl;
+  // }
+
+  {
+    halo::RAIITimer timer;
+    matches = halo::brute_force_nn(first, second, true);
+  }
+  // //TODO
+  // std::cout<<"===================================================="<<std::endl;
+  // for (auto &match : matches) {
+  //     std::cout << match.idx_in_this_cloud << " -> "
+  //               << match.closest_pt_idx_in_other_cloud << ", ";
+  // }
   SUCCEED();
 }
