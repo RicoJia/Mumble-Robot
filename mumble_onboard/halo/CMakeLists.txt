@@ -7,13 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add the library as interface since it's header only
 add_library(
-  halo INTERFACE)
+  halo STATIC
+  src/halo.cpp)
 
-target_include_directories(halo INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/
-                                          ${PCL_INCLUDE_DIRS})
+target_include_directories(halo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/
+                                       ${PCL_INCLUDE_DIRS})
 target_link_libraries(
   halo
-  INTERFACE ${PCL_LIBRARIES} ${PCL_DEFINITIONS} # if needed
+  PUBLIC ${PCL_LIBRARIES} ${PCL_DEFINITIONS} # if needed
 )
 
 # Optionally build tests

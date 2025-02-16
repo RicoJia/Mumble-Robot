@@ -21,9 +21,9 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/halo)
 add_executable(
   mumbo_halo_slam
   src/mumbo_halo_slam.cpp)
-target_include_directories(mumbo_halo_slam PRIVATE ${PCL_INCLUDE_DIRS})
+# target_include_directories(mumbo_halo_slam PRIVATE )
 target_link_libraries(
-  mumbo_halo_slam halo ${PCL_DEFINITIONS})
+  mumbo_halo_slam halo)
 ament_target_dependencies(mumbo_halo_slam rclcpp)
 # Install Cpp executables
 install(TARGETS mumbo_halo_slam DESTINATION lib/${PROJECT_NAME})
