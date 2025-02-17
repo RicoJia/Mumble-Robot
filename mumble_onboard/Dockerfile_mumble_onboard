@@ -9,8 +9,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8
 
 RUN apt-get update && apt-get install -y \
-    python3-pip \
     vim \
+    python3-pip \
     byobu \
     ccache \
     # v4l-utils \
@@ -27,7 +27,6 @@ RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions \
     ros-humble-rclpy \
     ros-humble-rmw-fastrtps-cpp \
-    # ros-humble-rmw-cyclonedds-cpp \
     ros-humble-ros2interface \
     ros-humble-ros2topic \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -50,23 +49,32 @@ RUN apt-get update && apt-get install -y \
     libgtest-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# [ACHTUNG]: Install gdb and PCL. We need to manually install pcl 1.13.0 for an important viewer bugfix
 RUN apt-get update && apt-get install -y \
     gdb \
     ros-humble-pcl-ros \
-    # libpcl-dev \
-    # pcl-tools \
-    libsuitesparse-dev
+    libsuitesparse-dev  \
+    && rm -rf /var/lib/apt/lists/
 
-RUN git clone https://github.com/PointCloudLibrary/pcl.git /pcl && \
-    cd /pcl && \
-    git checkout pcl-1.13.0 && \
-    mkdir build && cd build && \
-    cmake .. && \
-    make -j$(nproc) && \
-    make install && \
-    ldconfig && \
-    rm -rf /pcl
+# [ACHTUNG]: Install gdb and PCL. We need to manually install pcl 1.13.0 for an important viewer bugfix
+
+ARG BUILD_PCL_FROM_SOURCE=1
+RUN if [ $"BUILD_PCL_FROM_SOURCE" = "1" ]; then \
+    git clone https://github.com/PointCloudLibrary/pcl.git /pcl && \
+        cd /pcl && \
+        git checkout pcl-1.13.0 && \
+        mkdir build && cd build && \
+        cmake .. && \
+        # make -j$(nproc) && \
+        make -j4 && \
+        make install && \
+        ldconfig && \
+        rm -rf /pcl; \
+else \
+    apt-get update && apt-get install -y \
+    libpcl-dev \
+    pcl-tools \
+    && rm -rf /var/lib/apt/lists/;   \
+fi
 
 RUN pip3 install open3d
 

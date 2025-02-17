@@ -16,20 +16,21 @@ check_sudo() {
 }
 
 launch_runtime() {
-    cd mumble_physical_runtime
     CURRENT_DIR=$SCRIPT_DIR/mumble_physical_runtime
+    cd $CURRENT_DIR
+    
     if [ "$ARCH" = "aarch64" ]; then
         # CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up --build -d
         CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up -d
     fi
 
     if [ "$ARCH" = "x86_64" ]; then
-        if [ "$1" = "build_rpi" ]; then
+        if [ "$1" = "build_rpi_runtime" ]; then
             docker buildx build \
             --platform linux/arm64/v8 \
             --build-arg WORKDIRECTORY=/home/mumble_physical_runtime \
             -t ricojia/mumble_physical_runtime_rpi:latest \
-            -f ./mumble_physical_runtime/Dockerfile_mumble_physical_runtime \
+            -f ./Dockerfile_mumble_physical_runtime \
             ./mumble_physical_runtime \
             --push
         else
@@ -43,16 +44,16 @@ launch_onboard() {
     CURRENT_DIR=$SCRIPT_DIR/mumble_onboard
     cd $CURRENT_DIR
     if [ "$ARCH" = "aarch64" ]; then
-        echo "TODO"
         # CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up --build -d
-        # CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up -d
+        CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up -d
     fi
-    if [ "$1" = "build_onboard" ]; then 
+    if [ "$1" = "build_rpi_onboard" ]; then 
         docker buildx build \
         --platform linux/arm64/v8 \
         --build-arg WORKDIRECTORY=/home/mumble_onboard \
+        --build-arg BUILD_PCL_FROM_SOURCE=0 \
         -t ricojia/mumble_onboard_rpi:latest \
-        -f ./mumble_onboard/Dockerfile_mumble_onboard \
+        -f ./Dockerfile_mumble_onboard \
         ./mumble_onboard \
         --push
     else
@@ -60,7 +61,7 @@ launch_onboard() {
     fi
     cd $SCRIPT_DIR
     # docker compose --profile amd64 up -d
-    echo "mummle"
+    echo "mumble"
 
 }
 
@@ -68,5 +69,5 @@ launch_onboard() {
 ARCH=$(uname -m)
 SCRIPT_DIR=$(dirname $(realpath $0))
 check_sudo
-launch_runtime $1
-launch_onboard $2
+# launch_runtime $1
+launch_onboard $1
