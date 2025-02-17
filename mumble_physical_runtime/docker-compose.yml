@@ -9,8 +9,8 @@ services:
     profiles:
       - arm
     volumes:
-      - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_robot/src/mumble_physical_runtime # Mount current directory
-      - ${CURRENT_DIR}/mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
+      - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_physical_runtime # Mount current directory
+      - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
     devices:
       - "/dev/serial0:/dev/serial0"  # Bind the entire /dev directory
       - "/dev/serial1:/dev/serial1"  # Bind the entire /dev directory
@@ -24,7 +24,7 @@ services:
     pull_policy: if_not_present
     build:
       context: ./mumble_physical_runtime
-      dockerfile: Dockerfile_mumble_physical_runtime
+      dockerfile: ${CURRENT_DIR}/Dockerfile_mumble_physical_runtime
     container_name: mumble_physical_runtime_container
     command: /bin/bash
     stdin_open: true
@@ -32,7 +32,7 @@ services:
     profiles:
       - amd
     volumes:
-      - ${CURRENT_DIR}/mumble_physical_runtime:/home/mumble_robot/src/mumble_physical_runtime # Mount current directory
-      - ${CURRENT_DIR}/mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
+      - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_physical_runtime # Mount current directory
+      - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
     network_mode: host  # Use host network mode so topics can be heard

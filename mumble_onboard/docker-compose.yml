@@ -1,0 +1,45 @@
+services:
+  rpi_onboard:
+    image: ricojia/mumble_onboard_rpi:latest  # Use this tag if available
+    pull_policy: always  # Always pull the latest image
+    container_name: mumble_onboard_container
+    command: /bin/bash
+    stdin_open: true  # Keep stdin open to allow interactive mode, docker run -i
+    tty: true         # Allocate a pseudo-TTY, docker run -t
+    environment:
+      - DISPLAY=${DISPLAY}
+    profiles:
+      - arm # this is the flag for arm/v8
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_onboard # Mount current directory
+      - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
+    devices:
+      - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
+    privileged: true  # Enable privileged mode for full device access
+    network_mode: host  # Use host network mode so topics can be heard
+
+  onboard:
+    image: ricojia/mumble_onboard:latest
+    pull_policy: if_not_present
+    build:
+      context: ./mumble_onboard
+      dockerfile: ${CURRENT_DIR}/Dockerfile_mumble_onboard
+      args:
+        BUILD_PCL_FROM_SOURCE: "1"
+    container_name: mumble_onboard_container
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
+    profiles:
+      - amd
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_onboard # Mount current directory
+      - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
+      # Change me if needed
+      - /home/ricojia/file_exchange_port/Deep-Blue-Academy-SLAM/slam_in_autonomous_driving/data/:/home/mumble_robot/data/
+      - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
+    network_mode: host  # Use host network mode so topics can be heard
