@@ -31,8 +31,13 @@ services:
     tty: true
     profiles:
       - amd
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/home/mumble_onboard/.Xauthority
     volumes:
       - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_physical_runtime # Mount current directory
       - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - $HOME/.Xauthority:/home/mumble_onboard/.Xauthority
     network_mode: host  # Use host network mode so topics can be heard

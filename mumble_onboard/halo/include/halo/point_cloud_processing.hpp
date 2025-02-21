@@ -93,4 +93,11 @@ inline std::vector<NNMatch> brute_force_nn(CloudPtr cloud1, CloudPtr cloud2,
   return matches;
 }
 
+// Workflow: add point cloud: hash (x,y,z) into size_t; -> add to
+// std::unordered_map<size_t, std::vector<PointType>>
+template <int dim> class NearestNeighborGrid {
+public:
+  NearestNeighborGrid(CloudPtr cloud, float size)
+};
+
 } // namespace halo

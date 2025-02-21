@@ -20,7 +20,16 @@ sudo_ros_preserve_env(){
     sudo -E /bin/bash -c "source ${WORKDIRECTORY}/install/setup.bash; $cmd" 
 } 
 
+run_physical_runtime(){
+    ros2_sudo run mumble_physical_runtime serial_interface
+}
+
 alias ros2_sudo='sudo_ros_preserve_env ros2'
 
 print_opening_msg_mumble_physical_runtime
-colcon_build_source
+
+if [ ! -d "/home/mumble_robot/build/" ]; then
+    echo "First container launch: running colcon build..."
+    colcon_build_source
+    cd /home/mumble_robot/src/mumble_physical_runtime
+fi

@@ -69,5 +69,5 @@ launch_onboard() {
 ARCH=$(uname -m)
 SCRIPT_DIR=$(dirname $(realpath $0))
 check_sudo
-# launch_runtime $1
+launch_runtime $1
 launch_onboard $1
