@@ -42,3 +42,12 @@ TEST(TestKNN, test_bruteforce) {
   // }
   SUCCEED();
 }
+
+TEST(TestKNN, test_grid_search) {
+  halo::CloudPtr first(new halo::PointCloudType),
+      second(new halo::PointCloudType);
+  pcl::io::loadPCDFile(first_scan_path, *first);
+  pcl::io::loadPCDFile(second_scan_path, *second);
+  halo::NearestNeighborGrid<2, halo::NeighborCount::CENTER> grid2d(0.1f);
+  grid2d.set_pointcloud(first);
+}

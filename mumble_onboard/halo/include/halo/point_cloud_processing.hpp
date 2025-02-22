@@ -93,9 +93,6 @@ inline std::vector<NNMatch> brute_force_nn(CloudPtr cloud1, CloudPtr cloud2,
   return matches;
 }
 
-// Workflow: add point cloud: hash (x,y,z) into size_t; -> add to
-// std::unordered_map<size_t, std::vector<PointType>>
-
 enum class NeighborCount {
   CENTER,
   NEARBY4, // for 2D: up, down, left, right
@@ -104,33 +101,95 @@ enum class NeighborCount {
   NEARBY6  // for 3D, up, down, left, right, front, back
 };
 
+/**
+ * @brief Workflow: add point cloud: hash (x,y,z) into size_t; -> add to
+ * std::unordered_map<size_t, std::vector<PointType>>
+ *
+ * @tparam dim
+ * @tparam neighbor_count
+ */
 template <int dim, NeighborCount neighbor_count = NeighborCount::NEARBY4>
 requires(dim == 2 || dim == 3) class NearestNeighborGrid {
 public:
-  using NNPoint =
+  using NNCoord =
       std::conditional_t<dim == 2, Eigen::Vector2i, Eigen::Vector3i>;
-  NearestNeighborGrid(CloudPtr cloud, float resolution)
-      : resolution_(resolution) {
-    // for (auto &pt : cloud->points) {
-    //     size_t hash = hash_point(pt);
-    //     grid[hash].push_back(pt);
-    // }
+  using NNPoint =
+      std::conditional_t<dim == 2, Eigen::Vector2f, Eigen::Vector3f>;
+  explicit NearestNeighborGrid(float resolution) : resolution_(resolution) {
+    static_assert(!(dim == 2 && neighbor_count == NeighborCount::NEARBY6),
+                  "2D grid does not support nearby6");
+    static_assert(!(dim == 3 && neighbor_count == NeighborCount::CENTER),
+                  "3D grid does not support center");
+    static_assert(!(dim == 3 && neighbor_count == NeighborCount::NEARBY4),
+                  "3D grid does not support nearby4");
+    static_assert(!(dim == 3 && neighbor_count == NeighborCount::NEARBY8),
+                  "3D grid does not support nearby8");
+    _generate_grid();
   }
 
+  void set_pointcloud(CloudPtr cloud);
+  // find_nearest_k_points();
+
 private:
-  float resolution_;
-  std::unordered_map<size_t, std::vector<PointType>> grid;
   // A specific hash function for spatial points.
   // https://matthias-research.github.io/pages/publications/tetraederCollision.pdf
-  inline size_t hash_function(const NNPoint &pt) {
-    if constexpr (dim == 2) {
-      return size_t(((pt[0] * 73856093) ^ (pt[1] * 471943)) % 10000000);
-    } else if constexpr (dim == 3) {
-      return size_t(
-          ((pt[0] * 73856093) ^ (pt[1] * 471943) ^ (pt[2] * 83492791)) %
-          10000000);
+  void _generate_grid();
+  NNCoord _get_coord(const PointType &pt);
+
+  struct NNCoordHash {
+    size_t operator()(const NNCoord &coord) const {
+      if constexpr (dim == 2) {
+        return size_t(((coord[0] * 73856093) ^ (coord[1] * 471943)) % 10000000);
+      } else { // dim == 3
+        return size_t(((coord[0] * 73856093) ^ (coord[1] * 471943) ^
+                       (coord[2] * 83492791)) %
+                      10000000);
+      }
     }
-  }
+  };
+  float resolution_;
+  std::unordered_map<NNCoord, std::vector<size_t>, NNCoordHash>
+      grid; // coord -> index in point cloud storage
+  std::vector<NNCoord> _nearby_grids;
 };
+
+template <int dim, NeighborCount neighbor_count>
+void NearestNeighborGrid<dim, neighbor_count>::_generate_grid() {
+  if constexpr (neighbor_count == NeighborCount::CENTER) {
+    _nearby_grids = {NNCoord(0, 0)};
+  } else if constexpr (neighbor_count == NeighborCount::NEARBY4) {
+    _nearby_grids = {NNCoord(0, 0), NNCoord(-1, 0), NNCoord(1, 0),
+                     NNCoord(0, 1), NNCoord(0, -1)};
+  } else if constexpr (neighbor_count == NeighborCount::NEARBY8) {
+    _nearby_grids = {NNCoord(0, 0),  NNCoord(-1, 0), NNCoord(1, 0),
+                     NNCoord(0, 1),  NNCoord(0, -1), NNCoord(-1, -1),
+                     NNCoord(-1, 1), NNCoord(1, -1), NNCoord(1, 1)};
+  } else if constexpr (neighbor_count == NeighborCount::NEARBY6) {
+    _nearby_grids = {NNCoord(0, 0, 0), NNCoord(-1, 0, 0), NNCoord(1, 0, 0),
+                     NNCoord(0, 1, 0), NNCoord(0, -1, 0), NNCoord(0, 0, -1)};
+  }
+}
+
+template <int dim, NeighborCount neighbor_count>
+typename NearestNeighborGrid<dim, neighbor_count>::NNCoord
+NearestNeighborGrid<dim, neighbor_count>::_get_coord(const PointType &pt) {
+  NNCoord coord;
+  if constexpr (dim == 2) {
+    coord = NNCoord(pt.x / resolution_, pt.y / resolution_);
+  } else if constexpr (dim == 3) {
+    coord = NNCoord(pt.x / resolution_, pt.y / resolution_, pt.z / resolution_);
+  }
+  return coord;
+}
+
+template <int dim, NeighborCount neighbor_count>
+void NearestNeighborGrid<dim, neighbor_count>::set_pointcloud(CloudPtr cloud) {
+  size_t idx = 0;
+  for (auto &pt : cloud->points) {
+    auto coord = _get_coord(pt); // Declare a local variable for the coordinate
+    grid[coord].push_back(idx); // Store the index (or change to pt if intended)
+    ++idx;
+  }
+}
 
 } // namespace halo
