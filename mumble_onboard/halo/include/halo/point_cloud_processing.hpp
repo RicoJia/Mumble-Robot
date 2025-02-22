@@ -95,9 +95,42 @@ inline std::vector<NNMatch> brute_force_nn(CloudPtr cloud1, CloudPtr cloud2,
 
 // Workflow: add point cloud: hash (x,y,z) into size_t; -> add to
 // std::unordered_map<size_t, std::vector<PointType>>
-template <int dim> class NearestNeighborGrid {
+
+enum class NeighborCount {
+  CENTER,
+  NEARBY4, // for 2D: up, down, left, right
+  NEARBY8, // for 2D: up, down, left, right, up-left, up-right, down-left,
+           // down-right
+  NEARBY6  // for 3D, up, down, left, right, front, back
+};
+
+template <int dim, NeighborCount neighbor_count = NeighborCount::NEARBY4>
+requires(dim == 2 || dim == 3) class NearestNeighborGrid {
 public:
-  NearestNeighborGrid(CloudPtr cloud, float size)
+  using NNPoint =
+      std::conditional_t<dim == 2, Eigen::Vector2i, Eigen::Vector3i>;
+  NearestNeighborGrid(CloudPtr cloud, float resolution)
+      : resolution_(resolution) {
+    // for (auto &pt : cloud->points) {
+    //     size_t hash = hash_point(pt);
+    //     grid[hash].push_back(pt);
+    // }
+  }
+
+private:
+  float resolution_;
+  std::unordered_map<size_t, std::vector<PointType>> grid;
+  // A specific hash function for spatial points.
+  // https://matthias-research.github.io/pages/publications/tetraederCollision.pdf
+  inline size_t hash_function(const NNPoint &pt) {
+    if constexpr (dim == 2) {
+      return size_t(((pt[0] * 73856093) ^ (pt[1] * 471943)) % 10000000);
+    } else if constexpr (dim == 3) {
+      return size_t(
+          ((pt[0] * 73856093) ^ (pt[1] * 471943) ^ (pt[2] * 83492791)) %
+          10000000);
+    }
+  }
 };
 
 } // namespace halo

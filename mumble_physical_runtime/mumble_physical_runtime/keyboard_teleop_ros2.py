@@ -40,15 +40,14 @@ How to run this script, in a remote container
     5. Hit <ESC to quit>
 """
 
-from pynput import keyboard
-import numpy as np
-import typing
 import sys
+import typing
 
+import numpy as np
 import rclpy
-from rclpy.node import Node
 from geometry_msgs.msg import Twist
-
+from pynput import keyboard
+from rclpy.node import Node
 
 # # Convention: [abs(lin_vel), abs(ang_vel)]
 # MIN_VEL = np.zeros(2)

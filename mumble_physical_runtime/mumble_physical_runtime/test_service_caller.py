@@ -1,13 +1,16 @@
-import rclpy
-import time
-from rclpy.node import Node
-from mumble_interfaces.srv import MotorCommand
 import threading
+import time
+
+import rclpy
+from rclpy.node import Node
+
+from mumble_interfaces.srv import MotorCommand
 
 RATE = 40
 EXECUTION_DURATION = (
     8.0 / RATE
 )  # makes the exeuction rate slightly longer to account for any small timing delays. 0.2s
+
 
 # the service can respond to Commands ~45hz
 def call_motor_service_periodically(node, client, rate_hz=1.0):

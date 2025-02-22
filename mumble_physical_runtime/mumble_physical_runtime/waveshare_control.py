@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # Adopted from here: https://github.com/waveshareteam/ugv_rpi/blob/main/tutorial_en/base_ctrl.py
 
-import serial
 import json
+import os
 import queue
 import threading
-import os
 import time
+
+import serial
 
 
 class ReadLine:

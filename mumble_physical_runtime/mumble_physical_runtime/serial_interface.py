@@ -3,37 +3,40 @@
 # ALL topic subscribers need sudo as well
 # This file includes: IMU and Motor interfaces
 
+import time
+from functools import partial
+
 import rclpy
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
-from mumble_physical_runtime.waveshare_control import BaseController, test_imu
-from mumble_interfaces.srv import MotorCommand
-from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
-from rclpy.callback_groups import ReentrantCallbackGroup
 from sensor_msgs.msg import Imu
-from functools import partial
-import time
+
+from mumble_interfaces.srv import MotorCommand
+from mumble_physical_runtime.waveshare_control import BaseController, test_imu
 
 READ_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
 imu_msg = Imu()
 MOTOR_COMMAND_END_TIME = time.perf_counter()
-MOTOR_STOP_CHECK_PERIOD = 1.0/30.0  #NO MORE THAN THIS
+MOTOR_STOP_CHECK_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
 TEN_SECONDS = 10.0
+
 
 def motor_command(base, request, response):
     global MOTOR_COMMAND_END_TIME
     MOTOR_COMMAND_END_TIME = time.perf_counter() + request.duration_s
     base.base_speed_ctrl(request.left_speed, request.right_speed)
     return response
-    
+
 
 def motor_stop_check_cb(base):
     global MOTOR_COMMAND_END_TIME
     if MOTOR_COMMAND_END_TIME < time.perf_counter():
-        print(f'Rico: issuing stop cmd,  {MOTOR_COMMAND_END_TIME, time.perf_counter()}')
+        print(f"Rico: issuing stop cmd,  {MOTOR_COMMAND_END_TIME, time.perf_counter()}")
         base.base_speed_ctrl(0.0, 0.0)
         MOTOR_COMMAND_END_TIME = time.perf_counter() + TEN_SECONDS
-        
+
 
 def publish_imu_data(base, imu_pub, node):
     data = base.raw_imu_info()
@@ -50,7 +53,7 @@ def publish_imu_data(base, imu_pub, node):
         imu_msg.linear_acceleration.z = data["az"]
         imu_pub.publish(imu_msg)
     except Exception as e:
-        print(f'Exception occured: {e}')
+        print(f"Exception occured: {e}")
 
 
 def main(args=None):
@@ -65,8 +68,12 @@ def main(args=None):
         READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
     )
 
-    node.create_service(MotorCommand, "motor_command", 
-                        partial(motor_command, base), callback_group=callback_group)
+    node.create_service(
+        MotorCommand,
+        "motor_command",
+        partial(motor_command, base),
+        callback_group=callback_group,
+    )
     node.create_timer(MOTOR_STOP_CHECK_PERIOD, partial(motor_stop_check_cb, base))
 
     executor = MultiThreadedExecutor()

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import serial
 import time
+
+import serial
 
 try:
     ser = serial.Serial("/dev/serial0", 115200, timeout=1)
