@@ -3,8 +3,10 @@
 #include <chrono>
 #include <execution>
 #include <halo/common/sensor_data_definitions.hpp>
+#include <optional>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <ranges>
 #include <thread>
 
 namespace halo {
@@ -42,6 +44,21 @@ inline void view_cloud(CloudPtr cloud) {
 inline Vec3f to_vec_3f(const PointType &pt) { return pt.getVector3fMap(); }
 
 /**
+ * @brief Return the index of the closest point in the cloud
+ */
+inline size_t brute_force_single_point(const PointType &pt,
+                                       const CloudPtr &cloud) {
+  auto pt_vec3f = to_vec_3f(pt);
+  return std::min_element(
+             cloud->points.begin(), cloud->points.end(),
+             [&pt_vec3f](const PointType &pt1, const PointType &pt2) -> bool {
+               return (pt1.getVector3fMap() - pt_vec3f).squaredNorm() <
+                      (pt2.getVector3fMap() - pt_vec3f).squaredNorm();
+             }) -
+         cloud->points.begin();
+}
+
+/**
  * @brief return a vector of matches from cloud2 to cloud1. This could lead to
  * 10x speed up
  */
@@ -57,36 +74,16 @@ inline std::vector<NNMatch> brute_force_nn(CloudPtr cloud1, CloudPtr cloud2,
   if (parallel) {
     std::for_each(std::execution::par_unseq, matches.begin(), matches.end(),
                   [&cloud1, &cloud2](NNMatch &match) {
-                    auto cloud2_pt_vec_3f =
-                        to_vec_3f(cloud2->points[match.idx_in_this_cloud]);
                     match.closest_pt_idx_in_other_cloud =
-                        std::min_element(
-                            cloud1->points.begin(), cloud1->points.end(),
-                            [&cloud2_pt_vec_3f](const PointType &pt1,
-                                                const PointType &pt2) -> bool {
-                              return (pt1.getVector3fMap() - cloud2_pt_vec_3f)
-                                         .squaredNorm() <
-                                     (pt2.getVector3fMap() - cloud2_pt_vec_3f)
-                                         .squaredNorm();
-                            }) -
-                        cloud1->points.begin();
+                        brute_force_single_point(
+                            cloud2->points[match.idx_in_this_cloud], cloud1);
                   });
   } else {
     std::for_each(std::execution::seq, matches.begin(), matches.end(),
                   [&cloud1, &cloud2](NNMatch &match) {
-                    auto cloud2_pt_vec_3f =
-                        to_vec_3f(cloud2->points[match.idx_in_this_cloud]);
                     match.closest_pt_idx_in_other_cloud =
-                        std::min_element(
-                            cloud1->points.begin(), cloud1->points.end(),
-                            [&cloud2_pt_vec_3f](const PointType &pt1,
-                                                const PointType &pt2) -> bool {
-                              return (pt1.getVector3fMap() - cloud2_pt_vec_3f)
-                                         .squaredNorm() <
-                                     (pt2.getVector3fMap() - cloud2_pt_vec_3f)
-                                         .squaredNorm();
-                            }) -
-                        cloud1->points.begin();
+                        brute_force_single_point(
+                            cloud2->points[match.idx_in_this_cloud], cloud1);
                   });
   }
 
@@ -128,14 +125,10 @@ public:
   }
 
   void set_pointcloud(CloudPtr cloud);
-  // find_nearest_k_points();
+
+  std::vector<NNMatch> get_closest_point(CloudPtr query);
 
 private:
-  // A specific hash function for spatial points.
-  // https://matthias-research.github.io/pages/publications/tetraederCollision.pdf
-  void _generate_grid();
-  NNCoord _get_coord(const PointType &pt);
-
   struct NNCoordHash {
     size_t operator()(const NNCoord &coord) const {
       if constexpr (dim == 2) {
@@ -147,10 +140,18 @@ private:
       }
     }
   };
+  // A specific hash function for spatial points.
+  // https://matthias-research.github.io/pages/publications/tetraederCollision.pdf
+  void _generate_grid();
+  NNCoord _get_coord(const PointType &pt) const;
+  std::optional<PointType> _get_closest_point(const PointType &pt,
+                                              size_t &idx_in_cloud) const;
+
   float resolution_;
   std::unordered_map<NNCoord, std::vector<size_t>, NNCoordHash>
       grid; // coord -> index in point cloud storage
   std::vector<NNCoord> _nearby_grids;
+  CloudPtr cloud_;
 };
 
 template <int dim, NeighborCount neighbor_count>
@@ -172,7 +173,8 @@ void NearestNeighborGrid<dim, neighbor_count>::_generate_grid() {
 
 template <int dim, NeighborCount neighbor_count>
 typename NearestNeighborGrid<dim, neighbor_count>::NNCoord
-NearestNeighborGrid<dim, neighbor_count>::_get_coord(const PointType &pt) {
+NearestNeighborGrid<dim, neighbor_count>::_get_coord(
+    const PointType &pt) const {
   NNCoord coord;
   if constexpr (dim == 2) {
     coord = NNCoord(pt.x / resolution_, pt.y / resolution_);
@@ -190,6 +192,77 @@ void NearestNeighborGrid<dim, neighbor_count>::set_pointcloud(CloudPtr cloud) {
     grid[coord].push_back(idx); // Store the index (or change to pt if intended)
     ++idx;
   }
+  cloud_ = cloud;
+}
+
+template <int dim, NeighborCount neighbor_count>
+std::optional<PointType>
+NearestNeighborGrid<dim, neighbor_count>::_get_closest_point(
+    const PointType &pt, size_t &idx_in_cloud) const {
+  auto coord = _get_coord(pt);
+  std::vector<size_t> nearby_indices;
+  nearby_indices.reserve(nearby_indices.size() * 5);
+
+  CloudPtr nearby_cloud(new PointCloudType);
+  for (const auto &delta : _nearby_grids) {
+    auto dcoord = coord + delta;
+    auto iter = grid.find(dcoord);
+    if (iter != grid.end()) {
+      // For each candidate point, store both the point and its global index.
+      for (const size_t global_idx : iter->second) {
+        nearby_cloud->points.push_back(cloud_->points[global_idx]);
+        nearby_indices.push_back(global_idx);
+      }
+    }
+  }
+
+  if (nearby_cloud->points.empty()) {
+    idx_in_cloud = INVALID_INDEX;
+    return std::nullopt;
+  }
+
+  size_t local_idx = brute_force_single_point(pt, nearby_cloud);
+  idx_in_cloud = nearby_indices.at(local_idx);
+  return nearby_cloud->points[local_idx];
+}
+
+//
+//
+/**
+ * @brief : This is to find the indices of matches in the cloud previously set.
+ * That's the meaning of "closest_pt_idx_in_other_cloud". This method finds the
+ * closest point from a nearby neighborhood of the query point.
+ *
+ * @tparam dim : 2 for 2D grid, 3 for 3D grid
+ * @tparam neighbor_count : number of neighbors to consider
+ * @param query : query point cloud
+ * @return std::vector<NNMatch>
+ */
+template <int dim, NeighborCount neighbor_count>
+std::vector<NNMatch>
+NearestNeighborGrid<dim, neighbor_count>::get_closest_point(CloudPtr query) {
+  std::vector<NNMatch> matches(query->size(), NNMatch{0, 0});
+  for (auto idx : std::views::iota(0u, matches.size())) {
+    matches[idx].idx_in_this_cloud = idx;
+  }
+
+  std::for_each(std::execution::par_unseq, matches.begin(), matches.end(),
+                [&query, this](NNMatch &match) {
+                  auto closest_pt = this->_get_closest_point(
+                      query->points[match.idx_in_this_cloud],
+                      match.closest_pt_idx_in_other_cloud);
+                });
+  // return matches;
+  auto is_valid_match = [](const NNMatch &match) {
+    return match.closest_pt_idx_in_other_cloud != INVALID_INDEX;
+  };
+  auto valid_matches_view = matches | std::views::filter(is_valid_match);
+
+  // If you need a concrete container:
+  std::vector<NNMatch> valid_matches(valid_matches_view.begin(),
+                                     valid_matches_view.end());
+
+  return valid_matches;
 }
 
 } // namespace halo
