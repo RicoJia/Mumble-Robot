@@ -248,7 +248,7 @@ NearestNeighborGrid<dim, neighbor_count>::get_closest_point(CloudPtr query) {
 
   std::for_each(std::execution::par_unseq, matches.begin(), matches.end(),
                 [&query, this](NNMatch &match) {
-                  auto closest_pt = this->_get_closest_point(
+                  this->_get_closest_point(
                       query->points[match.idx_in_this_cloud],
                       match.closest_pt_idx_in_other_cloud);
                 });
