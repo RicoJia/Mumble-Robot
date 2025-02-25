@@ -6,6 +6,7 @@
 #include <halo/common/sensor_data_definitions.hpp> // because this is added in cmake
 #include <halo/kd_tree.hpp>
 #include <halo/point_cloud_processing.hpp>
+#include <halo/sad_kd_tree.hpp>
 
 constexpr const char *first_scan_path = "/home/mumble_robot/data/ch5/first.pcd";
 constexpr const char *second_scan_path =
@@ -44,24 +45,22 @@ constexpr const char *second_scan_path =
 //     EXPECT_EQ(cov_diag, Eigen::Vector3f(1.0/3.0, 1.0/3.0, 0));
 // }
 
+// Test fixture seems slow for the same operations?
+
 class TestKNN : public ::testing::Test {
 protected:
   halo::CloudPtr first;
   halo::CloudPtr second;
   std::vector<halo::NNMatch> matches;
-  std::vector<halo::NNMatch> ground_truth_matches;
   halo::CloudPtr cloud{new halo::PointCloudType};
 
   void SetUp() override {
-    halo::RAIITimer timer;
     first.reset(new halo::PointCloudType);
     second.reset(new halo::PointCloudType);
     pcl::io::loadPCDFile(first_scan_path, *first);
     pcl::io::loadPCDFile(second_scan_path, *second);
-    static std::vector<halo::NNMatch> static_ground_truth_matches =
-        halo::brute_force_nn(first, second, true);
-    ;
-    ground_truth_matches = static_ground_truth_matches;
+    halo::downsample_point_cloud(first, 0.05f);
+    halo::downsample_point_cloud(second, 0.05f);
 
     halo::PointType p1, p2, p3, p4;
     p1.x = 0;
@@ -115,14 +114,15 @@ protected:
 // // }
 
 TEST_F(TestKNN, test_kd_tree) {
-  //   {
-  //     halo::KDTree kd_tree(cloud);
-  //     EXPECT_EQ(kd_tree.get_non_leaf_num(), cloud->points.size());
-  //   }
   {
-    halo::RAIITimer timer;
-    halo::KDTree kd_tree(first);
-    EXPECT_EQ(kd_tree.get_non_leaf_num(), first->points.size());
-    SUCCEED();
+    halo::KDTree kd_tree(cloud);
+    EXPECT_EQ(kd_tree.get_non_leaf_num(), cloud->points.size());
   }
+  //   {
+  //     halo::RAIITimer timer;
+  //     halo::KDTree kd_tree(first);
+  //     EXPECT_EQ(kd_tree.get_non_leaf_num(), first->points.size());
+  //     std::cout<<"size: "<<first->points.size()<<std::endl;
+  //     SUCCEED();
+  //   }
 }

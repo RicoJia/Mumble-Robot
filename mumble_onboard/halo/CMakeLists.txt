@@ -5,6 +5,14 @@ project(halo LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE
+      Release
+      CACHE STRING "Build type (Debug, Release, RelWithDebInfo)" FORCE)
+endif()
+# Use the common flags from the workspace-level CMakeLists.txt
+add_definitions(${CMAKE_CXX_FLAGS})
+
 # Add the library as interface since it's header only
 add_library(
   halo STATIC

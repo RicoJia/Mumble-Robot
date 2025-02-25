@@ -12,11 +12,13 @@
 
 namespace halo {
 struct KDTreeNode {
-  KDTreeNode *left_;
-  KDTreeNode *right_;
-  int split_dim;
-  float split_val;
+  KDTreeNode *left_ = nullptr;
+  KDTreeNode *right_ = nullptr;
+  int split_dim = -1;
+  float split_val = 0.0f;
   size_t point_idx = INVALID_INDEX; // INVALID_INDEX means it's not a leaf node
+
+  bool is_leaf() const { return left_ == nullptr && right_ == nullptr; }
 };
 
 template <typename PointT> struct _get_pointcloud_dimensions {
@@ -44,29 +46,43 @@ public:
   size_t get_non_leaf_num() const { return non_leaf_num_; }
 
 private:
-  KDTreeNode *root_;
+  using EigenVecType = Eigen::Matrix<float, dims_, 1>;
+  KDTreeNode *root_ = nullptr;
   std::vector<KDTreeNode *>
       nodes_; // Used for printing all nodes, and freeing memory
-  CloudPtr cloud_;
+  std::vector<EigenVecType> eigen_cloud_;
   size_t non_leaf_num_ = 0;
 
-  using EigenVecType = Eigen::Matrix<float, dims_, 1>;
   void insert_into_tree(KDTreeNode *node,
                         const std::vector<size_t> &point_idxs);
+  void _search_tree(KDTreeNode *node, const EigenVecType &query,
+                    std::vector<NNMatch> &matches, int k) const;
 };
 
 template <typename PointT>
-KDTree<PointT>::KDTree(const std::shared_ptr<pcl::PointCloud<PointT>> &cloud)
-    : cloud_(cloud) {
+KDTree<PointT>::KDTree(const std::shared_ptr<pcl::PointCloud<PointT>> &cloud) {
   // Initialize the root node
   root_ = new KDTreeNode();
   nodes_.push_back(root_);
   std::vector<size_t> point_idxs(cloud->size());
   // Generate vector indices [0 ... point_idxs.size-1]
   std::iota(point_idxs.begin(), point_idxs.end(), 0);
+  eigen_cloud_.reserve(point_idxs.size());
+  std::transform(
+      point_idxs.begin(), point_idxs.end(), std::back_inserter(eigen_cloud_),
+      [&cloud](const auto &idx) {
+        return cloud->points[idx].getVector3fMap().template cast<float>();
+      });
   insert_into_tree(root_, point_idxs);
 }
 
+// THOUGHTS: convert eigen_cloud_once and use sub_points creates a 100x speed up
+// than using cloud->points[idx].getVector3fMap().template cast<float>() every
+// time.
+
+// Nice thing about using floating point vector is that the mean can always
+// differentiate points
+// the other is not.
 template <typename PointT>
 void KDTree<PointT>::insert_into_tree(KDTreeNode *node,
                                       const std::vector<size_t> &point_idxs) {
@@ -79,39 +95,37 @@ void KDTree<PointT>::insert_into_tree(KDTreeNode *node,
     ++non_leaf_num_;
     return;
   }
-  // Nice thing about using floating point vector is that the mean can always
-  // differentiate points
-  EigenVecType mean, cov_diag;
-  std::vector<EigenVecType> points;
-  points.reserve(point_idxs.size());
-  std::transform(
-      point_idxs.begin(), point_idxs.end(), std::back_inserter(points),
-      [this](const auto &idx) {
-        return cloud_->points[idx].getVector3fMap().template cast<float>();
-      });
-  for (const auto &idx : point_idxs) {
-    points.push_back(
-        cloud_->points[idx].getVector3fMap().template cast<float>());
-  }
-  cloud_->points, math::compute_cov_and_mean(points, mean, cov_diag,
-                                             [](const auto &pt) { return pt; });
-  int largest_cov_dim = 0;
-  cov_diag.maxCoeff(&largest_cov_dim);
 
-  node->split_dim = largest_cov_dim;
-  node->split_val = mean(largest_cov_dim);
-  std::vector<size_t> left_idxs, right_idxs;
-  for (const auto &idx : point_idxs) {
-    if (cloud_->points[idx].getVector3fMap()[node->split_dim] <
-        node->split_val) {
-      left_idxs.push_back(idx);
-    } else {
-      right_idxs.push_back(idx);
-    }
-  }
+  // ===================== Split the node =====================
 
   // if all points are equal to node->split_val, left_idxs will be empty, while
-  // the other is not.
+  // 1. Now compute the mean & covariance FOR THIS SUBSET
+  EigenVecType mean, cov_diag;
+  math::compute_cov_and_mean(
+      point_idxs, mean, cov_diag,
+      [this](const auto &idx) { return eigen_cloud_[idx]; });
+
+  // 3. Pick split dimension and value for sub_points
+  int largest_cov_dim = 0;
+  cov_diag.maxCoeff(&largest_cov_dim);
+  node->split_dim = largest_cov_dim;
+  node->split_val = mean(largest_cov_dim);
+
+  // 4. Partition the indices according to their values in sub_points
+  std::vector<size_t> left_idxs, right_idxs;
+  for (auto idx : point_idxs) {
+    if (eigen_cloud_[idx][largest_cov_dim] < node->split_val) {
+      left_idxs.emplace_back(idx);
+    } else {
+      right_idxs.emplace_back(idx);
+    }
+  }
+  if (point_idxs.size() > 1 && (left_idxs.empty() || right_idxs.empty())) {
+    non_leaf_num_++;
+    node->point_idx = point_idxs[0];
+    return;
+  }
+
   if (!left_idxs.empty()) {
     node->left_ = new KDTreeNode();
     nodes_.push_back(node->left_);
@@ -123,10 +137,20 @@ void KDTree<PointT>::insert_into_tree(KDTreeNode *node,
     nodes_.push_back(node->right_);
     insert_into_tree(node->right_, right_idxs);
   }
+  // ===================== Split the node =====================
 }
 
 template <typename PointT>
 void KDTree<PointT>::search_tree(
     const std::shared_ptr<pcl::PointCloud<PointT>> &query,
     std::vector<NNMatch> &matches, int k) const {}
+
+template <typename PointT>
+void KDTree<PointT>::_search_tree(KDTreeNode *node, const EigenVecType &query,
+                                  std::vector<NNMatch> &matches, int k) const {
+  // if(node -> is_leaf()){
+  //     math::get_distance();
+  // }
+}
+
 } // namespace halo
