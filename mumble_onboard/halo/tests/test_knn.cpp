@@ -6,123 +6,73 @@
 #include <halo/common/sensor_data_definitions.hpp> // because this is added in cmake
 #include <halo/kd_tree.hpp>
 #include <halo/point_cloud_processing.hpp>
-#include <halo/sad_kd_tree.hpp>
 
 constexpr const char *first_scan_path = "/home/mumble_robot/data/ch5/first.pcd";
 constexpr const char *second_scan_path =
     "/home/mumble_robot/data/ch5/second.pcd";
 
-// TEST(TestKNN, test_cov_mean) {
-//     halo::CloudPtr cloud{new halo::PointCloudType};
-//     halo::PointType p1, p2, p3, p4;
-//     p1.x = 0;
-//     p1.y = 0;
-//     p1.z = 0;
+void evaluate_matches_k_equals_1(
+    const std::vector<halo::NNMatch> &test_matches,
+    const std::vector<halo::NNMatch> &ground_truth_matches,
+    bool print = false) {
+  if (test_matches.empty() || ground_truth_matches.empty()) {
+    std::cerr << "Empty match vectors!" << std::endl;
+    return;
+  }
 
-//     p2.x = 1;
-//     p2.y = 0;
-//     p2.z = 0;
+  size_t true_positives = 0;
 
-//     p3.x = 0;
-//     p3.y = 1;
-//     p3.z = 0;
+  // Evaluate each test match
+  for (const auto &test_match : test_matches) {
+    if (test_match == ground_truth_matches[test_match.idx_in_this_cloud]) {
+      ++true_positives;
+    } else {
+      if (print)
+        std::cout << test_match << " | "
+                  << ground_truth_matches[test_match.idx_in_this_cloud]
+                  << std::endl;
+    }
+  }
 
-//     p4.x = 1;
-//     p4.y = 1;
-//     p4.z = 0;
+  float precision = true_positives / static_cast<float>(test_matches.size());
+  float recall =
+      true_positives / static_cast<float>(ground_truth_matches.size());
+  float f1_score = 2 * (precision * recall) / (precision + recall);
 
-//     cloud->points.push_back(p1);
-//     cloud->points.push_back(p2);
-//     cloud->points.push_back(p3);
-//     cloud->points.push_back(p4);
-//     Eigen::Vector3f mean, cov_diag;
-//     math::compute_cov_and_mean(cloud->points, mean, cov_diag, [](const auto&
-//     pt){
-//         return pt.getVector3fMap().template cast<float>();
-//     });
-//     std::cout<<"hellooo";
-//     EXPECT_EQ(mean, Eigen::Vector3f(0.5, 0.5, 0));
-//     EXPECT_EQ(cov_diag, Eigen::Vector3f(1.0/3.0, 1.0/3.0, 0));
-// }
+  std::cout << "\nMatch Evaluation Results:" << std::endl;
+  std::cout << "Precision: " << precision * 100 << "%" << std::endl;
+  std::cout << "Recall: " << recall * 100 << "%" << std::endl;
+  std::cout << "Tp: " << true_positives << std::endl;
+  std::cout << "F1 Score: " << f1_score * 100 << "%" << std::endl;
+}
 
-// Test fixture seems slow for the same operations?
-
-class TestKNN : public ::testing::Test {
-protected:
+TEST(TestKNN, test_kd_tree) {
   halo::CloudPtr first;
   halo::CloudPtr second;
-  std::vector<halo::NNMatch> matches;
   halo::CloudPtr cloud{new halo::PointCloudType};
 
-  void SetUp() override {
-    first.reset(new halo::PointCloudType);
-    second.reset(new halo::PointCloudType);
-    pcl::io::loadPCDFile(first_scan_path, *first);
-    pcl::io::loadPCDFile(second_scan_path, *second);
-    halo::downsample_point_cloud(first, 0.05f);
-    halo::downsample_point_cloud(second, 0.05f);
+  first.reset(new halo::PointCloudType);
+  second.reset(new halo::PointCloudType);
+  pcl::io::loadPCDFile(first_scan_path, *first);
+  pcl::io::loadPCDFile(second_scan_path, *second);
+  halo::downsample_point_cloud(first, 0.05f);
+  halo::downsample_point_cloud(second, 0.05f);
 
-    halo::PointType p1, p2, p3, p4;
-    p1.x = 0;
-    p1.y = 0;
-    p1.z = 0;
+  halo::CloudPtr test_cloud = second;
+  std::vector<halo::NNMatch> ground_truth_matches =
+      halo::brute_force_nn(first, test_cloud, true);
 
-    p2.x = 1;
-    p2.y = 0;
-    p2.z = 0;
+  // // {
+  // //   halo::KDTree kd_tree(first, 1.0);
+  // //   EXPECT_EQ(kd_tree.get_non_leaf_num(), first->points.size());
+  // //   std::cout<<"size: "<<first->points.size()<<std::endl;
+  // // }
 
-    p3.x = 0;
-    p3.y = 1;
-    p3.z = 0;
-
-    p4.x = 1;
-    p4.y = 1;
-    p4.z = 0;
-
-    cloud->points.push_back(p1);
-    cloud->points.push_back(p2);
-    cloud->points.push_back(p3);
-    cloud->points.push_back(p4);
-  }
-};
-
-// TEST_F(TestKNN, test_grid_search) {
-//     ground_truth_matches = halo::brute_force_nn(first, second, true);
-//     {
-//         halo::RAIITimer timer;
-//         halo::NearestNeighborGrid<3, halo::NeighborCount::NEARBY6>
-//         grid3d(0.4f); grid3d.set_pointcloud(first); matches =
-//         grid3d.get_closest_point(second);
-//     }
-//     evaluate_matches(matches, ground_truth_matches);
-//     print_matches(first, second, matches);
-//     SUCCEED();
-// }
-
-// // TEST_F(TestKNN, test_bruteforce) {
-// //     halo::downsample_point_cloud(first, 0.05f);
-// //     halo::downsample_point_cloud(second, 0.05f);
-// //     {
-// //         halo::RAIITimer timer;
-// //         matches = halo::brute_force_nn(first, second, false);
-// //     }
-// //     {
-// //         halo::RAIITimer timer;
-// //         matches = halo::brute_force_nn(first, second, true);
-// //     }
-// //     SUCCEED();
-// // }
-
-TEST_F(TestKNN, test_kd_tree) {
-  {
-    halo::KDTree kd_tree(cloud);
-    EXPECT_EQ(kd_tree.get_non_leaf_num(), cloud->points.size());
-  }
-  //   {
-  //     halo::RAIITimer timer;
-  //     halo::KDTree kd_tree(first);
-  //     EXPECT_EQ(kd_tree.get_non_leaf_num(), first->points.size());
-  //     std::cout<<"size: "<<first->points.size()<<std::endl;
+  halo::KDTree kd_tree(first, 1.0);
+  std::vector<halo::NNMatch> matches;
+  size_t k = 1;
+  kd_tree.search_tree_multi_threaded(test_cloud, matches, k);
+  //   EXPECT_EQ(matches.size(), first->points.size() * k);
+  evaluate_matches_k_equals_1(matches, ground_truth_matches, true);
   //     SUCCEED();
-  //   }
 }

@@ -22,4 +22,11 @@ void compute_cov_and_mean(const Container &data, VectorType &mean,
                         }) /
         static_cast<double>(len - 1);
 }
+
+template <typename EigenVectorType>
+double get_squared_distance(const EigenVectorType &p1,
+                            const EigenVectorType &query) {
+  return (p1 - query).squaredNorm();
+}
+
 } // namespace math
