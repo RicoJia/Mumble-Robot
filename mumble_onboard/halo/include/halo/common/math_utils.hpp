@@ -20,9 +20,6 @@ void compute_cov_and_mean(const Container &data, VectorType &mean,
                               // WORK: auto diff =  getter(item).eval() - mean;
                               auto value = getter(item).eval();
                               auto diff  = value - mean;
-                              //   std::cout<<"item:
-                              //   "<<getter(item).transpose()<<", diff:
-                              //   "<<diff.transpose()<<std::endl;
                               return sum + diff.cwiseProduct(diff);
                           }) /
           static_cast<double>(len - 1);
