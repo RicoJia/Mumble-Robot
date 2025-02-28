@@ -116,12 +116,6 @@ TEST(TestKNN, test_kd_tree) {
     std::vector<halo::NNMatch> ground_truth_matches =
         halo::brute_force_nn(first, test_cloud, true);
 
-    // // {
-    // //   halo::KDTree kd_tree(first, 1.0);
-    // //   EXPECT_EQ(kd_tree.get_non_leaf_num(), first->points.size());
-    // //   std::cout<<"size: "<<first->points.size()<<std::endl;
-    // // }
-
     std::vector<halo::NNMatch> matches;
     {
         std::cout << "=====================Case 1: k = 1=====================" << std::endl;
