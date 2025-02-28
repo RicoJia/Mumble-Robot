@@ -39,7 +39,7 @@ struct OctoTreeNode {
     // However, we hide them behind a unique_ptr so it can be used by leaf and non-leaf nodes
     // without much memory overhead. (8 bytes)
 
-    // TODO:
+    // Future:
     // - Currently, children_ptr is stored in a fixed array. some leaf nodes are not actual points,
     // but merely placeholders. It's better to only store true leaf nodes, in a vector
 
@@ -265,7 +265,7 @@ void OctoTree<PointT>::_insert_into_tree(OctoTreeNode<dim_> *node,
     // Non-leaf node
     // generate boundaries
     node->initialize_children();
-    // store children in the nodes_;    // TODO: check for double-freeing in this step
+    // store children in the nodes_; Be careful with the double-freed nodes
     for (const auto &child_node_ptr : *(node->children_ptr_)) {
         nodes_.emplace_back(child_node_ptr);
     }
@@ -297,11 +297,6 @@ bool OctoTree<PointT>::search_tree_multi_threaded(
     std::vector<size_t> index(query_cloud->size());
     std::iota(index.begin(), index.end(), 0);
 
-    // TODO: test code
-    //   std::vector<size_t> closest_indices;
-    //   closest_indices.reserve(k);
-    //   search_tree(query_cloud->points[0], closest_indices,
-    //               k);
     try {
         // Parallel execution
         std::for_each(std::execution::par_unseq, index.begin(), index.end(),
@@ -377,7 +372,7 @@ void OctoTree<PointT>::_search_tree(OctoTreeNode<dim_> *node, const EigenVecType
         auto child_ptr         = node->children_ptr_->at(i);
         dist_to_children.at(i) = child_ptr->box_ptr_->dist_to(query);
     }
-    // TODO: this could be slightly optimized
+    // Future: this could be slightly optimized
     std::vector<size_t> ascending_child_indices_by_dist(dist_to_children.size());
     std::iota(ascending_child_indices_by_dist.begin(), ascending_child_indices_by_dist.end(), 0);
     // Sort the distances into ascending order
@@ -388,7 +383,7 @@ void OctoTree<PointT>::_search_tree(OctoTreeNode<dim_> *node, const EigenVecType
 
     // Check if we still need to expand
     for (const auto &idx : ascending_child_indices_by_dist) {
-        if (knn_results.empty() || dist_to_children.at(idx) <= skip_tree_dist_coeff_ * knn_results.top().dist_to_query_) {
+        if (knn_results.size() < k || dist_to_children.at(idx) <= skip_tree_dist_coeff_ * knn_results.top().dist_to_query_ + 1e-3) {
             _search_tree(node->children_ptr_->at(idx), query, knn_results, k);
 
         } else {

@@ -14,10 +14,19 @@ constexpr const char *first_scan_path = "/home/mumble_robot/data/ch5/first.pcd";
 constexpr const char *second_scan_path =
     "/home/mumble_robot/data/ch5/second.pcd";
 
+double computeEuclideanDistance(const auto &p1, const auto &p2) {
+    double dx = p1.x - p2.x;
+    double dy = p1.y - p2.y;
+    double dz = p1.z - p2.z;   // Remove if working in 2D.
+    return dx * dx + dy * dy + dz * dz;
+}
+
 void evaluate_matches(
     const std::vector<halo::NNMatch> &test_matches,
     const std::vector<halo::NNMatch> &ground_truth_matches,
-    size_t k) {
+    size_t k,
+    halo::CloudPtr first,
+    halo::CloudPtr second) {
     if (test_matches.empty() || ground_truth_matches.empty()) {
         std::cerr << "Empty match vectors!" << std::endl;
         return;
@@ -30,6 +39,7 @@ void evaluate_matches(
     // Case 1: ground_truth has one match per query (brute-force)
     // and test_matches contains k results per query (e.g. from PCL or KD-tree)
     if (test_matches.size() == num_queries * k) {
+        scaler = k;
         for (size_t q = 0; q < num_queries; ++q) {
             const auto &gt_match = ground_truth_matches[q];
             size_t base_idx      = q * k;
@@ -56,7 +66,18 @@ void evaluate_matches(
                 if (gt_set.find(test_matches[q + j].closest_pt_idx_in_other_cloud) != gt_set.end()) {
                     true_positives++;
                 } else {
-                    std::cout << "couldn't find test match " << test_matches[q + j].closest_pt_idx_in_other_cloud << std::endl;
+                    // TODO
+                    auto second_idx_test = test_matches[q + j].closest_pt_idx_in_other_cloud;
+                    auto second_idx_pcl  = ground_truth_matches[q + j].closest_pt_idx_in_other_cloud;
+                    auto test_pt         = second->points.at(second_idx_test);
+                    auto pcl_pt          = second->points.at(second_idx_pcl);
+                    auto first_pt        = first->points.at(test_matches[q + j].idx_in_this_cloud);
+                    auto test_dist       = computeEuclideanDistance(first_pt, test_pt);
+                    auto pcl_dist        = computeEuclideanDistance(first_pt, pcl_pt);
+                    // TODO
+                    // std::cout<<"test pt dist: "<<test_dist<<", pcl dist: "<<pcl_dist<<std::endl;
+                    // std::cout << "couldn't find test match " << test_matches[q + j].closest_pt_idx_in_other_cloud << std::endl;
+                    // get second point
                 }
             }
         }
@@ -79,80 +100,79 @@ void evaluate_matches(
     std::cout << "F1 Score: " << f1_score * 100 << "%" << std::endl;
 }
 
-// TEST(TestKNN, test_kd_tree) {
-//     halo::CloudPtr first;
-//     halo::CloudPtr second;
-//     halo::CloudPtr cloud{new halo::PointCloudType};
+TEST(TestKNN, test_kd_tree) {
+    halo::CloudPtr first;
+    halo::CloudPtr second;
+    halo::CloudPtr cloud{new halo::PointCloudType};
 
-//     first.reset(new halo::PointCloudType);
-//     second.reset(new halo::PointCloudType);
-//     pcl::io::loadPCDFile(first_scan_path, *first);
-//     pcl::io::loadPCDFile(second_scan_path, *second);
-//     halo::downsample_point_cloud(first, 0.05f);
-//     halo::downsample_point_cloud(second, 0.05f);
+    first.reset(new halo::PointCloudType);
+    second.reset(new halo::PointCloudType);
+    pcl::io::loadPCDFile(first_scan_path, *first);
+    pcl::io::loadPCDFile(second_scan_path, *second);
+    // halo::downsample_point_cloud(first, 0.05f);
+    // halo::downsample_point_cloud(second, 0.05f);
 
-//     halo::CloudPtr test_cloud = second;
-//     std::vector<halo::NNMatch> ground_truth_matches =
-//         halo::brute_force_nn(first, test_cloud, true);
+    halo::CloudPtr test_cloud = second;
+    std::vector<halo::NNMatch> ground_truth_matches =
+        halo::brute_force_nn(first, test_cloud, true);
 
-//     // // {
-//     // //   halo::KDTree kd_tree(first, 1.0);
-//     // //   EXPECT_EQ(kd_tree.get_non_leaf_num(), first->points.size());
-//     // //   std::cout<<"size: "<<first->points.size()<<std::endl;
-//     // // }
+    // // {
+    // //   halo::KDTree kd_tree(first, 1.0);
+    // //   EXPECT_EQ(kd_tree.get_non_leaf_num(), first->points.size());
+    // //   std::cout<<"size: "<<first->points.size()<<std::endl;
+    // // }
 
-//     std::vector<halo::NNMatch> matches;
-//     {
-//         std::cout << "=====================Case 1: k = 1=====================" << std::endl;
-//         halo::RAIITimer timer;
-//         halo::KDTree kd_tree(first, 1.0);
-//         size_t k = 1;
-//         // 4.5ms
-//         kd_tree.search_tree_multi_threaded(test_cloud, matches, k);
-//         EXPECT_EQ(matches.size(), first->points.size() * k);
-//     }
-//     evaluate_matches(matches, ground_truth_matches, 1);
+    std::vector<halo::NNMatch> matches;
+    {
+        std::cout << "=====================Case 1: k = 1=====================" << std::endl;
+        halo::RAIITimer timer;
+        halo::KDTree kd_tree(first, 1.0);
+        size_t k = 1;
+        // 4.5ms
+        kd_tree.search_tree_multi_threaded(test_cloud, matches, k);
+        EXPECT_EQ(matches.size(), second->points.size() * k);
+    }
+    evaluate_matches(matches, ground_truth_matches, 1, first, second);
 
-//     size_t k = 5;
-//     {
-//         std::cout << "=====================Case 2: k = 5=====================" << std::endl;
-//         halo::RAIITimer timer;
-//         halo::KDTree kd_tree(first, 1.0);
-//         // 4.5ms
-//         kd_tree.search_tree_multi_threaded(test_cloud, matches, k);
-//     }
-//     evaluate_matches(matches, ground_truth_matches, 5);
+    size_t k = 5;
+    {
+        std::cout << "=====================Case 2: k = 5=====================" << std::endl;
+        halo::RAIITimer timer;
+        halo::KDTree kd_tree(first, 1.0);
+        // 4.5ms
+        kd_tree.search_tree_multi_threaded(test_cloud, matches, k);
+    }
+    evaluate_matches(matches, ground_truth_matches, 5, first, second);
 
-//     std::vector<halo::NNMatch> pcl_matches;
-//     {
-//         std::cout << "=====================Case 3: k = 5, PCL=====================" << std::endl;
-//         std::vector<std::vector<int>> result_index;
-//         pcl::search::KdTree<halo::PointType> kdtree_pcl;
+    std::vector<halo::NNMatch> pcl_matches;
+    {
+        std::cout << "=====================Case 3: k = 5, PCL=====================" << std::endl;
+        std::vector<std::vector<int>> result_index;
+        pcl::search::KdTree<halo::PointType> kdtree_pcl;
 
-//         // 对比PCL: 0.18s
-//         halo::RAIITimer timer;
-//         kdtree_pcl.setInputCloud(first);
-//         std::vector<int> search_indices(second->size());
-//         for (size_t i = 0; i < second->points.size(); i++) {
-//             search_indices[i] = i;
-//         }
+        // 对比PCL: 0.18s
+        halo::RAIITimer timer;
+        kdtree_pcl.setInputCloud(first);
+        std::vector<int> search_indices(second->size());
+        for (size_t i = 0; i < second->points.size(); i++) {
+            search_indices[i] = i;
+        }
 
-//         std::vector<std::vector<float>> result_distance;
-//         kdtree_pcl.nearestKSearch(*second, search_indices, 5, result_index, result_distance);
-//         for (size_t i = 0; i < second->points.size(); ++i) {   // Iterate over all query points
-//             for (size_t j = 0; j < std::min(k, result_index[i].size()); ++j) {
-//                 size_t m = result_index[i][j];                   // Index of nearest neighbor in 'first'
-//                 pcl_matches.emplace_back(halo::NNMatch{i, m});   // Store the match
-//             }
-//         }
-//     }
-//     evaluate_matches(matches, pcl_matches, 5);
+        std::vector<std::vector<float>> result_distance;
+        kdtree_pcl.nearestKSearch(*second, search_indices, 5, result_index, result_distance);
+        for (size_t i = 0; i < second->points.size(); ++i) {   // Iterate over all query points
+            for (size_t j = 0; j < std::min(k, result_index[i].size()); ++j) {
+                size_t m = result_index[i][j];                   // Index of nearest neighbor in 'first'
+                pcl_matches.emplace_back(halo::NNMatch{i, m});   // Store the match
+            }
+        }
+    }
+    evaluate_matches(matches, pcl_matches, 5, first, second);
 
-//     {
-//         std::cout << "=====================" << std::endl;
-//     }
-
-// }
+    {
+        std::cout << "=====================" << std::endl;
+    }
+}
 
 // Test for 2D bounding box creation.
 TEST(OctoTreeNodeTest, BoundingBox2D) {
@@ -229,19 +249,19 @@ TEST(TestKNN, test_octo_tree) {
     // halo::downsample_point_cloud(second, 0.05f);
 
     halo::CloudPtr test_cloud = second;
+    std::vector<halo::NNMatch> matches;
     std::vector<halo::NNMatch> ground_truth_matches =
         halo::brute_force_nn(first, test_cloud, true);
 
-    // {
-    //     std::cout << "=====================Octo Tree Case 0: Octo tree building=====================" << std::endl;
-    //     halo::RAIITimer timer;
-    //     halo::OctoTree octo_tree(first, 1.0);
+    {
+        std::cout << "=====================Octo Tree Case 0: Octo tree building=====================" << std::endl;
+        halo::RAIITimer timer;
+        halo::OctoTree octo_tree(first, 1.0);
 
-    //     EXPECT_EQ(octo_tree.get_non_leaf_num(), first->points.size());
-    //     std::cout << "size: " << first->points.size() << std::endl;
-    // }
+        EXPECT_EQ(octo_tree.get_non_leaf_num(), first->points.size());
+        std::cout << "size: " << first->points.size() << std::endl;
+    }
 
-    std::vector<halo::NNMatch> matches;
     {
         std::cout << "=====================Octo Tree Case 1: k = 1=====================" << std::endl;
         halo::RAIITimer timer;
@@ -251,7 +271,7 @@ TEST(TestKNN, test_octo_tree) {
         octo_tree.search_tree_multi_threaded(test_cloud, matches, k);
         EXPECT_EQ(matches.size(), test_cloud->points.size() * k);
     }
-    evaluate_matches(matches, ground_truth_matches, 1);
+    evaluate_matches(matches, ground_truth_matches, 1, first, second);
 
     size_t k = 5;
     {
@@ -261,34 +281,30 @@ TEST(TestKNN, test_octo_tree) {
         // 4.5ms
         octo_tree.search_tree_multi_threaded(test_cloud, matches, k);
     }
-    evaluate_matches(matches, ground_truth_matches, 5);
+    evaluate_matches(matches, ground_truth_matches, 5, first, second);
 
     std::vector<halo::NNMatch> pcl_matches;
     {
-        std::cout << "=====================Case 3: k = 5, PCL=====================" << std::endl;
+        std::cout << "=====================Octo Tree Case 3: k = 5, PCL=====================" << std::endl;
         std::vector<std::vector<int>> result_index;
         pcl::search::KdTree<halo::PointType> kdtree_pcl;
 
         // 对比PCL: 0.18s
         halo::RAIITimer timer;
         kdtree_pcl.setInputCloud(first);
-        std::vector<int> search_indices(second->size());
-        for (size_t i = 0; i < second->points.size(); i++) {
+        std::vector<int> search_indices(test_cloud->size());
+        for (size_t i = 0; i < test_cloud->points.size(); i++) {
             search_indices[i] = i;
         }
 
         std::vector<std::vector<float>> result_distance;
-        kdtree_pcl.nearestKSearch(*second, search_indices, 5, result_index, result_distance);
-        for (size_t i = 0; i < second->points.size(); ++i) {   // Iterate over all query points
+        kdtree_pcl.nearestKSearch(*test_cloud, search_indices, 5, result_index, result_distance);
+        for (size_t i = 0; i < test_cloud->points.size(); ++i) {   // Iterate over all query points
             for (size_t j = 0; j < std::min(k, result_index[i].size()); ++j) {
                 size_t m = result_index[i][j];                   // Index of nearest neighbor in 'first'
                 pcl_matches.emplace_back(halo::NNMatch{i, m});   // Store the match
             }
         }
     }
-    evaluate_matches(matches, pcl_matches, 5);
-
-    {
-        std::cout << "=====================" << std::endl;
-    }
+    evaluate_matches(matches, pcl_matches, 5, first, test_cloud);
 }
