@@ -8,7 +8,8 @@ using CloudPtr       = PointCloudType::Ptr;
 
 using Vec3f = Eigen::Vector3f;
 
-constexpr size_t INVALID_INDEX = std::numeric_limits<size_t>::max();
+constexpr size_t INVALID_INDEX  = std::numeric_limits<size_t>::max();
+constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;
 
 struct NNMatch {
     size_t idx_in_this_cloud;
