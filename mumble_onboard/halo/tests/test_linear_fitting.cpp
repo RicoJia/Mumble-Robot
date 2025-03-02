@@ -39,13 +39,14 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr convert_to_pcl_cloud(const std::vector<Vec3
     return cloud;
 }
 
-void check_near(const Eigen::Vector4f &v1, const Eigen::Vector4f &v2, const float &epsilon) {
-    for (int i = 0; i < 4; ++i)
+template <typename EigenVec>
+void check_near(EigenVec &v1, EigenVec &v2, const float &epsilon) {
+    for (int i = 0; i < v1.size(); ++i)
         EXPECT_NEAR(v1[i], v2[i], epsilon);
 }
 
 TEST(TestLinearFitting, TestPlaneFitting) {
-    Vec4f plane_params{0.1, 0.2, 0.3, 4};
+    Eigen::Vector4f plane_params{0.1, 0.2, 0.3, 4};
     plane_params.normalize();
 
     std::vector<Vec3f> points(NUM_POINTS);
@@ -56,9 +57,9 @@ TEST(TestLinearFitting, TestPlaneFitting) {
         Vec3f random_vector = generate_point(0.0, 10.0);
         float n4            = -random_vector.dot(plane_params.head<3>()) / plane_params[3];
         random_vector       = random_vector / (n4 + 1e-10);   // So we are not dividing 0
-        // Vec3f noise = generate_point(-1.0, 1.0);
-        // p = noise + random_vector;
-        p = random_vector;
+        Vec3f noise         = generate_point(-1.0, 1.0);
+        p                   = noise + random_vector;
+        // p = random_vector;
     }
     // for (int i = 0; i < 10; ++i) std::cout<<points[i].format(CleanFmt)<<std::endl;
 
@@ -70,9 +71,9 @@ TEST(TestLinearFitting, TestPlaneFitting) {
         plane_params_estimate = math::fit_plane(pcl_cloud);
     }
 
-    // std::cout<<"plane_params_estimate: "<<plane_params_estimate<<std::endl;
-    // std::cout<<"plane params ground truth: "<<plane_params<<std::endl;
-    check_near(plane_params_estimate, plane_params, 1e-4);
+    std::cout << "plane_params_estimate: " << plane_params_estimate << std::endl;
+    std::cout << "plane params ground truth: " << plane_params << std::endl;
+    check_near(plane_params_estimate, plane_params, 1e-2);
 
     {
         // This is ~2x slower than SelfAdjointEigenSolver
@@ -80,5 +81,40 @@ TEST(TestLinearFitting, TestPlaneFitting) {
         halo::RAIITimer timer;
         plane_params_estimate = math::FitPlane(pcl_cloud);
     }
-    check_near(plane_params_estimate, plane_params, 1e-4);
+    check_near(plane_params_estimate, plane_params, 1e-2);
+}
+
+TEST(TestLinearFitting, TestLineFitting) {
+    // x = p0 + t*d
+    Vec3f p0{1.0, 2.0, 3.0};
+    Vec3f d{5.0, 6.0, 7.0};
+    d.normalize();
+    std::vector<Vec3f> points(NUM_POINTS);
+    auto gen_float = [](float lower, float upper) -> float {
+        std::uniform_real_distribution<float> dis(lower, upper);
+        return dis(gen);
+    };
+
+    for (auto &p : points) {
+        float t = gen_float(-10.0, 10.0);
+        // float noise =gen_float(-1.0, 1.0);
+        // Vec3f  = generate_point(-1.0, 1.0);
+        p = p0 + t * d;
+    }
+    auto pcl_cloud = convert_to_pcl_cloud(points);
+    for (int i = 0; i < 10; ++i)
+        std::cout << points[i].format(CleanFmt) << std::endl;
+    Vec3f p0_estimate, d_estimate;
+    {
+        std::cout << "Test case 3: line fitting " << std::endl;
+        halo::RAIITimer timer;
+        auto [p0_e, d_e] = math::fit_line(pcl_cloud);
+        p0_estimate      = p0_e;
+        d_estimate       = d_e;
+        // std::cout<<"p0_estimate: "<<p0_estimate.format(CleanFmt)<<std::endl;
+        // std::cout<<"d estimate: "<<d_estimate.format(CleanFmt)<<std::endl;
+        // std::cout<<"d: "<<d.format(CleanFmt)<<std::endl;
+    }
+    check_near(p0_estimate, p0, 1e-2);
+    check_near(d_estimate, d, 1e-2);
 }

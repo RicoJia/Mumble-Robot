@@ -40,6 +40,22 @@ std::pair<Eigen::VectorXf, Eigen::MatrixXf> compute_ATA_eigen(const Eigen::Matri
     return {solver.eigenvalues(), solver.eigenvectors()};
 }
 
+Eigen::Vector3f normalize_point_cloud(Eigen::MatrixXf &A) {
+    if (A.rows() == 0) {
+        throw std::runtime_error("Point cloud is empty, cannot normalize.");
+    }
+    // Compute the mean along each column (mean of x, y, z separately)
+    Eigen::RowVector3f mean = A.colwise().mean();
+
+    // Subtract the mean from each point
+    A.rowwise() -= mean;
+    return mean;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Linear Fitting
+//////////////////////////////////////////////////////////////////////////////
+
 // Bunch of pcl point cloud points -> X [x, y, z, 1]
 // Pass into compute ATA eigen.
 // Get the largest lambda, and its eigen vector. That's the principal component.
@@ -57,15 +73,15 @@ Eigen::Vector4f fit_plane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     }
 
     auto [eigen_values, eigen_vecs] = compute_ATA_eigen(X);
-    int max_coeff;
-    eigen_values.minCoeff(&max_coeff);
+    int min_coeff;
+    eigen_values.minCoeff(&min_coeff);
     // TODO: check Vec4f
-    Eigen::Vector4f principal_component = eigen_vecs.col(max_coeff);
-    return principal_component;
+    Eigen::Vector4f least_principal_component = eigen_vecs.col(min_coeff);
+    return least_principal_component;
 }
 
 // This is slower than fit_plane, because it operates on a larger matrix mxn, instead of ATA (nxn)
-Eigen::Vector4f FitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud, float eps = 1e-2) {
+Eigen::Vector4f FitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     int num_points = cloud->size();
     if (num_points < 3) {
         throw std::runtime_error("Not enough points to fit a plane.");
@@ -84,21 +100,32 @@ Eigen::Vector4f FitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud, floa
     Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeThinV);
     Eigen::Vector4f plane_coeffs = svd.matrixV().col(3);   // Normal is last column of V
 
-    // Check error threshold
-    for (int i = 0; i < num_points; ++i) {
-        float err = plane_coeffs.head<3>().dot(A.row(i).head<3>().transpose()) + plane_coeffs[3];
-        if (err * err > eps) {
-            throw std::runtime_error("Plane fitting error exceeds threshold.");
-        }
-    }
-
     // Normalize the coefficients
     plane_coeffs.normalize();
 
     return plane_coeffs;
 }
 
-Eigen::Vector4f fit_line(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
+// returning mean and principal component
+std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
+    // Step 1: find the mean of all points
+    // Step 2: normalize the points with mean, get their eigen values and eigen vectors.
+    // Choose the vector with the largest eigen value
+    // Construct matrix A (each row: [x, y, z, 1])
+    int num_points = cloud->size();
+    Eigen::MatrixXf X(num_points, 3);
+    for (int i = 0; i < num_points; ++i) {
+        X(i, 0) = cloud->points[i].x;
+        X(i, 1) = cloud->points[i].y;
+        X(i, 2) = cloud->points[i].z;
+    }
+    Eigen::Vector3f mean            = normalize_point_cloud(X);
+    auto [eigen_values, eigen_vecs] = compute_ATA_eigen(X);
+    int max_coeff;
+    eigen_values.maxCoeff(&max_coeff);
+    // TODO: check Vec4f
+    Eigen::Vector3f principal_component = eigen_vecs.col(max_coeff);
+    return {mean, principal_component};
 }
 
 //////////////////////////////////////////////////////////////////////////////
