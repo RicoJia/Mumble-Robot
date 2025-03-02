@@ -1,6 +1,6 @@
 # HALO (Hybrid Autonomous Localization & Observation)
 
-This is a ROS2-independent static library for Lidar-Inertial-Odometry SLAM.
+This is a ROS2-independent static library for Lidar-Inertial-Odometry SLAM. It supports both 2D and 3D LiDAR data through templating, RAII with unique_ptr. It also uses vectorization, SIMD, and thread pooling (C++ 20). Its lower level library is Eigen (no PCL).
 
 ## Features
 

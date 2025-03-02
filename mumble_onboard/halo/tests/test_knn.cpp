@@ -74,10 +74,8 @@ void evaluate_matches(
                     auto first_pt        = first->points.at(test_matches[q + j].idx_in_this_cloud);
                     auto test_dist       = computeEuclideanDistance(first_pt, test_pt);
                     auto pcl_dist        = computeEuclideanDistance(first_pt, pcl_pt);
-                    // TODO
-                    // std::cout<<"test pt dist: "<<test_dist<<", pcl dist: "<<pcl_dist<<std::endl;
-                    // std::cout << "couldn't find test match " << test_matches[q + j].closest_pt_idx_in_other_cloud << std::endl;
-                    // get second point
+                    std::cout << "test pt dist: " << test_dist << ", pcl dist: " << pcl_dist << std::endl;
+                    std::cout << "couldn't find test match " << test_matches[q + j].closest_pt_idx_in_other_cloud << std::endl;
                 }
             }
         }

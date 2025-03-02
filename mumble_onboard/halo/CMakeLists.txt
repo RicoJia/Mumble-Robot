@@ -31,8 +31,14 @@ if(BUILD_HALO_TESTS)
   enable_testing()
   find_package(GTest REQUIRED)
   include_directories(${GTEST_INCLUDE_DIRS})
-  file(GLOB HALO_TEST_SOURCES tests/*.cpp)
-  add_executable(halo_tests ${HALO_TEST_SOURCES})
-  target_link_libraries(halo_tests halo GTest::GTest GTest::Main pthread)
-  add_test(NAME halo_tests COMMAND halo_tests)
+
+  add_executable(test_knn tests/test_knn.cpp)
+  target_link_libraries(test_knn halo GTest::GTest GTest::Main pthread)
+  add_test(NAME test_knn COMMAND test_knn)
+
+  # Linear Fitting Test
+  add_executable(test_linear_fitting tests/test_linear_fitting.cpp)
+  target_link_libraries(test_linear_fitting halo GTest::GTest GTest::Main
+                        pthread)
+  add_test(NAME test_linear_fitting COMMAND test_linear_fitting)
 endif()

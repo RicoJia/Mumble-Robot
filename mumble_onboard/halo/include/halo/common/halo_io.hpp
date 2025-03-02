@@ -8,7 +8,7 @@
 namespace halo {
 
 // foo.format(CleanFmt) << std::endl;
-inline Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
+inline Eigen::IOFormat CleanFmt(4, 0, ", ", " ", "[", "]");
 
 class TextIO {
   public:
