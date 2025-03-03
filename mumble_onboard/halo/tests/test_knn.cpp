@@ -6,6 +6,7 @@
 #include <halo/common/math_utils.hpp>                // because this is added in cmake
 #include <halo/common/sensor_data_definitions.hpp>   // because this is added in cmake
 #include <halo/kd_tree.hpp>
+#include <halo/nanoflann_kdtree.hpp>
 #include <halo/point_cloud_processing.hpp>
 #include <halo/octo_tree.hpp>
 #include <unordered_set>
@@ -26,7 +27,8 @@ void evaluate_matches(
     const std::vector<halo::NNMatch> &ground_truth_matches,
     size_t k,
     halo::CloudPtr first,
-    halo::CloudPtr second) {
+    halo::CloudPtr second,
+    const bool &debug_print = true) {
     if (test_matches.empty() || ground_truth_matches.empty()) {
         std::cerr << "Empty match vectors!" << std::endl;
         return;
@@ -56,7 +58,7 @@ void evaluate_matches(
     // Case 2: both match sets have the same size.
     // This implies that ground_truth_matches is a KNN set (or both are 1-NN)
     // and we compare elementwise.
-    else if (test_matches.size() == ground_truth_matches.size()) {
+    else if (test_matches.size() == num_queries) {
         for (size_t q = 0; q < num_queries; q = q + k) {
             std::unordered_set<size_t> gt_set;
             for (size_t j = 0; j < k; ++j) {
@@ -66,23 +68,32 @@ void evaluate_matches(
                 if (gt_set.find(test_matches[q + j].closest_pt_idx_in_other_cloud) != gt_set.end()) {
                     true_positives++;
                 } else {
-                    // TODO
-                    auto second_idx_test = test_matches[q + j].closest_pt_idx_in_other_cloud;
-                    auto second_idx_pcl  = ground_truth_matches[q + j].closest_pt_idx_in_other_cloud;
-                    auto test_pt         = second->points.at(second_idx_test);
-                    auto pcl_pt          = second->points.at(second_idx_pcl);
-                    auto first_pt        = first->points.at(test_matches[q + j].idx_in_this_cloud);
-                    auto test_dist       = computeEuclideanDistance(first_pt, test_pt);
-                    auto pcl_dist        = computeEuclideanDistance(first_pt, pcl_pt);
-                    std::cout << "test pt dist: " << test_dist << ", pcl dist: " << pcl_dist << std::endl;
-                    std::cout << "couldn't find test match " << test_matches[q + j].closest_pt_idx_in_other_cloud << std::endl;
+                    if (debug_print) {
+                        auto second_idx_test = test_matches[q + j].closest_pt_idx_in_other_cloud;
+                        auto second_idx_pcl  = ground_truth_matches[q + j].closest_pt_idx_in_other_cloud;
+                        auto test_pt         = second->points.at(second_idx_test);
+                        auto pcl_pt          = second->points.at(second_idx_pcl);
+                        auto first_pt        = first->points.at(test_matches[q + j].idx_in_this_cloud);
+                        auto test_dist       = computeEuclideanDistance(first_pt, test_pt);
+                        auto pcl_dist        = computeEuclideanDistance(first_pt, pcl_pt);
+                        std::cout << "test pt dist: " << test_dist << ", pcl dist: " << pcl_dist << std::endl;
+                        std::cout << "couldn't find test match " << test_matches[q + j].closest_pt_idx_in_other_cloud << std::endl;
+                    }
                 }
             }
         }
         scaler = 1;
     } else {
-        std::cerr << "Mismatch in sizes! (# test_matches is neither #queries*k nor equal to ground_truth_matches.size())" << std::endl;
-        return;
+        if (debug_print) {
+            std::cout << "test match size differ from that of the ground_truth" << std::endl;
+        }
+        // matches may not have the same size as the test
+        for (const auto &test_match : test_matches) {
+            size_t id_gt = test_match.idx_in_this_cloud;
+            if (ground_truth_matches.at(id_gt).closest_pt_idx_in_other_cloud == test_match.closest_pt_idx_in_other_cloud) {
+                true_positives++;
+            }
+        }
     }
 
     // In the brute-force (1-NN) case with scaling,
@@ -98,6 +109,44 @@ void evaluate_matches(
     std::cout << "F1 Score: " << f1_score * 100 << "%" << std::endl;
 }
 
+/**
+ * Performance: 19k points,
+    resolution = 0.1m, 3ms (NEARBY 18), recall: 79.0%, precision: 95.8%
+    resolution = 0.5m, 4ms (NEARBY 18), recall: 95.6%, precision: 98.1%
+    resolution = 2.0m, 30ms (NEARBY 18), recall: 99.0%, precision: 99.4%
+ */
+TEST(TestKNN, test_grid_method) {
+    halo::CloudPtr first;
+    halo::CloudPtr second;
+    halo::CloudPtr cloud{new halo::PointCloudType};
+
+    first.reset(new halo::PointCloudType);
+    second.reset(new halo::PointCloudType);
+    pcl::io::loadPCDFile(first_scan_path, *first);
+    pcl::io::loadPCDFile(second_scan_path, *second);
+
+    halo::CloudPtr test_cloud = second;
+    std::vector<halo::NNMatch> ground_truth_matches =
+        halo::brute_force_nn(first, test_cloud, true);
+    std::vector<halo::NNMatch> matches;
+    {
+        std::cout << "=====================Case 0: Grid Method k = 1=====================" << std::endl;
+        float resolution = 0.2;
+        halo::RAIITimer timer;
+        halo::NearestNeighborGrid<3, halo::NeighborCount::NEARBY18> nn_grid(resolution);
+        nn_grid.set_pointcloud(first);
+        matches = nn_grid.get_closest_point(test_cloud);
+    }
+    evaluate_matches(matches, ground_truth_matches, 1, first, second, false);
+    // reset matches TODO
+}
+
+/**
+ * Performance: 19k points,
+    - 100% accuracy, 7ms
+    - 100% accuracy, 6ms, k = 5
+    - PCL: 0.18ms, k=5
+ */
 TEST(TestKNN, test_kd_tree) {
     halo::CloudPtr first;
     halo::CloudPtr second;
@@ -196,7 +245,6 @@ TEST(OctoTreeNodeTest, BoundingBox2D) {
     EXPECT_FLOAT_EQ(node.box_ptr_->upper(1), expectedUpper(1));
 }
 
-// Test for 3D bounding box creation.
 TEST(OctoTreeNodeTest, BoundingBox3D) {
     using Node3D = halo::OctoTreeNode<3>;
     using Vec3   = Eigen::Matrix<float, 3, 1>;
@@ -227,7 +275,12 @@ TEST(OctoTreeNodeTest, BoundingBox3D) {
     EXPECT_FLOAT_EQ(node.box_ptr_->upper(1), expectedUpper(1));
     EXPECT_FLOAT_EQ(node.box_ptr_->upper(2), expectedUpper(2));
 }
-
+/**
+ * Performance:
+ * - 100%, 18ms
+ * - 21ms, k=5
+ * - 20ms, pcl
+ */
 TEST(TestKNN, test_octo_tree) {
     halo::CloudPtr first;
     halo::CloudPtr second;
@@ -299,4 +352,36 @@ TEST(TestKNN, test_octo_tree) {
         }
     }
     evaluate_matches(matches, pcl_matches, 5, first, test_cloud);
+}
+
+/**
+ * Performance:
+ * - k = 1, 100%, 4ms
+ * - k = 5, 100%, 4ms
+ */
+TEST(TestKNN, test_nanoflann_kdtree) {
+    // Load point clouds from files.
+    halo::CloudPtr first(new halo::PointCloudType);
+    halo::CloudPtr second(new halo::PointCloudType);
+
+    pcl::io::loadPCDFile(first_scan_path, *first);
+    pcl::io::loadPCDFile(second_scan_path, *second);
+
+    // Use the second cloud as the query set.
+    halo::CloudPtr test_cloud = second;
+    std::vector<halo::NNMatch> matches;
+    std::vector<halo::NNMatch> ground_truth_matches =
+        halo::brute_force_nn(first, test_cloud, true);
+
+    {
+        std::cout << "=====================NanoFlann Case0: k = 1 for Nanoflann KD Tree=====================" << std::endl;
+        halo::RAIITimer timer;
+        halo::NanoflannPointCloudAdaptor adaptor(*first);
+        halo::NanoFlannKDTree<halo::PointType, 3> nano_tree(adaptor,
+                                                            nanoflann::KDTreeSingleIndexAdaptorParams(10));
+        size_t k = 1;
+        nano_tree.search_tree_multi_threaded(test_cloud, matches, k);
+        EXPECT_EQ(matches.size(), second->points.size() * k);
+    }
+    evaluate_matches(matches, ground_truth_matches, 1, first, second);
 }

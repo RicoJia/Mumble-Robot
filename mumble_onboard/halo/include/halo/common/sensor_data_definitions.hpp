@@ -13,8 +13,8 @@ constexpr size_t INVALID_INDEX  = std::numeric_limits<size_t>::max();
 constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;
 
 struct NNMatch {
-    size_t idx_in_this_cloud;
-    size_t closest_pt_idx_in_other_cloud;
+    size_t idx_in_this_cloud             = INVALID_INDEX;
+    size_t closest_pt_idx_in_other_cloud = INVALID_INDEX;
     // C++ 20 default comparison
     bool operator==(const NNMatch &) const = default;
     friend std::ostream &operator<<(std::ostream &os, const NNMatch &match) {
