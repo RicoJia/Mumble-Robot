@@ -6,7 +6,6 @@
 #include <chrono>
 #include <execution>
 #include <halo/common/sensor_data_definitions.hpp>
-#include <optional>
 #include <ranges>
 #include <thread>
 
@@ -98,7 +97,8 @@ enum class NeighborCount {
     NEARBY4,   // for 2D: up, down, left, right
     NEARBY8,   // for 2D: up, down, left, right, up-left, up-right, down-left,
                // down-right
-    NEARBY6   // for 3D, up, down, left, right, front, back
+    NEARBY6,   // for 3D, up, down, left, right, front, back
+    NEARBY18
 };
 
 /**
@@ -118,6 +118,8 @@ requires(dim == 2 || dim == 3) class NearestNeighborGrid {
     explicit NearestNeighborGrid(float resolution) : resolution_(resolution) {
         static_assert(!(dim == 2 && neighbor_count == NeighborCount::NEARBY6),
                       "2D grid does not support nearby6");
+        static_assert(!(dim == 2 && neighbor_count == NeighborCount::NEARBY18),
+                      "2D grid does not support nearby18");
         static_assert(!(dim == 3 && neighbor_count == NeighborCount::CENTER),
                       "3D grid does not support center");
         static_assert(!(dim == 3 && neighbor_count == NeighborCount::NEARBY4),
@@ -148,8 +150,11 @@ requires(dim == 2 || dim == 3) class NearestNeighborGrid {
     // https://matthias-research.github.io/pages/publications/tetraederCollision.pdf
     void _generate_grid();
     NNCoord _get_coord(const PointType &pt) const;
-    std::optional<PointType> _get_closest_point(const PointType &pt,
-                                                size_t &idx_in_cloud) const;
+    /**
+     * @brief: Get the closest point to query. If no closest point is found, idx_in_cloud will not be changed.
+     */
+    void _get_closest_point(const PointType &pt,
+                            size_t &idx_in_cloud) const;
 
     float resolution_;
     std::unordered_map<NNCoord, std::vector<size_t>, NNCoordHash>
@@ -173,6 +178,16 @@ void NearestNeighborGrid<dim, neighbor_count>::_generate_grid() {
         _nearby_grids = {NNCoord(0, 0, 0), NNCoord(-1, 0, 0),
                          NNCoord(1, 0, 0), NNCoord(0, 1, 0),
                          NNCoord(0, -1, 0), NNCoord(0, 0, -1)};
+    } else if constexpr (neighbor_count == NeighborCount::NEARBY18) {
+        _nearby_grids = {NNCoord(0, 0, 0), NNCoord(-1, 0, 0),
+                         NNCoord(1, 0, 0), NNCoord(0, 1, 0),
+                         NNCoord(0, -1, 0), NNCoord(0, 0, -1),
+                         NNCoord(1, 1, 0), NNCoord(1, -1, 0),
+                         NNCoord(-1, 1, 0), NNCoord(-1, -1, 0),
+                         NNCoord(0, 1, 1), NNCoord(0, 1, -1),
+                         NNCoord(0, -1, 1), NNCoord(0, -1, -1),
+                         NNCoord(1, 0, 1), NNCoord(1, 0, -1),
+                         NNCoord(-1, 0, 1), NNCoord(-1, 0, -1)};
     }
 }
 
@@ -204,8 +219,7 @@ void NearestNeighborGrid<dim, neighbor_count>::set_pointcloud(CloudPtr cloud) {
 }
 
 template <int dim, NeighborCount neighbor_count>
-std::optional<PointType>
-NearestNeighborGrid<dim, neighbor_count>::_get_closest_point(
+void NearestNeighborGrid<dim, neighbor_count>::_get_closest_point(
     const PointType &pt, size_t &idx_in_cloud) const {
     auto coord = _get_coord(pt);
     std::vector<size_t> nearby_indices;
@@ -227,12 +241,11 @@ NearestNeighborGrid<dim, neighbor_count>::_get_closest_point(
 
     if (nearby_cloud->points.empty()) {
         idx_in_cloud = INVALID_INDEX;
-        return std::nullopt;
+        return;
     }
 
     size_t local_idx = brute_force_single_point(pt, nearby_cloud);
     idx_in_cloud     = nearby_indices.at(local_idx);
-    return nearby_cloud->points[local_idx];
 }
 
 //

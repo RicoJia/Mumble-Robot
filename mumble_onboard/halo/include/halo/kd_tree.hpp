@@ -23,14 +23,6 @@ struct KDTreeNode {
     bool is_leaf() const { return left_ == nullptr && right_ == nullptr; }
 };
 
-template <typename PointT>
-struct _get_pointcloud_dimensions {
-    static constexpr int value =
-        (pcl::traits::has_field<PointT, pcl::fields::x>::value ? 1 : 0) +
-        (pcl::traits::has_field<PointT, pcl::fields::y>::value ? 1 : 0) +
-        (pcl::traits::has_field<PointT, pcl::fields::z>::value ? 1 : 0);
-};
-
 struct KNNSearchResult {
     KDTreeNode *node_     = nullptr;
     double dist_to_query_ = 0.0;
