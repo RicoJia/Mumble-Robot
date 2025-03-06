@@ -8,8 +8,12 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/MotorCommand.srv"
-)
+rosidl_generate_interfaces(${PROJECT_NAME} "srv/MotorCommand.srv")
+
+install(
+  DIRECTORY mumble_interfaces/
+  DESTINATION lib/python3.10/site-packages/mumble_interfaces
+  FILES_MATCHING
+  PATTERN "*.py")
 
 ament_package()

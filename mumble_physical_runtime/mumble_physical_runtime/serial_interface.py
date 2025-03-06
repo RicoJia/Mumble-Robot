@@ -1,7 +1,9 @@
-#!/usr/bin/env python3
-# Run this node: ros2_sudo run mumble_physical_runtime serial_interface
-# ALL topic subscribers need sudo as well
-# This file includes: IMU and Motor interfaces
+# !/usr/bin/env python3
+"""
+Run this node: ros2_sudo run mumble_physical_runtime serial_interface
+ALL topic subscribers need sudo as well
+This file includes: IMU and Motor interfaces
+"""
 
 import time
 from functools import partial
@@ -17,12 +19,12 @@ from sensor_msgs.msg import Imu, LaserScan
 from mumble_interfaces.srv import MotorCommand
 from mumble_physical_runtime.waveshare_control import BaseController, test_imu
 from mumble_physical_runtime.rpi_lidar_a1_mumble import (
-    find_laser_scanner_rpi,
     TOTAL_NUM_ANGLES,
     find_lidar_usb_device,
 )
 from adafruit_rplidar import RPLidar
 import numpy as np
+from mumble_interfaces.mumble_logging import get_logger
 
 READ_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
 imu_msg = Imu()
@@ -30,6 +32,7 @@ MOTOR_COMMAND_END_TIME = time.perf_counter()
 MOTOR_STOP_CHECK_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
 TEN_SECONDS = 10.0
 
+logger = get_logger("serial_interface")
 
 def motor_command(base, request, response):
     global MOTOR_COMMAND_END_TIME
@@ -82,11 +85,11 @@ def lidar_thread(lidar, scan_pub, node):
                 scan_msg.ranges = scan_data.tolist()
                 scan_pub.publish(scan_msg)
         except Exception as e:
-            print(f"LiDAR Exception: {e}")
+            logger.warn(f"LiDAR Exception: {e}")
     lidar.stop()
     lidar.disconnect()
     # TODO To make it a log info
-    print(f"Lidar stopped")
+    logger.info(f"Lidar stopped")
 
 
 def main(args=None):
@@ -123,3 +126,4 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
     lidar_thread_instance.join()
+
