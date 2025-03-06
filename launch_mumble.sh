@@ -46,6 +46,8 @@ launch_onboard() {
     if [ "$ARCH" = "aarch64" ]; then
         # CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up --build -d
         CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up -d
+    else
+        CURRENT_DIR=$CURRENT_DIR docker compose --profile amd up --build  -d # TODO: to change to arm
     fi
     if [ "$1" = "build_rpi_onboard" ]; then 
         docker buildx build \
@@ -56,8 +58,6 @@ launch_onboard() {
         -f ./Dockerfile_mumble_onboard \
         ./mumble_onboard \
         --push
-    else
-        CURRENT_DIR=$CURRENT_DIR docker compose --profile amd up --build  -d # TODO: to change to arm
     fi
     cd $SCRIPT_DIR
     # docker compose --profile amd64 up -d
@@ -70,4 +70,4 @@ ARCH=$(uname -m)
 SCRIPT_DIR=$(dirname $(realpath $0))
 check_sudo
 launch_runtime $1
-# launch_onboard $1
+launch_onboard $1
