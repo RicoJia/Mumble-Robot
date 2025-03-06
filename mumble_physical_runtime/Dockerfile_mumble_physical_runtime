@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y \
 # Give the image the same user privilege as the host user
 RUN python3 -m pip install \
     pyserial \
+    adafruit_rplidar  \
     pynput
 
 # Unique numbers for each group and user. 1000 is the first regular number

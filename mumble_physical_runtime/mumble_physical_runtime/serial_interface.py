@@ -5,16 +5,23 @@
 
 import time
 from functools import partial
+import threading
 
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
-from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Imu, LaserScan
 
 from mumble_interfaces.srv import MotorCommand
 from mumble_physical_runtime.waveshare_control import BaseController, test_imu
+from mumble_physical_runtime.rpi_lidar_a1_mumble import (
+    find_laser_scanner_rpi,
+    TOTAL_NUM_ANGLES,
+)
+from adafruit_rplidar import RPLidar
+import numpy as np
 
 READ_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
 imu_msg = Imu()
@@ -56,6 +63,29 @@ def publish_imu_data(base, imu_pub, node):
         print(f"Exception occured: {e}")
 
 
+def lidar_thread(lidar, scan_pub, node):
+    while rclpy.ok():
+        scan_data = np.zeros(TOTAL_NUM_ANGLES)
+        try:
+            for scan in lidar.iter_scans():
+                for _, angle, distance in scan:
+                    scan_data[min(359, int(angle))] = distance / 1000.0
+                scan_msg = LaserScan()
+                scan_msg.header.stamp = node.get_clock().now().to_msg()
+                scan_msg.header.frame_id = "laser_frame"
+                scan_msg.angle_min = 0.0
+                scan_msg.angle_max = 2 * np.pi
+                scan_msg.angle_increment = 2 * np.pi / TOTAL_NUM_ANGLES
+                scan_msg.range_min = 0.1
+                scan_msg.range_max = 12.0
+                scan_msg.ranges = scan_data.tolist()
+                scan_pub.publish(scan_msg)
+        except Exception as e:
+            print(f"LiDAR Exception: {e}")
+    lidar.stop()
+    lidar.disconnect()
+
+
 def main(args=None):
     rclpy.init(args=args)
     node = Node("serial_interface")
@@ -67,7 +97,6 @@ def main(args=None):
     timer = node.create_timer(
         READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
     )
-
     node.create_service(
         MotorCommand,
         "motor_command",
@@ -75,6 +104,14 @@ def main(args=None):
         callback_group=callback_group,
     )
     node.create_timer(MOTOR_STOP_CHECK_PERIOD, partial(motor_stop_check_cb, base))
+
+    device_address = find_laser_scanner_rpi()
+    lidar = RPLidar(None, device_address)
+    scan_pub = node.create_publisher(LaserScan, "scan", qos_profile)
+    lidar_thread_instance = threading.Thread(
+        target=lidar_thread, args=(lidar, scan_pub, node), daemon=True
+    )
+    lidar_thread_instance.start()
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)
