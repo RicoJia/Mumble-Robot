@@ -15,11 +15,11 @@ Below is a [summary of their performances](./tests/test_knn.cpp)
 
 | Method                | Query Time (ms) | Recall (%) | Precision (%) | Notes                  |
 |----------------------|---------------|------------|-------------|------------------------|
-| **halo::KDTree**     | **5.1**       | 100        | 100         | 3× faster than PCL     |
-| **PCL KD Tree**      | 156           | 100        | 100         | Baseline               |
-| **halo::OctoTree (and QuadTree for 2D)** | 194         | 100        | 100         | Similar to PCL KD Tree |
-| **NanoFLANN KD Tree** | 4             | 100          | 100           | Fast wrapper           |
-| **3D Grid Search**    | 4             | 95.6       | 98.1        | Resolution = 0.5m      |
+| **halo::KDTree**     | **5.1**  (58 on rpi4b)     | 100        | 100         | 3× faster than PCL     |
+| **PCL KD Tree**      | 156   (131 on rpi4b)        | 100        | 100         | Baseline               |
+| **halo::OctoTree (and QuadTree for 2D)** | 194   (293 on rpi4b)      | 100        | 100         | Similar to PCL KD Tree |
+| **NanoFLANN KD Tree** | 4  (22 on rpi4b)           | 100          | 100           | Fast wrapper           |
+| **3D Grid Search**    | 4  (33 on rpi4b)           | 95.6       | 98.1        | Resolution = 0.5m      |
 
 ## Usage
 
