@@ -54,6 +54,7 @@ class BaseController:
         )
         self.command_thread.start()
         self.send_command({"T": 143, "cmd": 0})  # turn off echo mode
+        time.sleep(0.1)
         self.ser.reset_input_buffer()
         self.ser.reset_output_buffer()
 
@@ -62,7 +63,7 @@ class BaseController:
         line = self.rl.readline().decode("utf-8")
         data_read = json.loads(
             line
-        )  # Rico TODO: Must have for data transactions. Otherwise OLED won't change
+        )  # Rico Must have for data transactions. Otherwise OLED won't change
         self.ser.reset_input_buffer()
         return data_read
 

@@ -10,6 +10,44 @@ from math import cos, sin, pi, floor, sqrt
 from adafruit_rplidar import RPLidar
 from typing import List
 import subprocess
+import logging
+
+
+# ANSI Color Codes for Console Output
+COLOR_RESET = "\033[0m"
+COLOR_INFO = "\033[92m"  # Green
+COLOR_WARNING = "\033[93m"  # Yellow
+COLOR_ERROR = "\033[91m"  # Red
+COLOR_DEBUG = "\033[94m"  # Blue
+
+
+class ColoredFormatter(logging.Formatter):
+    COLORS = {
+        logging.INFO: COLOR_INFO,
+        logging.WARNING: COLOR_WARNING,
+        logging.ERROR: COLOR_ERROR,
+        logging.DEBUG: COLOR_DEBUG,
+    }
+
+    def format(self, record):
+        log_color = self.COLORS.get(record.levelno, COLOR_RESET)
+        levelname = (
+            f"{log_color}[{record.levelname}]{COLOR_RESET}"  # Only color the log level
+        )
+        message = super().format(record)
+        return message.replace(
+            f"[{record.levelname}]", levelname
+        )  # Replace only the first occurrence
+
+
+# Logger setup with color support
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
+logger = logging.getLogger("serial_interface")
+handler = logging.StreamHandler()
+handler.setFormatter(ColoredFormatter("%(asctime)s [%(levelname)s] %(message)s"))
+logger.handlers = [handler]
 
 # used to scale data to fit on the screen
 # in meters
@@ -28,7 +66,7 @@ def find_lidar_usb_device() -> str:
             if "usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller" in r:
                 return os.path.join(DEVICE_PATH, r)
     except Exception as e:
-        pass
+        logger.warn(f"Rpi Lidar Exception occured: {e}")
     # This is very ugly, and I have not found a robust way to find the device yet.
     return "/dev/ttyUSB0"
 
@@ -73,7 +111,7 @@ def draw_arrow(screen, color, start, end, arrow_size=10):
     dx = end[0] - start[0]
     dy = end[1] - start[1]
     # TODO: use sqrt.
-    length = sqrt(dx ** 2 + dy ** 2)
+    length = sqrt(dx**2 + dy**2)
     if length == 0:
         return  # Cannot draw an arrow if length is 0
 

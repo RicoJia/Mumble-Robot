@@ -14,6 +14,7 @@ services:
     devices:
       - "/dev/serial0:/dev/serial0"  # Bind the entire /dev directory
       - "/dev/serial1:/dev/serial1"  # Bind the entire /dev directory
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
     privileged: true  # Enable privileged mode for full device access
     network_mode: host  # Use host network mode so topics can be heard

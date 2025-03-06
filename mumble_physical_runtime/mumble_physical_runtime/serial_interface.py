@@ -19,6 +19,7 @@ from mumble_physical_runtime.waveshare_control import BaseController, test_imu
 from mumble_physical_runtime.rpi_lidar_a1_mumble import (
     find_laser_scanner_rpi,
     TOTAL_NUM_ANGLES,
+    find_lidar_usb_device,
 )
 from adafruit_rplidar import RPLidar
 import numpy as np
@@ -84,6 +85,8 @@ def lidar_thread(lidar, scan_pub, node):
             print(f"LiDAR Exception: {e}")
     lidar.stop()
     lidar.disconnect()
+    # TODO To make it a log info
+    print(f"Lidar stopped")
 
 
 def main(args=None):
@@ -105,11 +108,12 @@ def main(args=None):
     )
     node.create_timer(MOTOR_STOP_CHECK_PERIOD, partial(motor_stop_check_cb, base))
 
-    device_address = find_laser_scanner_rpi()
+    device_address = find_lidar_usb_device()
+    # If USB is not found, we will see an exception here.
     lidar = RPLidar(None, device_address)
     scan_pub = node.create_publisher(LaserScan, "scan", qos_profile)
     lidar_thread_instance = threading.Thread(
-        target=lidar_thread, args=(lidar, scan_pub, node), daemon=True
+        target=lidar_thread, args=(lidar, scan_pub, node)
     )
     lidar_thread_instance.start()
 
@@ -118,3 +122,4 @@ def main(args=None):
     executor.spin()
     node.destroy_node()
     rclpy.shutdown()
+    lidar_thread_instance.join()
