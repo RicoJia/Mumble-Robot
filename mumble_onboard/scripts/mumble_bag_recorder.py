@@ -26,7 +26,7 @@ import time
 logger = get_logger(f"mumble_bag_recorder")
 package_name = "mumble_onboard"
 package_path = ament_index_python.packages.get_package_share_directory(package_name)
-bags_dir = os.path.join(package_path, f"bags/{time.time()}")
+bags_dir = os.path.join(package_path, f"bags_{time.time()}")
 os.makedirs(bags_dir, exist_ok=True)
 # Define the maximum bag file size (4GB)
 MAX_BAG_SIZE = 4 * 1024 * 1024 * 1024  # 4GB in bytes

@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y \
 RUN python3 -m pip install \
     pyserial \
     adafruit_rplidar  \
-    pynput
+    sshkeyboard
 
 # Unique numbers for each group and user. 1000 is the first regular number
 ARG UNAME="mumble_physical_runtime"

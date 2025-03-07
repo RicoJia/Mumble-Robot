@@ -21,8 +21,12 @@ sudo_ros_preserve_env(){
 } 
 
 run_physical_runtime(){
-    ros2_sudo run mumble_physical_runtime serial_interface
+    sudo_ros_preserve_env ros2 run mumble_physical_runtime serial_interface
 }
+run_keyboard_teleop(){
+    sudo_ros_preserve_env ros2 run mumble_physical_runtime keyboard_teleop_ros2
+}
+
 
 alias ros2_sudo='sudo_ros_preserve_env ros2'
 

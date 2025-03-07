@@ -16,7 +16,8 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Imu, LaserScan
 
-from mumble_interfaces.srv import MotorCommand
+# from mumble_interfaces.srv import MotorCommand
+from geometry_msgs.msg import Twist
 from mumble_physical_runtime.waveshare_control import BaseController, test_imu
 from mumble_physical_runtime.rpi_lidar_a1_mumble import (
     TOTAL_NUM_ANGLES,
@@ -30,22 +31,31 @@ READ_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
 imu_msg = Imu()
 MOTOR_COMMAND_END_TIME = time.perf_counter()
 MOTOR_STOP_CHECK_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
+MOTOR_COMMAND_VALID_TIME = 15 * MOTOR_STOP_CHECK_PERIOD
 TEN_SECONDS = 10.0
+WHEEL_BASE = 0.13
 
 logger = get_logger("serial_interface")
 
+OMEGA_SCALAR = 35.0  # Open Loop Control Constant
 
-def motor_command(base, request, response):
+
+def cmd_vel_cb(base, twist: Twist):
+    v = twist.linear.x
+    omega = twist.angular.z * OMEGA_SCALAR
+    left_speed = v - WHEEL_BASE * omega / 2.0
+    right_speed = v + WHEEL_BASE * omega / 2.0
+    # TODO Remember to remove
+    print(f"Rico: TODO: {left_speed, right_speed}")
     global MOTOR_COMMAND_END_TIME
-    MOTOR_COMMAND_END_TIME = time.perf_counter() + request.duration_s
-    base.base_speed_ctrl(request.left_speed, request.right_speed)
-    return response
+    MOTOR_COMMAND_END_TIME = time.perf_counter() + MOTOR_COMMAND_VALID_TIME
+    base.base_speed_ctrl(left_speed, right_speed)
 
 
 def motor_stop_check_cb(base):
     global MOTOR_COMMAND_END_TIME
     if MOTOR_COMMAND_END_TIME < time.perf_counter():
-        logger.info(f"Issuing stop cmd,  {MOTOR_COMMAND_END_TIME, time.perf_counter()}")
+        logger.info(f"Stop,")
         base.base_speed_ctrl(0.0, 0.0)
         MOTOR_COMMAND_END_TIME = time.perf_counter() + TEN_SECONDS
 
@@ -103,26 +113,23 @@ def main(args=None):
     timer = node.create_timer(
         READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
     )
-    node.create_service(
-        MotorCommand,
-        "motor_command",
-        partial(motor_command, base),
-        callback_group=callback_group,
+    node.create_subscription(
+        Twist, "/cmd_vel", partial(cmd_vel_cb, base), 10, callback_group=callback_group
     )
     node.create_timer(MOTOR_STOP_CHECK_PERIOD, partial(motor_stop_check_cb, base))
 
-    device_address = find_lidar_usb_device()
-    # If USB is not found, we will see an exception here.
-    lidar = RPLidar(None, device_address)
-    scan_pub = node.create_publisher(LaserScan, "scan", qos_profile)
-    lidar_thread_instance = threading.Thread(
-        target=lidar_thread, args=(lidar, scan_pub, node)
-    )
-    lidar_thread_instance.start()
+    # device_address = find_lidar_usb_device()
+    # # If USB is not found, we will see an exception here.
+    # lidar = RPLidar(None, device_address)
+    # scan_pub = node.create_publisher(LaserScan, "scan", qos_profile)
+    # lidar_thread_instance = threading.Thread(
+    #     target=lidar_thread, args=(lidar, scan_pub, node)
+    # )
+    # lidar_thread_instance.start()
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)
     executor.spin()
     node.destroy_node()
     rclpy.shutdown()
-    lidar_thread_instance.join()
+    # lidar_thread_instance.join()
