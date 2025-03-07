@@ -34,6 +34,7 @@ TEN_SECONDS = 10.0
 
 logger = get_logger("serial_interface")
 
+
 def motor_command(base, request, response):
     global MOTOR_COMMAND_END_TIME
     MOTOR_COMMAND_END_TIME = time.perf_counter() + request.duration_s
@@ -44,7 +45,7 @@ def motor_command(base, request, response):
 def motor_stop_check_cb(base):
     global MOTOR_COMMAND_END_TIME
     if MOTOR_COMMAND_END_TIME < time.perf_counter():
-        print(f"Rico: issuing stop cmd,  {MOTOR_COMMAND_END_TIME, time.perf_counter()}")
+        logger.info(f"Issuing stop cmd,  {MOTOR_COMMAND_END_TIME, time.perf_counter()}")
         base.base_speed_ctrl(0.0, 0.0)
         MOTOR_COMMAND_END_TIME = time.perf_counter() + TEN_SECONDS
 
@@ -55,16 +56,16 @@ def publish_imu_data(base, imu_pub, node):
         imu_msg.header.stamp = node.get_clock().now().to_msg()
         imu_msg.header.frame_id = "imu_link"
         # Assign angular velocity values
-        imu_msg.angular_velocity.x = data["gx"]
-        imu_msg.angular_velocity.y = data["gy"]
-        imu_msg.angular_velocity.z = data["gz"]
+        imu_msg.angular_velocity.x = float(data["gx"])
+        imu_msg.angular_velocity.y = float(data["gy"])
+        imu_msg.angular_velocity.z = float(data["gz"])
         # Assign linear acceleration values
-        imu_msg.linear_acceleration.x = data["ax"]
-        imu_msg.linear_acceleration.y = data["ay"]
-        imu_msg.linear_acceleration.z = data["az"]
+        imu_msg.linear_acceleration.x = float(data["ax"])
+        imu_msg.linear_acceleration.y = float(data["ay"])
+        imu_msg.linear_acceleration.z = float(data["az"])
         imu_pub.publish(imu_msg)
     except Exception as e:
-        print(f"Exception occured: {e}")
+        logger.warn(f"IMU exception occured: {e}")
 
 
 def lidar_thread(lidar, scan_pub, node):
@@ -88,7 +89,6 @@ def lidar_thread(lidar, scan_pub, node):
             logger.warn(f"LiDAR Exception: {e}")
     lidar.stop()
     lidar.disconnect()
-    # TODO To make it a log info
     logger.info(f"Lidar stopped")
 
 
@@ -99,7 +99,7 @@ def main(args=None):
     qos_profile = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, depth=10)
     imu_pub = node.create_publisher(Imu, "imu_data", qos_profile)
     callback_group = ReentrantCallbackGroup()
-    print(f"Hello! I am the serial_interface")
+    logger.info(f"Hello! I am the serial_interface")
     timer = node.create_timer(
         READ_PERIOD, partial(publish_imu_data, base, imu_pub, node)
     )
@@ -126,4 +126,3 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
     lidar_thread_instance.join()
-

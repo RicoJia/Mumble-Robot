@@ -65,9 +65,19 @@ launch_onboard() {
 
 }
 
+terminate_all_containers(){
+    echo "Stopping containers ... "
+    docker stop mumble_onboard_container mumble_physical_runtime_container
+}
 
-ARCH=$(uname -m)
-SCRIPT_DIR=$(dirname $(realpath $0))
-check_sudo
-launch_runtime $1
-launch_onboard $1
+
+
+if [ "$1" = "kill" ]; then 
+    terminate_all_containers
+else
+    ARCH=$(uname -m)
+    SCRIPT_DIR=$(dirname $(realpath $0))
+    check_sudo
+    launch_runtime $1
+    launch_onboard $1
+fi

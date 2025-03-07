@@ -17,7 +17,7 @@ sudo_ros_preserve_env(){
     # - `source` vs `./`: `./` will createa a copy of the env of the current session for the new script. 
     # when the script is done, the new env is gone. `source` and `.` will execute the script right on the spot 
     echo "Using sudo_ros_preserve_env..."
-    sudo -E /bin/bash -c "source ${WORKDIRECTORY}/install/setup.bash; $cmd" 
+    sudo -E /bin/bash -c " source ${WORKDIRECTORY}/install/setup.bash; export PYTHONPATH=\$PYTHONPATH; $cmd" 
 } 
 
 run_physical_runtime(){
