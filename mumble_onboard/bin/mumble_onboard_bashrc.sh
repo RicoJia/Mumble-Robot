@@ -13,6 +13,14 @@ sudo_ros_preserve_env(){
     sudo -E /bin/bash -c " source ${WORKDIRECTORY}/install/setup.bash; export PYTHONPATH=\$PYTHONPATH; $cmd" 
 } 
 
+run_bag_recorder(){
+    sudo_ros_preserve_env ros2 run mumble_onboard mumble_bag_recorder.py
+}
+
+bag_replay_sudo(){
+    sudo_ros_preserve_env ros2 bag play $1
+}
+
 if [ ! -d "/home/mumble_robot/build/" ]; then
     echo "First container launch: running colcon build..."
     colcon_build_source

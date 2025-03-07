@@ -12,14 +12,22 @@ import threading
 
 import rclpy
 from rclpy.node import Node
+from rosbag2_py._storage import TopicMetadata
 from sensor_msgs.msg import Imu, LaserScan
 import rclpy.serialization
 
 # Import rosbag2_py interfaces
 from rosbag2_py import SequentialWriter, StorageOptions, ConverterOptions
 from mumble_interfaces.mumble_logging import get_logger
+import ament_index_python.packages
+import time
 
-logger = get_logger("mumble_bag_recorder")
+
+logger = get_logger(f"mumble_bag_recorder")
+package_name = "mumble_onboard"
+package_path = ament_index_python.packages.get_package_share_directory(package_name)
+bags_dir = os.path.join(package_path, f"bags/{time.time()}")
+os.makedirs(bags_dir, exist_ok=True)
 # Define the maximum bag file size (4GB)
 MAX_BAG_SIZE = 4 * 1024 * 1024 * 1024  # 4GB in bytes
 BAG_BASE_NAME = "mumble_imu_lidar_bag"
@@ -32,24 +40,33 @@ COMPRESSION_LEVEL = 22  # highest compression leve
 class BagRecorderNode(Node):
     def __init__(self):
         super().__init__("mumble_bag_recorder")
-        self._bag_index = 0
         self.writer_lock = threading.Lock()
         self._setup_writer()
         self.create_subscription(Imu, "/imu_data", self.imu_callback, 10)
         self.create_subscription(LaserScan, "/scan", self.lidar_callback, 10)
 
     def _setup_writer(self):
-        self.bag_uri = f"{BAG_BASE_NAME}_{self._bag_index}"
-        storage_options = StorageOptions()
-        storage_options.uri = self.bag_uri
-        storage_options.storage_id = STORAGE_ID
-        setattr(storage_options, "compression_mode", COMPRESSION_MODE)
-        setattr(storage_options, "compression_format", COMPRESSION_FORMAT)
-        setattr(storage_options, "compression_level", COMPRESSION_LEVEL)
+        self.bag_uri = os.path.join(bags_dir, f"{BAG_BASE_NAME}")
+        storage_options = StorageOptions(uri=self.bag_uri, storage_id=STORAGE_ID)
         converter_options = ConverterOptions("", "")
         self.writer = SequentialWriter()
         self.writer.open(storage_options, converter_options)
-        self.get_logger().info(f"Opened new bag file: {self.bag_uri}")
+
+        metadata_ls = [
+            TopicMetadata(
+                name="/imu_data",
+                type="sensor_msgs/msg/Imu",
+                serialization_format="cdr",  # Default serialization format in ROS 2
+            ),
+            TopicMetadata(
+                name="/scan",
+                type="sensor_msgs/msg/LaserScan",
+                serialization_format="cdr",
+            ),
+        ]
+        for m in metadata_ls:
+            self.writer.create_topic(m)
+        logger.info(f"Opened new bag directory: {self.bag_uri}")
 
     def _write_message(self, topic: str, msg):
         serialized_msg = rclpy.serialization.serialize_message(msg)
