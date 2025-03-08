@@ -49,8 +49,11 @@ target_link_libraries(
 ament_target_dependencies(mumbo_halo_slam rclcpp)
 # Install Cpp executables
 install(TARGETS mumbo_halo_slam DESTINATION lib/${PROJECT_NAME})
+
 # Install Python modules
-ament_python_install_package(${PROJECT_NAME})
-# # Install Python executables install(PROGRAMS scripts/py_node.py DESTINATION
-# lib/${PROJECT_NAME} )
+
+install(PROGRAMS
+  scripts/mumble_bag_recorder.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 ament_package()

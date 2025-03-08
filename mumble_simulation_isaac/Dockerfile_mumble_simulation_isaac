@@ -1,6 +1,3 @@
-# docker buildx build --platform linux/arm64/v8 -f Dockerfile_mumble_physical_runtime -t mumble_physical_runtime_rpi . --load
-# docker tag mumble_physical_runtime_rpi:latest ricojia/mumble_physical_runtime_rpi:latest
-# docker push ricojia/mumble_physical_runtime_rpi:latest
 FROM ros:humble-ros-base
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -11,9 +8,6 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     vim \
     byobu \
-    # v4l-utils \
-    # wget \
-    # unzip \
     git \
     openssh-client \
     # # useful for git complete
@@ -25,19 +19,13 @@ RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions \
     ros-humble-rclpy \
     ros-humble-rmw-fastrtps-cpp \
-    # ros-humble-rmw-cyclonedds-cpp \
     ros-humble-ros2interface \
+    ros-humble-rviz2 \
     ros-humble-ros2topic \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Give the image the same user privilege as the host user
-RUN python3 -m pip install \
-    pyserial \
-    adafruit_rplidar  \
-    sshkeyboard
-
 # Unique numbers for each group and user. 1000 is the first regular number
-ARG UNAME="mumble_physical_runtime"
+ARG UNAME="mumble_simulation_isaac"
 # Sets default value if docker build --build-arg UID=1000 is not provided.
 # So, one caveat of this script is on Rpi, UID, GID have to be 1000.
 ARG UID=1000
@@ -51,7 +39,7 @@ RUN echo "${UNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 USER $UNAME
 # Env variables will persist across images
 ENV WORKDIRECTORY=/home/mumble_robot
-ENV PACKAGE_DIR=/home/mumble_robot/src/mumble_physical_runtime
+ENV PACKAGE_DIR=/home/mumble_robot/src/${UNAME}
 # mumble_physical_runtime/bin
 ENV PATH="$PACKAGE_DIR/bin:${PATH}"
 WORKDIR ${WORKDIRECTORY}
@@ -61,6 +49,6 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /home/$UNAME/.bashrc  && \
     echo '"\e[B": history-search-forward' >> /home/${UNAME}/.inputrc && \
     echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> ~/.bashrc && \
     # echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> ~/.bashrc && \
-    echo "source $PACKAGE_DIR/bin/mumble_physical_runtime_bashrc.sh" >> ~/.bashrc
+    echo "source $PACKAGE_DIR/bin/${UNAME}_bashrc.sh" >> ~/.bashrc
 
 CMD /bin/bash

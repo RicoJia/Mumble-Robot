@@ -3,6 +3,14 @@ colcon_build_source(){
     source install/setup.bash
 }
 
+print_opening_msg(){
+# NO LEADING spacing or tabs
+echo -e "$(cat << 'EOF'
+\e[95mDom Dom  - this is a friendly message from mumble_simulation_isaac! \e[0m
+EOF
+)"
+}
+
 sudo_ros_preserve_env(){ 
     # when passing args from one func to another, use $@ expansion 
     local cmd="$@" 
@@ -13,16 +21,9 @@ sudo_ros_preserve_env(){
     sudo -E /bin/bash -c " source ${WORKDIRECTORY}/install/setup.bash; export PYTHONPATH=\$PYTHONPATH; $cmd" 
 } 
 
-run_bag_recorder(){
-    sudo_ros_preserve_env ros2 run mumble_onboard mumble_bag_recorder.py
-}
-
-bag_replay_sudo(){
-    sudo_ros_preserve_env ros2 bag play $1
-}
-
+print_opening_msg
 if [ ! -d "/home/mumble_robot/build/" ]; then
     echo "First container launch: running colcon build..."
     colcon_build_source
-    cd /home/mumble_robot/src/mumble_physical_runtime
+    cd $WORKDIRECTORY
 fi

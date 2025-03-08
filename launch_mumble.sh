@@ -46,6 +46,8 @@ launch_onboard() {
     if [ "$ARCH" = "aarch64" ]; then
         # CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up --build -d
         CURRENT_DIR=$CURRENT_DIR docker compose --profile arm up -d
+    else
+        CURRENT_DIR=$CURRENT_DIR docker compose --profile amd up --build  -d # TODO: to change to arm
     fi
     if [ "$1" = "build_rpi_onboard" ]; then 
         docker buildx build \
@@ -56,8 +58,6 @@ launch_onboard() {
         -f ./Dockerfile_mumble_onboard \
         ./mumble_onboard \
         --push
-    else
-        CURRENT_DIR=$CURRENT_DIR docker compose --profile amd up --build  -d # TODO: to change to arm
     fi
     cd $SCRIPT_DIR
     # docker compose --profile amd64 up -d
@@ -65,9 +65,29 @@ launch_onboard() {
 
 }
 
+launch_isaac_sim(){
+    CURRENT_DIR=$SCRIPT_DIR/mumble_simulation_isaac
+    cd $CURRENT_DIR
+    if [ "$ARCH" = "aarch64" ]; then
+        echo "Isaac sim can only be run on aarch 64"
+    else
+        CURRENT_DIR=$CURRENT_DIR docker compose --profile amd up -d
+    fi
+    cd $SCRIPT_DIR
+}
 
-ARCH=$(uname -m)
-SCRIPT_DIR=$(dirname $(realpath $0))
-check_sudo
-#launch_runtime $1
-launch_onboard $1
+terminate_all_containers(){
+    echo "Stopping containers ... "
+    docker stop mumble_onboard_container mumble_physical_runtime_container mumble_simulation_isaac_container
+}
+
+if [ "$1" = "kill" ]; then 
+    terminate_all_containers
+else
+    ARCH=$(uname -m)
+    SCRIPT_DIR=$(dirname $(realpath $0))
+    check_sudo
+    # launch_runtime $1
+    # launch_onboard $1
+    launch_isaac_sim $1
+fi

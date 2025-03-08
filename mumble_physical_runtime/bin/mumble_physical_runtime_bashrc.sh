@@ -17,11 +17,16 @@ sudo_ros_preserve_env(){
     # - `source` vs `./`: `./` will createa a copy of the env of the current session for the new script. 
     # when the script is done, the new env is gone. `source` and `.` will execute the script right on the spot 
     echo "Using sudo_ros_preserve_env..."
-    sudo -E /bin/bash -c "source ${WORKDIRECTORY}/install/setup.bash; $cmd" 
+    sudo -E /bin/bash -c " source ${WORKDIRECTORY}/install/setup.bash; export PYTHONPATH=\$PYTHONPATH; $cmd" 
 } 
 
 run_physical_runtime(){
-    ros2_sudo run mumble_physical_runtime serial_interface
+    source $WORKDIRECTORY/install/setup.bash 
+    sudo_ros_preserve_env ros2 run mumble_physical_runtime serial_interface
+}
+run_keyboard_teleop(){
+    source $WORKDIRECTORY/install/setup.bash 
+    sudo_ros_preserve_env ros2 run mumble_physical_runtime keyboard_teleop_ros2
 }
 
 alias ros2_sudo='sudo_ros_preserve_env ros2'
