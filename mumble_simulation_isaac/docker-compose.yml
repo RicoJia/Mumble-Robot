@@ -1,0 +1,23 @@
+services:
+  simulation_isaac_runtime:
+    image: ricojia/mumble_simulation_isaac:latest
+    pull_policy: never
+    build:
+      context: ./
+      dockerfile: ${CURRENT_DIR}/Dockerfile_mumble_simulation_isaac
+    container_name: mumble_simulation_isaac_container
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    profiles:
+      - amd
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/home/mumble_robot/.Xauthority
+    volumes:
+      - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_simulation_isaac # Mount current directory
+      - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
+      - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - $HOME/.Xauthority:/home/mumble_robot/.Xauthority
+    network_mode: host  # Use host network mode so topics can be heard

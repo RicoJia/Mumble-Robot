@@ -2,23 +2,23 @@ rosbag2_bagfile_information:
   version: 5
   storage_identifier: sqlite3
   duration:
-    nanoseconds: 33196166050
+    nanoseconds: 19627177515
   starting_time:
-    nanoseconds_since_epoch: 1741386353368421241
-  message_count: 997
+    nanoseconds_since_epoch: 1741395031941532501
+  message_count: 737
   topics_with_message_count:
     - topic_metadata:
         name: /scan
         type: sensor_msgs/msg/LaserScan
         serialization_format: cdr
         offered_qos_profiles: ""
-      message_count: 0
+      message_count: 147
     - topic_metadata:
         name: /imu_data
         type: sensor_msgs/msg/Imu
         serialization_format: cdr
         offered_qos_profiles: ""
-      message_count: 997
+      message_count: 590
   compression_format: ""
   compression_mode: ""
   relative_file_paths:
@@ -26,7 +26,7 @@ rosbag2_bagfile_information:
   files:
     - path: mumble_imu_lidar_bag_0.db3
       starting_time:
-        nanoseconds_since_epoch: 1741386353368421241
+        nanoseconds_since_epoch: 1741395031941532501
       duration:
-        nanoseconds: 33196166050
-      message_count: 997
+        nanoseconds: 19627177515
+      message_count: 737
