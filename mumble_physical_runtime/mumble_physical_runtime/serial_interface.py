@@ -118,18 +118,18 @@ def main(args=None):
     )
     node.create_timer(MOTOR_STOP_CHECK_PERIOD, partial(motor_stop_check_cb, base))
 
-    # device_address = find_lidar_usb_device()
-    # # If USB is not found, we will see an exception here.
-    # lidar = RPLidar(None, device_address)
-    # scan_pub = node.create_publisher(LaserScan, "scan", qos_profile)
-    # lidar_thread_instance = threading.Thread(
-    #     target=lidar_thread, args=(lidar, scan_pub, node)
-    # )
-    # lidar_thread_instance.start()
+    device_address = find_lidar_usb_device()
+    # If USB is not found, we will see an exception here.
+    lidar = RPLidar(None, device_address)
+    scan_pub = node.create_publisher(LaserScan, "scan", qos_profile)
+    lidar_thread_instance = threading.Thread(
+        target=lidar_thread, args=(lidar, scan_pub, node)
+    )
+    lidar_thread_instance.start()
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)
     executor.spin()
     node.destroy_node()
     rclpy.shutdown()
-    # lidar_thread_instance.join()
+    lidar_thread_instance.join()
