@@ -80,7 +80,6 @@ class ROS2BagIo {
         };
     }
 
-    //         // get a register callback() generic implementation
     void spin() {
         while (reader_->has_next()) {
             rosbag2_storage::SerializedBagMessageSharedPtr msg = reader_->read_next();

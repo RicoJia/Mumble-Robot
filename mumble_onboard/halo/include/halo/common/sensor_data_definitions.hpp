@@ -1,11 +1,21 @@
 #pragma once
 
+#include "sensor_msgs/msg/laser_scan.hpp"
+#include "sophus/se2.hpp"
+
 namespace halo {
 
 using PointType      = pcl::PointXYZI;
 using PointCloudType = pcl::PointCloud<PointType>;
 using CloudPtr       = PointCloudType::Ptr;
+using PCLPoint2D     = pcl::PointXY;
+using PCLCloud2D     = pcl::PointCloud<PCLPoint2D>;
 
+using LaserScanMsg = sensor_msgs::msg::LaserScan;
+
+using SE2 = Sophus::SE2d;
+
+using Vec2d = Eigen::Vector2d;
 using Vec3f = Eigen::Vector3f;
 using Vec4f = Eigen::Vector4f;
 

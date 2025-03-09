@@ -15,7 +15,7 @@ find_package(rosbag2_storage REQUIRED)
 find_package(rosbag2_transport REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(PCL REQUIRED)
-
+find_package(OpenCV REQUIRED)
 # Ensure we have a release type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE
@@ -28,12 +28,13 @@ add_library(
   halo STATIC
   src/halo.cpp)
 
-target_include_directories(halo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-                                       ${PCL_INCLUDE_DIRS})
+target_include_directories(
+  halo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${PCL_INCLUDE_DIRS}
+              ${OpenCV_INCLUDE_DIRS})
 
 # Plain signature
 target_link_libraries(
-  halo ${PCL_LIBRARIES})
+  halo ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 # Use ament macro to link ROS 2 libraries
 ament_target_dependencies(halo rclcpp rosbag2_cpp rosbag2_storage
