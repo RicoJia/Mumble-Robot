@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>halo</name>
+  <version>0.0.0</version>
+  <description>A sample ROS 2 package for the halo library</description>
+
+  <maintainer email="user@example.com">Your Name</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Build dependencies -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>rclcpp</build_depend>
+  <build_depend>rosbag2_cpp</build_depend>
+  <build_depend>rosbag2_storage</build_depend>
+  <build_depend>rosbag2_transport</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>PCL</build_depend>
+
+  <!-- Run dependencies -->
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>rosbag2_cpp</exec_depend>
+  <exec_depend>rosbag2_storage</exec_depend>
+  <exec_depend>rosbag2_transport</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>PCL</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
