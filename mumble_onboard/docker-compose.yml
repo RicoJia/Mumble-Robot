@@ -23,7 +23,7 @@ services:
     image: ricojia/mumble_onboard:latest
     pull_policy: if_not_present
     build:
-      context: ./mumble_onboard
+      context: ./
       dockerfile: ${CURRENT_DIR}/Dockerfile_mumble_onboard
       args:
         BUILD_PCL_FROM_SOURCE: "1"
@@ -39,7 +39,9 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_onboard # Mount current directory
       - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
-      # Change me if needed
-      - /home/ricojia/file_exchange_port/Deep-Blue-Academy-SLAM/slam_in_autonomous_driving/data/:/home/mumble_robot/data/
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
+      # For testing purposes, change me if needed
+      - /home/ricojia/file_exchange_port/Deep-Blue-Academy-SLAM/slam_in_autonomous_driving/data/:/home/mumble_robot/data/
+      - /home/ricojia/file_exchange_port/Mumble-Robot/mumble_simulation_isaac/bags/:/home/mumble_robot/bags/
+      - /home/ricojia/file_exchange_port/Mumble-Robot/vscode_configs:/home/mumble_robot/.vscode
     network_mode: host  # Use host network mode so topics can be heard

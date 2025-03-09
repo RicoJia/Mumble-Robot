@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+ {
+   "name": "Debug My Executable",
+   "type": "cppdbg",
+   "request": "launch",
+   "program": "${workspaceFolder}/build/mumble_onboard/halo/test_2dslam",  // change me for your tests
+   "args": [],
+   "stopAtEntry": false,
+   "cwd": "/home/mumble_robot", // explicitly set your working directory here
+   "environment": [],
+   "externalConsole": false,
+   "MIMode": "gdb",
+   "miDebuggerPath": "/usr/bin/gdb",
+   "preLaunchTask": "colcon build"
+ }
+  ]
+}

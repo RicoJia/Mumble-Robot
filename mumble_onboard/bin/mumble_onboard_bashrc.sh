@@ -21,6 +21,10 @@ bag_replay_sudo(){
     sudo_ros_preserve_env ros2 bag play $1
 }
 
+rm_build(){
+    rm -rf /home/mumble_robot/build/ /home/mumble_robot/install/ /home/mumble_robot/log/
+}
+
 if [ ! -d "/home/mumble_robot/build/" ]; then
     echo "First container launch: running colcon build..."
     colcon_build_source
