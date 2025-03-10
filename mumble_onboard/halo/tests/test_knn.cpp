@@ -373,16 +373,16 @@ TEST(TestKNN, test_nanoflann_kdtree) {
     std::vector<halo::NNMatch> ground_truth_matches =
         halo::brute_force_nn(first, test_cloud, true);
 
-    //     // TODO
-    // {
-    //     std::cout << "=====================NanoFlann Case0: k = 1 for Nanoflann KD Tree=====================" << std::endl;
-    //     halo::RAIITimer timer;
-    //     halo::NanoflannPointCloudAdaptor adaptor(*first);
-    //     halo::NanoFlannKDTree<halo::PointType, 3> nano_tree(adaptor,
-    //                                                         nanoflann::KDTreeSingleIndexAdaptorParams(10));
-    //     size_t k = 1;
-    //     nano_tree.search_tree_multi_threaded(test_cloud, matches, k);
-    //     EXPECT_EQ(matches.size(), second->points.size() * k);
-    // }
-    // evaluate_matches(matches, ground_truth_matches, 1, first, second);
+    // TODO
+    {
+        std::cout << "=====================NanoFlann Case0: k = 1 for Nanoflann KD Tree=====================" << std::endl;
+        halo::RAIITimer timer;
+        halo::NanoflannPointCloudAdaptor<halo::PointType> adaptor(*first);
+        halo::NanoFlannKDTree<halo::PointType, 3> nano_tree(adaptor,
+                                                            nanoflann::KDTreeSingleIndexAdaptorParams(10));
+        size_t k = 1;
+        nano_tree.search_tree_multi_threaded(test_cloud, matches, k);
+        EXPECT_EQ(matches.size(), second->points.size() * k);
+    }
+    evaluate_matches(matches, ground_truth_matches, 1, first, second);
 }

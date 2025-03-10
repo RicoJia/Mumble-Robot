@@ -1,14 +1,22 @@
 #pragma once
 #include <halo/common/sensor_data_definitions.hpp>
 #include <nanoflann/nanoflann.hpp>
+#include <execution>
+#include <numeric>
+#include <array>
 
 namespace halo {
+
+template <typename PointT>
 struct NanoflannPointCloudAdaptor {
     // Reference to the actual point cloud data
-    const halo::PointCloudType &pts;
+    using PointCloudT = pcl::PointCloud<PointT>;
+    const PointCloudT &pts;
+    static constexpr std::size_t dims_ =
+        _get_pointcloud_dimensions<PointT>::value;
 
     // Constructor
-    explicit NanoflannPointCloudAdaptor(const halo::PointCloudType &points) : pts(points) {}
+    explicit NanoflannPointCloudAdaptor(const PointCloudT &points) : pts(points) {}
 
     // Must return the number of data points
     inline size_t kdtree_get_point_count() const { return pts.points.size(); }
@@ -19,8 +27,12 @@ struct NanoflannPointCloudAdaptor {
             return pts.points[idx].x;
         else if (dim == 1)
             return pts.points[idx].y;
-        else
-            return pts.points[idx].z;
+        if constexpr (dims_ == 3) {
+            if (dim == 2)
+                return pts.points[idx].z;
+        }
+        // if dim != 0/1 and dims_ !=3, we are in trouble.
+        return std::numeric_limits<float>::quiet_NaN();
     }
 
     // Optional bounding-box computation: return false to default to a standard bbox computation.
@@ -32,7 +44,7 @@ template <typename PointT, int dim>
 class NanoFlannKDTree {
   public:
     using CloudPtr          = std::shared_ptr<pcl::PointCloud<PointT>>;
-    using PointCloudAdaptor = NanoflannPointCloudAdaptor;
+    using PointCloudAdaptor = NanoflannPointCloudAdaptor<PointT>;
     // Using 3 dimensions (for 3D point clouds). If you need a different dimensionality,
     // you could templatize the dimension.
     using KDTreeType = nanoflann::KDTreeSingleIndexAdaptor<
@@ -71,14 +83,21 @@ class NanoFlannKDTree {
         // Process each query point in parallel.
         std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
                       [&](size_t i) {
-                          const auto &pt    = query_cloud->points[i];
-                          float query_pt[3] = {pt.x, pt.y, pt.z};
+                          const auto &pt = query_cloud->points[i];
+                          std::array<float, dim> query_pt;
+                          if constexpr (dim == 3)
+                              query_pt = {pt.x, pt.y, pt.z};
+                          else if constexpr (dim == 2)
+                              query_pt = {pt.x, pt.y};
+                          else
+                              // Cannot be static_assert(false)
+                              static_assert(dim != 2 && dim != 3, "dimension can only be 2 or 3");
 
                           // Allocate temporary storage for this iteration.
                           std::vector<typename KDTreeType::IndexType> local_ret_index(num_results);
                           std::vector<float> local_out_dist_sqr(num_results);
 
-                          kd_tree_.knnSearch(query_pt, num_results, local_ret_index.data(), local_out_dist_sqr.data());
+                          kd_tree_.knnSearch(query_pt.data(), num_results, local_ret_index.data(), local_out_dist_sqr.data());
                           for (size_t j = 0; j < k; ++j) {
                               matches[i * k + j].idx_in_this_cloud             = i;
                               matches[i * k + j].closest_pt_idx_in_other_cloud = local_ret_index[j];

@@ -3,6 +3,7 @@
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>   // <-- Required for SelfAdjointEigenSolver
 #include <Eigen/Dense>
+#include <cmath>
 
 namespace math {
 template <typename Container, typename VectorType, typename Getter>
