@@ -41,12 +41,12 @@ std::pair<Eigen::VectorXf, Eigen::MatrixXf> compute_ATA_eigen(const Eigen::Matri
     return {solver.eigenvalues(), solver.eigenvectors()};
 }
 
-Eigen::Vector3f normalize_point_cloud(Eigen::MatrixXf &A) {
+Eigen::VectorXf normalize_point_cloud(Eigen::MatrixXf &A) {
     if (A.rows() == 0) {
         throw std::runtime_error("Point cloud is empty, cannot normalize.");
     }
     // Compute the mean along each column (mean of x, y, z separately)
-    Eigen::RowVector3f mean = A.colwise().mean();
+    Eigen::RowVectorXf mean = A.colwise().mean();
 
     // Subtract the mean from each point
     A.rowwise() -= mean;
@@ -107,6 +107,24 @@ Eigen::Vector4f FitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     return plane_coeffs;
 }
 
+// Returning mean and principal component
+Eigen::Vector3f fit_line(const pcl::PointCloud<pcl::PointXY>::Ptr &cloud) {
+    // Line: ax + by + c = 0
+    // Construct matrix A (each row: [x, y, 1])
+    int num_points = cloud->size();
+    Eigen::MatrixXf X(num_points, 3);
+    for (int i = 0; i < num_points; ++i) {
+        X(i, 0) = cloud->points[i].x;
+        X(i, 1) = cloud->points[i].y;
+        X(i, 2) = 1.0;
+    }
+    auto [eigen_values, eigen_vecs] = compute_ATA_eigen(X);
+    int min_coeff;
+    eigen_values.minCoeff(&min_coeff);
+    Eigen::Vector3f least_principal_component = eigen_vecs.col(min_coeff);
+    return least_principal_component;
+}
+
 // returning mean and principal component
 std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     // Step 1: find the mean of all points
@@ -124,7 +142,6 @@ std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line(const pcl::PointCloud<pcl::
     auto [eigen_values, eigen_vecs] = compute_ATA_eigen(X);
     int max_coeff;
     eigen_values.maxCoeff(&max_coeff);
-    // TODO: check Vec4f
     Eigen::Vector3f principal_component = eigen_vecs.col(max_coeff);
     return {mean, principal_component};
 }
@@ -137,6 +154,12 @@ template <typename EigenVectorType>
 double get_squared_distance(const EigenVectorType &p1,
                             const EigenVectorType &query) {
     return (p1 - query).squaredNorm();
+}
+
+template <typename EigenVectorType>
+double get_l2_distance(const EigenVectorType &p1,
+                       const EigenVectorType &query) {
+    return std::sqrt((p1 - query).squaredNorm());
 }
 
 }   // namespace math
