@@ -31,12 +31,13 @@ TEST(Test2DSLAM, TestVisualization) {
             // bool success = icp_2d.align_gauss_newton(relative_pose);
             halo::SE2 relative_pose{};
             bool success;
+            double cost;
             {
                 // source, target
                 halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
                 halo::RAIITimer timer;
-                // success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
-                success = icp_2d.mt_pl_gauss_newton(relative_pose);
+                success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
+                // success = icp_2d.mt_pl_gauss_newton(relative_pose);
             }
             cv::Mat output_img;
             if (!success) {
@@ -54,7 +55,7 @@ TEST(Test2DSLAM, TestVisualization) {
             cv::imshow("2D Laser Scan", output_img);
             cv::waitKey(0);
             // TODO
-            // last_scan_ptr = current_scan_ptr;
+            last_scan_ptr = current_scan_ptr;
         });
     ros2_bag_io.spin();
 }
