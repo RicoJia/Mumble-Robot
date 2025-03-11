@@ -14,7 +14,7 @@ constexpr size_t GAUSS_NEWTON_ITERATIONS   = 10;
 constexpr size_t MIN_NUM_VALID_POINTS      = 20;
 constexpr double POINT_LINE_DIST_THRES     = 0.4;   // 0.4m
 
-constexpr double PL_ICP_MAX_NEIGHBOR_DIST  = 0.01;   // squared value
+constexpr double PL_ICP_MAX_NEIGHBOR_DIST_SQUARED  = 0.01;   // squared value
 constexpr size_t PL_ICP_K_NEAREST_NUM      = 5;
 constexpr size_t PL_ICP_MIN_LINE_POINT_NUM = 3;   // should always be greater than 2
 
@@ -24,14 +24,12 @@ struct PointLine2DICPData {
     size_t idx_in_source_cloud_ = INVALID_INDEX;
 };
 
-// TODO
 struct AlignResult {
     bool success;
     SE2 pose;
     double cost;
 };
 
-//
 /**
  * @brief Return a list of point line data for NN Matches. Some source point cloud points may ultimately
  * dropped if their matched points are too far.
@@ -75,7 +73,7 @@ std::vector<PointLine2DICPData> knn_to_line_fitting_data(
                           double dist = math::get_squared_distance(
                               point_coord,
                               Eigen::Vector3f{target_pt.x, target_pt.y, 1.0});
-                          if (dist > PL_ICP_MAX_NEIGHBOR_DIST)
+                          if (dist > PL_ICP_MAX_NEIGHBOR_DIST_SQUARED)
                               continue;
                           cloud->points.emplace_back(target_pt);
                       }
