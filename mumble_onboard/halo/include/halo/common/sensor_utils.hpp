@@ -10,7 +10,7 @@ namespace halo {
 inline std::vector<ScanObj> get_valid_scan_obj(LaserScanMsg::SharedPtr scan) {
     std::vector<ScanObj> ret;
     ret.reserve(scan->ranges.size());
-    for (int i = 0; i < scan->ranges.size(); ++i) {
+    for (size_t i = 0; i < scan->ranges.size(); ++i) {
         float r = scan->ranges[i];
         if (scan->range_min <= r && r <= scan->range_max) {
             ret.emplace_back(r, scan->angle_min + i * scan->angle_increment);

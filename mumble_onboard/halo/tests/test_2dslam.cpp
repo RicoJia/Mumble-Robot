@@ -27,12 +27,17 @@ TEST(Test2DSLAM, TestVisualization) {
                 last_scan_ptr = current_scan_ptr;
                 return;
             }
-            // source, target
-            halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
-            halo::SE2 relative_pose{};
             // TODO
             // bool success = icp_2d.align_gauss_newton(relative_pose);
-            bool success = icp_2d.align_pl_gauss_newton(relative_pose);
+            halo::SE2 relative_pose{};
+            bool success;
+            {
+                // source, target
+                halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
+                halo::RAIITimer timer;
+                // success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
+                success = icp_2d.mt_pl_gauss_newton(relative_pose);
+            }
             cv::Mat output_img;
             if (!success) {
                 // TODO

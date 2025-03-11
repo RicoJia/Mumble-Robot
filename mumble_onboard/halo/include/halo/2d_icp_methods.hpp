@@ -4,15 +4,17 @@
 #include <halo/common/sensor_utils.hpp>
 #include <halo/common/math_utils.hpp>
 #include <memory>
+#include <future>
 
 namespace halo {
 
 constexpr double PT_MAX_VALID_SQUARED_DIST = 0.16;   // 0.4m
 constexpr double LAST_COST_SCALAR          = 0.9;    // 0.3m
-constexpr size_t GAUSS_NEWTON_ITERATIONS   = 20;
+constexpr size_t GAUSS_NEWTON_ITERATIONS   = 10;
+constexpr size_t MIN_NUM_VALID_POINTS      = 20;
 constexpr double POINT_LINE_DIST_THRES     = 0.4;   // 0.4m
 
-constexpr double PL_ICP_MAX_NEIGHBOR_DIST  = 0.4;   // 0.4m
+constexpr double PL_ICP_MAX_NEIGHBOR_DIST  = 0.01;   // squared value
 constexpr size_t PL_ICP_K_NEAREST_NUM      = 5;
 constexpr size_t PL_ICP_MIN_LINE_POINT_NUM = 3;   // should always be greater than 2
 
@@ -22,7 +24,14 @@ struct PointLine2DICPData {
     size_t idx_in_source_cloud_ = INVALID_INDEX;
 };
 
-// 
+// TODO
+struct AlignResult {
+    bool success;
+    SE2 pose;
+    double cost;
+};
+
+//
 /**
  * @brief Return a list of point line data for NN Matches. Some source point cloud points may ultimately
  * dropped if their matched points are too far.
@@ -63,7 +72,7 @@ std::vector<PointLine2DICPData> knn_to_line_fitting_data(
                               throw std::runtime_error(
                                   std::string("indices are not matching! ") + std::to_string(idx) + "|" +
                                   std::to_string(match.idx_in_this_cloud));
-                          double dist = math::get_l2_distance(
+                          double dist = math::get_squared_distance(
                               point_coord,
                               Eigen::Vector3f{target_pt.x, target_pt.y, 1.0});
                           if (dist > PL_ICP_MAX_NEIGHBOR_DIST)
@@ -73,7 +82,7 @@ std::vector<PointLine2DICPData> knn_to_line_fitting_data(
 
                       if (cloud->points.size() >= PL_ICP_MIN_LINE_POINT_NUM) {
                           Eigen::Vector3f least_principal_component = math::fit_line(cloud);
-                          ret.at(idx).params_                       = least_principal_component; 
+                          ret.at(idx).params_                       = least_principal_component;
                           ret.at(idx).idx_in_source_cloud_          = idx_in_source_cloud;
                           ret.at(idx).error_                        = ret.at(idx).params_.dot(point_coord);
                       }
@@ -94,15 +103,67 @@ class ICP2D {
         nano_tree_ = std::make_unique<halo::NanoFlannKDTree<pcl::PointXY, 2>>(adaptor, nanoflann::KDTreeSingleIndexAdaptorParams(5));
     }
 
-    bool align_pl_gauss_newton(SE2 &relative_pose) {
+    // CAUTION: THIS DOES NOT WORK WELL. PLEASE USE THE VANILLA align_pl_gauss_newton
+    bool mt_pl_gauss_newton(SE2 &relative_pose) {
+        // Define a set of orientation offsets (in radians)
+        int num_angles = 20;
+        std::vector<double> orientation_offsets;
+        orientation_offsets.reserve(num_angles);
+        for (int i = 0; i < num_angles; ++i) {
+            orientation_offsets.push_back(2 * M_PI * i / num_angles);
+        }
+
+        // Create 4 poses with the same translation but different rotations.
+        std::vector<SE2> poses;
+        for (double offset : orientation_offsets) {
+            // Assuming SO2::exp() creates a rotation from an angle.
+            poses.emplace_back(SO2::exp(offset), relative_pose.translation());
+        }
+
+        std::vector<std::future<AlignResult>> futures;
+        for (auto pose : poses) {   // pass by value to capture each independent pose
+            futures.push_back(std::async(std::launch::async, [pose, this]() mutable -> AlignResult {
+                double cost  = 0;
+                bool success = align_pl_gauss_newton(pose, cost);
+                return AlignResult{success, pose, cost};
+            }));
+        }
+
+        // Retrieve the results and pick the best one (lowest cost among successful alignments)
+        SE2 best_pose;
+        double best_cost = std::numeric_limits<double>::max();
+        bool found       = false;
+        for (auto &fut : futures) {
+            AlignResult result = fut.get();
+            std::cout << "Alignment " << (result.success ? "succeeded" : "failed")
+                      << ", cost: " << result.cost << std::endl;
+            if (result.success && result.cost < best_cost) {
+                best_cost = result.cost;
+                best_pose = result.pose;
+                found     = true;
+            }
+        }
+
+        if (!found) {
+            std::cout << "No successful alignment found." << std::endl;
+            return false;
+        }
+
+        // Update the final relative_pose with the best one.
+        relative_pose = best_pose;
+        return true;
+    }
+
+    bool align_pl_gauss_newton(SE2 &relative_pose, double &cost) {
         double pose_angle = relative_pose.so2().log();
         const size_t n    = source_scan_objs_.size();
-        double cost = 0, last_cost = 0;
+        cost              = 0;
+        double last_cost  = 0;
 
         for (size_t iter = 0; iter < GAUSS_NEWTON_ITERATIONS; ++iter) {
             Mat3d H     = Mat3d::Zero();
             Vec3d b_vec = Vec3d::Zero();
-            // 1: Get each source point's map pose 
+            // 1: Get each source point's map pose
             PCLCloud2DPtr source_map_cloud(new pcl::PointCloud<PCLPoint2D>());
             source_map_cloud->points =
                 std::vector<pcl::PointXY, Eigen::aligned_allocator<pcl::PointXY>>(n);
@@ -126,12 +187,12 @@ class ICP2D {
             // Some of them might be empty if their neighbors are too far.
             std::vector<PointLine2DICPData> point_line_data_vec = knn_to_line_fitting_data(
                 matches, PL_ICP_K_NEAREST_NUM, source_map_cloud, pcl_target_cloud_);
-            cost              = 0;
-            int effective_num = 0;
+            cost                 = 0;
+            size_t effective_num = 0;
             // find the distance to the line
             for (const auto &point_line_data : point_line_data_vec) {
                 if (point_line_data.idx_in_source_cloud_ != INVALID_INDEX) {
-                    // This is actually a distance check. 
+                    // This is actually a distance check.
                     size_t source_id = point_line_data.idx_in_source_cloud_;
                     // 3. calculate J, H = JJT
                     Eigen::MatrixXd J(1, 3);
@@ -147,7 +208,7 @@ class ICP2D {
                 }
             }
             // if we don't have enough close point matches, we fail.
-            if (effective_num < (n >> 1)) {
+            if (effective_num < MIN_NUM_VALID_POINTS) {
                 std::cout << "effective_num is too low: " << effective_num << std::endl;
                 return false;
             }
@@ -157,14 +218,15 @@ class ICP2D {
             cost /= effective_num;
             if (iter > 0 && cost > LAST_COST_SCALAR * last_cost)
                 break;
-            std::cout << "iter: " << iter << "cost: " << cost << std::endl;
+            // std::cout << "iter: " << iter << "cost: " << cost << std::endl;
 
             relative_pose.translation() += dx.head<2>();
             relative_pose.so2() = relative_pose.so2() * SO2::exp(dx[2]);
             last_cost           = cost;
         }
-        std::cout << "translation: " << relative_pose.translation().transpose() << std::endl;
-        std::cout << "theta: " << relative_pose.so2().log() << std::endl;
+        // std::cout << "translation: " << relative_pose.translation().transpose() << std::endl;
+        // std::cout << "theta: " << relative_pose.so2().log() << std::endl;
+        cost = last_cost;
         return true;
     }
 
@@ -176,7 +238,7 @@ class ICP2D {
         for (size_t iter = 0; iter < GAUSS_NEWTON_ITERATIONS; ++iter) {
             Mat3d H = Mat3d::Zero();
             Vec3d b = Vec3d::Zero();
-            // 1: Get each source point's map pose 
+            // 1: Get each source point's map pose
             PCLCloud2DPtr source_map_cloud(new pcl::PointCloud<PCLPoint2D>());
             source_map_cloud->points =
                 std::vector<pcl::PointXY, Eigen::aligned_allocator<pcl::PointXY>>(n);
@@ -224,7 +286,7 @@ class ICP2D {
             }
 
             // if we don't have enough close point matches, we fail.
-            if (effective_num < (n >> 1))
+            if (effective_num < MIN_NUM_VALID_POINTS)
                 return false;
             Vec3d dx = H.ldlt().solve(-b);
             if (std::isnan(dx[0]))
