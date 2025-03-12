@@ -80,8 +80,8 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
             _jacobianOplusXi.setZero();
         }
     }
-    bool read(std::istream &is) override { return true; }
-    bool write(std::ostream &os) const override { return true; }
+    bool read([[maybe_unused]] std::istream &is) override { return true; }
+    bool write([[maybe_unused]] std::ostream &os) const override { return true; }
 
   private:
     const cv::Mat &grid_;
@@ -260,7 +260,7 @@ class LikelihoodField2D {
         return true;
     }
 
-    bool align_g2o(SE2 &relative_pose, double &cost) {
+    bool align_g2o(SE2 &relative_pose, [[maybe_unused]] double &cost) {
         // template parameters: <dof, error dim>
         using BlockSolverType  = g2o::BlockSolver<g2o::BlockSolverTraits<3, 1>>;
         using LinearSolverType = g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
