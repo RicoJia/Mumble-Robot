@@ -35,7 +35,7 @@ struct ScanObj {
 };
 
 struct Lidar2DFrame {
-    std::vector<ScanObj> scan_objs_;
+    LaserScanMsg::SharedPtr scan_= nullptr;
     size_t scan_id_     = INVALID_INDEX;
     size_t keyframe_id_ = INVALID_INDEX2;   // timestamp may not be super useful here
     SE2 pose_;                              // world to scan pose

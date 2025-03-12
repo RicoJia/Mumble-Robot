@@ -92,8 +92,9 @@ TEST(Test2DSLAM, TestOccupancyMap) {
             }
             {
                 halo::RAIITimer timer;
-                auto frame = halo::get_valid_lidar2d_frame(
-                    current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}, true);
+                auto frame = halo::Lidar2DFrame{
+current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}
+                };
                 omap.add_frame(halo::OccupancyMapMethod::TEMPLATE, frame);
             }
             if (update_last_scan) {
