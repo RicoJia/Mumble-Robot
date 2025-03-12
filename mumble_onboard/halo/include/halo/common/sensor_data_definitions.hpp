@@ -34,6 +34,14 @@ struct ScanObj {
     double angle = 0.0;
 };
 
+struct Lidar2DFrame {
+    std::vector<ScanObj> scan_objs_;
+    size_t scan_id_     = INVALID_INDEX;
+    size_t keyframe_id_ = INVALID_INDEX2;   // timestamp may not be super useful here
+    SE2 pose_;                              // world to scan pose
+    SE2 pose_submap_;                       // submap to scan pose
+};
+
 struct NNMatch {
     size_t idx_in_this_cloud             = INVALID_INDEX;
     size_t closest_pt_idx_in_other_cloud = INVALID_INDEX;

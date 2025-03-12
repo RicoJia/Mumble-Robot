@@ -19,6 +19,20 @@ inline std::vector<ScanObj> get_valid_scan_obj(LaserScanMsg::SharedPtr scan) {
     return ret;
 }
 
+inline Lidar2DFrame get_valid_lidar2d_frame(
+    LaserScanMsg::SharedPtr scan,
+    const size_t &scan_id,
+    const size_t &keyframe_id,
+    const SE2 &pose,
+    const SE2 &pose_submap) {
+    return Lidar2DFrame{
+        get_valid_scan_obj(scan),
+        scan_id,
+        keyframe_id,
+        pose,
+        pose_submap};
+}
+
 inline Vec2d scan_point_to_map_frame(
     const double &range, const double &angle, const SE2 &robot_pose) {
     double x = range * std::cos(angle);
