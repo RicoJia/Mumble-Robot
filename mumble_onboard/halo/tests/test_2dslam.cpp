@@ -2,8 +2,11 @@
 #include <halo/common/halo_io.hpp>
 #include <halo/common/sensor_utils.hpp>
 #include <halo/2d_icp_methods.hpp>
+#include <halo/2d_likelihood_field.hpp>
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+
+bool update_last_scan = false;   // Default behavior
 
 // TEST(Test2DSLAM, TestVisualization) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
@@ -30,19 +33,31 @@ TEST(Test2DSLAM, TestVisualization) {
             // TODO
             // bool success = icp_2d.align_gauss_newton(relative_pose);
             halo::SE2 relative_pose{};
-            bool success;
-            double cost;
+            bool success                 = false;
+            [[maybe_unused]] double cost = -1;
+            // {
+            //     // source, target
+            //     halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
+            //     halo::RAIITimer timer;
+            //     success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
+            //     // success = icp_2d.mt_pl_gauss_newton(relative_pose);
+            // }
+            // {
+            //     halo::RAIITimer timer;
+            //     halo::LikelihoodField2D likelihood_field2d(current_scan_ptr, last_scan_ptr);
+            //     // success = likelihood_field2d.align_gauss_newton(relative_pose, cost);   //4ms per message
+            //     success = likelihood_field2d.mt_pl_gauss_newton(relative_pose); // 40ms per message
+            // }
             {
-                // source, target
-                halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
                 halo::RAIITimer timer;
-                success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
-                // success = icp_2d.mt_pl_gauss_newton(relative_pose);
+                halo::LikelihoodField2D likelihood_field2d(current_scan_ptr, last_scan_ptr);
+                success = likelihood_field2d.align_g2o(relative_pose, cost);    // 5ms per message
+                //     success = likelihood_field2d.mt_pl_gauss_newton(relative_pose);
             }
             cv::Mat output_img;
             if (!success) {
                 // TODO
-                std::cout << "icp did not succeed because it doesn't have enough close points" << std::endl;
+                std::cout << "icp did not succeed because it doesn't have valid point matches" << std::endl;
                 return;
             }
 
@@ -55,7 +70,23 @@ TEST(Test2DSLAM, TestVisualization) {
             cv::imshow("2D Laser Scan", output_img);
             cv::waitKey(0);
             // TODO
-            last_scan_ptr = current_scan_ptr;
+            if (update_last_scan) {
+                last_scan_ptr = current_scan_ptr;
+            }
         });
     ros2_bag_io.spin();
+}
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+
+    // Parse command-line arguments
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--update_last_scan" || arg == "-u") {
+            update_last_scan = true;
+        }
+    }
+
+    return RUN_ALL_TESTS();
 }

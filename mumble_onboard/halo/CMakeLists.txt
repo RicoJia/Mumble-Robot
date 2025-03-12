@@ -16,6 +16,9 @@ find_package(rosbag2_transport REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(g2o REQUIRED)
+find_package(fmt REQUIRED)
+
 # Ensure we have a release type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE
@@ -24,6 +27,8 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 ${CMAKE_CXX_FLAGS}")
 
+# add_subdirectory(thirdparty/g2o)
+
 # Add library
 add_library(
   halo STATIC
@@ -31,11 +36,25 @@ add_library(
 
 target_include_directories(
   halo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${PCL_INCLUDE_DIRS}
-              ${OpenCV_INCLUDE_DIRS})
+              ${OpenCV_INCLUDE_DIRS} ${G2O_INCLUDE_DIRS})
+
+set(G2O_LIBS
+    g2o_core
+    g2o_stuff
+    g2o_solver_dense
+    g2o_solver_cholmod
+    g2o_types_slam2d
+    g2o_types_slam3d
+    g2o_solver_eigen
+    g2o_types_sba
+    g2o_csparse_extension
+    fmt::fmt)
 
 # Plain signature
 target_link_libraries(
-  halo ${PCL_LIBRARIES} ${OpenCV_LIBS})
+  halo ${PCL_LIBRARIES} ${OpenCV_LIBS} ${G2O_LIBS} ${DL_LIB} # Add this line to
+                                                             # link libdl
+)
 
 # Use ament macro to link ROS 2 libraries
 ament_target_dependencies(halo rclcpp rosbag2_cpp rosbag2_storage
@@ -59,7 +78,8 @@ if(BUILD_HALO_TESTS)
   add_test(NAME test_linear_fitting COMMAND test_linear_fitting)
 
   add_executable(test_2dslam tests/test_2dslam.cpp)
-  target_link_libraries(test_2dslam halo GTest::GTest GTest::Main pthread)
+  target_link_libraries(test_2dslam halo GTest::GTest GTest::Main pthread
+                        ${G2O_LIBS})
   add_test(NAME test_2dslam COMMAND test_2dslam)
 endif()
 

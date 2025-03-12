@@ -51,6 +51,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
     git \
+    wget \
     libgtest-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -59,6 +60,7 @@ RUN apt-get update && apt-get install -y \
     ros-humble-pcl-ros \
     libsuitesparse-dev  \
     && rm -rf /var/lib/apt/lists/
+
 
 # [ACHTUNG]: Install gdb and PCL. We need to manually install pcl 1.13.0 for an important viewer bugfix
 
@@ -80,6 +82,17 @@ else \
     pcl-tools \
     && rm -rf /var/lib/apt/lists/;   \
 fi
+
+# Download and build g2o release 20241228_git
+RUN wget https://github.com/RainerKuemmerle/g2o/archive/refs/tags/20241228_git.tar.gz -O /tmp/g2o.tar.gz && \
+    tar -xzf /tmp/g2o.tar.gz -C /tmp && \
+    mkdir -p /tmp/g2o-20241228_git/build && \
+    cd /tmp/g2o-20241228_git/build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    rm -rf /tmp/g2o-20241228_git /tmp/g2o.tar.gz
 
 RUN pip3 install open3d
 

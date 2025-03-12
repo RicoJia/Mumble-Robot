@@ -14,9 +14,9 @@ constexpr size_t GAUSS_NEWTON_ITERATIONS   = 10;
 constexpr size_t MIN_NUM_VALID_POINTS      = 20;
 constexpr double POINT_LINE_DIST_THRES     = 0.4;   // 0.4m
 
-constexpr double PL_ICP_MAX_NEIGHBOR_DIST_SQUARED  = 0.01;   // squared value
-constexpr size_t PL_ICP_K_NEAREST_NUM      = 5;
-constexpr size_t PL_ICP_MIN_LINE_POINT_NUM = 3;   // should always be greater than 2
+constexpr double PL_ICP_MAX_NEIGHBOR_DIST_SQUARED = 0.01;   // squared value
+constexpr size_t PL_ICP_K_NEAREST_NUM             = 5;
+constexpr size_t PL_ICP_MIN_LINE_POINT_NUM        = 3;   // should always be greater than 2
 
 struct PointLine2DICPData {
     Vec3f params_;   //[a,b,c] in ax + by + c = 0
@@ -259,8 +259,8 @@ class ICP2D {
                 continue;
 
             // distance check. : if distance is less than a threshold
-            cost              = 0;
-            int effective_num = 0;
+            cost                 = 0;
+            size_t effective_num = 0;
             for (const auto &match : matches) {
                 size_t source_id = match.idx_in_this_cloud;
                 auto source_pt   = source_map_cloud->points.at(source_id);

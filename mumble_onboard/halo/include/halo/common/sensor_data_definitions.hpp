@@ -18,6 +18,7 @@ using SE2 = Sophus::SE2d;
 using SO2 = Sophus::SO2d;
 
 using Vec2d = Eigen::Vector2d;
+using Vec2i = Eigen::Vector2i;
 using Vec3b = Eigen::Vector3i;
 using Vec3d = Eigen::Vector3d;
 using Vec3f = Eigen::Vector3f;
