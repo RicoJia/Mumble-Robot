@@ -6,6 +6,8 @@
 #include <cmath>
 
 namespace math {
+constexpr double TWO_PI = 2.0 * M_PI;
+
 template <typename Container, typename VectorType, typename Getter>
 void compute_cov_and_mean(const Container &data, VectorType &mean,
                           VectorType &cov, Getter &&getter) {
@@ -160,6 +162,11 @@ template <typename EigenVectorType>
 double get_l2_distance(const EigenVectorType &p1,
                        const EigenVectorType &query) {
     return std::sqrt((p1 - query).squaredNorm());
+}
+
+double wrap_to_2pi(double angle) {
+    angle = std::fmod(angle, TWO_PI);
+    return (angle < 0) ? angle + TWO_PI : angle;
 }
 
 }   // namespace math

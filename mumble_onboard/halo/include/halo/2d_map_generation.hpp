@@ -3,39 +3,69 @@
 #include <halo/common/math_utils.hpp>
 #include <halo/common/sensor_data_definitions.hpp>
 #include <halo/common/sensor_utils.hpp>
+#include <unordered_set>
 
 namespace halo {
 
-constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE      = 117;
-constexpr uchar OCCUPANCYMAP2D_FREE_THRE        = 132;
-constexpr float OCCUPANCYMAP2D_INV_RES          = 1.0 / 0.05;                     // 0.05m
-constexpr int OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE = 10.0 * OCCUPANCYMAP2D_INV_RES;   // 1m each side
-constexpr int OCCUPANCYMAP2D_HALF_MAP_SIZE      = 20 * OCCUPANCYMAP2D_INV_RES;    // 10m
+constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE = 117;
+constexpr uchar OCCUPANCYMAP2D_FREE_THRE   = 132;
+constexpr uchar UNKNOWN_CELL_VALUE         = 127;
+
+constexpr float OCCUPANCYMAP2D_RES              = 0.05;                            // 0.05m
+constexpr float OCCUPANCYMAP2D_INV_RES          = 1.0 / OCCUPANCYMAP2D_RES;        // 0.05m
+constexpr int OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE = 4.0 * OCCUPANCYMAP2D_INV_RES;    // 1m each side
+constexpr int OCCUPANCYMAP2D_HALF_MAP_SIZE      = 20.0 * OCCUPANCYMAP2D_INV_RES;   // 10m
 
 enum class OccupancyMapMethod {
     TEMPLATE  = 0,
     BRESENHAM = 1
 };
 
+// The template method is to add points in a rectangular template (a smaller grid) around the robot pose, to a submap (a larger grid).
+
 class OccupancyMap2D {
   public:
     struct TemplatePoint {
         int dx_      = 0;
         int dy_      = 0;
-        int range_   = 0.0f;
+        float range_ = 0.0f;
         float angle_ = 0.0f;
     };
 
     OccupancyMap2D(bool gen_template) {
         if (gen_template) {
+            grid_ = cv::Mat(2 * OCCUPANCYMAP2D_HALF_MAP_SIZE, 2 * OCCUPANCYMAP2D_HALF_MAP_SIZE, CV_8U, UNKNOWN_CELL_VALUE);
             generate_template();
         }
     }
     ~OccupancyMap2D() = default;
 
+    void SetSubmapPose(const SE2 &pose) { submap_pose_ = pose; }
+
     // According to rpi_lidar_a1_mumble.py, we are using [0, 2pi) for angle_min and angle_max
     void add_frame(const OccupancyMapMethod &method, const Lidar2DFrame &frame) {
-        // Tmap->robot
+        // Tmap->scan
+        // Not using frame.pose_submap_ because that could be from the last submap.
+        SE2 T_map_pose          = submap_pose_ * frame.pose_;
+        Vec2i pose_submap_coord = world_2_image(T_map_pose.translation(),
+                                                Vec2i{OCCUPANCYMAP2D_HALF_MAP_SIZE, OCCUPANCYMAP2D_HALF_MAP_SIZE},
+                                                INV_RES);
+        float theta             = T_map_pose.so2().log();
+
+        // add endpoints (in submap frame) to lookup
+        std::unordered_set<Vec2i, CoordHash> endpoints_lookup;
+        for (size_t i = 0; i < frame.scan_->ranges.size(); ++i) {
+            double r = frame.scan_->ranges.at(i);
+            if (r < frame.scan_->range_min || r > frame.scan_->range_max) {
+                continue;
+            }
+            double angle_scan_frame = frame.scan_->angle_min + i * frame.scan_->angle_increment;
+            double x                = r * std::cos(angle_scan_frame);
+            double y                = r * std::sin(angle_scan_frame);
+            endpoints_lookup.emplace(world_2_image(
+                frame.pose_ * Vec2d{x, y}, Vec2i{OCCUPANCYMAP2D_HALF_MAP_SIZE, OCCUPANCYMAP2D_HALF_MAP_SIZE}, INV_RES));
+        }
+
         // get world pose of the scan, and the robot itself.
         switch (method) {
         case OccupancyMapMethod::TEMPLATE:
@@ -43,33 +73,59 @@ class OccupancyMap2D {
             if (grid_.data == nullptr) {
                 generate_template();
             }
-            // for each scan point
-            // get P_map coords
-            // get range value from linear interpolation. 
-            // if the template point's range is larger the scan point range, return
-            // 
+
+            std::for_each(
+                std::execution::par_unseq,
+                template_.begin(), template_.end(), [&](const TemplatePoint &pt) {
+                    // get submap coord of the template point, around the robot pose
+                    Vec2i p_map = pose_submap_coord + Vec2i(pt.dx_, pt.dy_);
+                    // get the angle of the template point in the scan frame.
+                    // The template's orientation is the same as the submap.
+                    float model_pt_scan_angle = math::wrap_to_2pi(pt.angle_ - theta);   // wrap!!
+                    // get interpolated scan range value of the model point orientation
+                    float model_pt_range = interpolate_range(model_pt_scan_angle, frame.scan_);
+                    // if the template point's range is larger the scan point range, return. Otherwise, set to free
+                    // // TODO
+                    // std::cout << "interpolated range: " << model_pt_range << ", template pt rg:" << pt.range_ << std::endl;
+                    if (model_pt_range < frame.scan_->range_min || model_pt_range > frame.scan_->range_max) {
+                        return;
+                    } else {
+                        if (model_pt_range > pt.range_ && endpoints_lookup.find(p_map) == endpoints_lookup.end()) {
+                            // TODO
+                            // std::cout << "white: " << p_map[0] << ", " << p_map[1] << std::endl;
+                            set_point(p_map[0], p_map[1], false);
+                        }
+                    }
+                });
             break;
         case OccupancyMapMethod::BRESENHAM:
+            std::for_each(std::execution::par_unseq, endpoints_lookup.begin(), endpoints_lookup.end(),
+                          [&](const Vec2i &pt) {
+                              bresenham_fill(pose_submap_coord, pt);
+                          });
             break;
             // No default, a compilation error is good in that case.
-        
-        // endpoints are filled
         }
+        // Set endpoints to filled
+        std::for_each(std::execution::par_unseq, endpoints_lookup.begin(), endpoints_lookup.end(),
+                      [this](const Vec2i &pt) {
+                          set_point(pt[0], pt[1], true);
+                      });
     }
 
     /*************************************************************************** */
     // Template Method
     /*************************************************************************** */
     void generate_template() {
-        for (int x = -TEMPLATE_SIDE; x < TEMPLATE_SIDE; ++x) {
-            for (int y = -TEMPLATE_SIDE; y < TEMPLATE_SIDE; ++y) {
+        for (int x = -OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; x < OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; ++x) {
+            for (int y = -OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; y < OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; ++y) {
                 float angle = std::atan2(y, x);
                 // [0, 2pi]
-                angle = (angle < 0) ? angle + 2 * M_PI : angle;
+                angle = math::wrap_to_2pi(angle);
                 // using [0, 2pi]
                 template_.emplace_back(
                     x, y,
-                    int(std::sqrt(x * x + y * y) * OCCUPANCYMAP2D_INV_RES),
+                    std::sqrt(x * x + y * y) * OCCUPANCYMAP2D_RES,
                     angle);
             }
         }
@@ -80,10 +136,10 @@ class OccupancyMap2D {
     /*************************************************************************** */
     // Fill all points in line segment [start, end)
     void bresenham_fill(const Vec2i &start, const Vec2i &end) {
-        int dx      = start[0] - end[0];
-        int dy      = start[1] - end[1];
-        int delta_x = (dx > 0) ? -1 : 1;
-        int delta_y = (dy > 0) ? -1 : 1;
+        int dx      = end[0] - start[0];
+        int dy      = end[1] - start[1];
+        int delta_x = (dx > 0) ? 1 : -1;
+        int delta_y = (dy > 0) ? 1 : -1;
         int error   = 0;
 
         int x = start[0];
@@ -94,7 +150,7 @@ class OccupancyMap2D {
         if (dx > dy) {
             for (int i = 0; i < dx; i++) {
                 x += delta_x;
-                error += (delta_y << 1);
+                error += 2 * dy;
                 if (error >= dx) {
                     error -= 2 * dx;
                     y += delta_y;
@@ -104,7 +160,7 @@ class OccupancyMap2D {
         } else {
             for (int i = 0; i < dy; i++) {
                 y += delta_y;
-                error += (delta_x << 1);
+                error += 2 * dx;
                 if (error >= dy) {
                     error -= 2 * dy;
                     x += delta_x;
@@ -114,10 +170,33 @@ class OccupancyMap2D {
         }
     }
 
+    cv::Mat get_grid() const {
+        cv::Mat ret(2 * OCCUPANCYMAP2D_HALF_MAP_SIZE, 2 * OCCUPANCYMAP2D_HALF_MAP_SIZE, CV_8UC3);
+        for (int x = 0; x < grid_.cols; ++x) {
+            for (int y = 0; y < grid_.rows; ++y) {
+                if (grid_.at<uchar>(y, x) < UNKNOWN_CELL_VALUE) {
+                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
+                } else if (grid_.at<uchar>(y, x) > UNKNOWN_CELL_VALUE) {
+                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
+                    // // TODO
+                    // std::cout << "white: " << y << "," << x << std::endl;
+
+                } else {
+                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(127, 127, 127);   // grayscale
+                }
+            }
+        }
+        return ret;
+    }
+
   private:
-    cv::Mat grid_;   // occupancy: 1.0 = free, 0.0 = occupied
+    cv::Mat grid_;        // occupancy: 1.0 = free, 0.0 = occupied
+    SE2 submap_pose_{};   // T world->submap
     std::vector<TemplatePoint> template_;
 
+    /**
+     * @brief: set a point before converting to [y, x] occupy (true/false)
+     */
     void set_point(int x, int y, bool occupy) {
         if (0 <= x && x < grid_.cols && 0 <= y &&
             y < grid_.rows) {

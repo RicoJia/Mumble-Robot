@@ -69,4 +69,37 @@ inline void visualize_2d_scan(
     }
     cv::circle(image, cv::Point(image_size / 2, image_size / 2), 3, cv::Scalar(0, 0, 255), cv::FILLED);
 }
+
+Vec2i world_2_image(const Vec2d &world_pose, const Vec2i &image_center, double inv_res) {
+    return (world_pose * inv_res).cast<int>() + image_center;
+}
+
+float interpolate_range(double angle, const LaserScanMsg::SharedPtr &scan) {
+    if (angle < scan->angle_min || angle > scan->angle_max)
+        return 0.0f;
+
+    double index    = (angle - scan->angle_min) / scan->angle_increment;
+    int index_floor = std::floor(index);
+    int index_ceil  = std::ceil(index);
+
+    if (index_floor == index_ceil)
+        return scan->ranges[index_floor];
+
+    double weight = index - index_floor;
+    return (1.0 - weight) * scan->ranges[index_floor] + weight * scan->ranges[index_ceil];
+}
+
+struct CoordHash {
+    size_t operator()(const Vec2i &coord) const {
+        return size_t(((coord[0] * 73856093) ^ (coord[1] * 471943)) %
+                      10000000);
+    }
+
+    size_t operator()(const Vec3i &coord) const {
+        return size_t(((coord[0] * 73856093) ^ (coord[1] * 471943) ^
+                       (coord[2] * 83492791)) %
+                      10000000);
+    }
+};
+
 };   // namespace halo

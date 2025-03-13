@@ -93,16 +93,22 @@ TEST(Test2DSLAM, TestOccupancyMap) {
             {
                 halo::RAIITimer timer;
                 auto frame = halo::Lidar2DFrame{
-current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}
-                };
+                    current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}};
+                // Performance: 0.06 ms, with 8x8 template size. within the template, the resolution is good.
+                // But in general, use bresenham since it's fast and doesn't grow O(n^2) with the template
                 omap.add_frame(halo::OccupancyMapMethod::TEMPLATE, frame);
+                // Performance: 2ms for 360 lines
+                // omap.add_frame(halo::OccupancyMapMethod::BRESENHAM, frame);
             }
             if (update_last_scan) {
                 last_scan_ptr = current_scan_ptr;
             }
-        }
 
-    );
+            auto output_img = omap.get_grid();
+            cv::imshow("Submap", output_img);
+            cv::waitKey(0);
+        });
+    ros2_bag_io.spin();
 }
 
 int main(int argc, char **argv) {

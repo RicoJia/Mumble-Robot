@@ -19,6 +19,7 @@ using SO2 = Sophus::SO2d;
 
 using Vec2d = Eigen::Vector2d;
 using Vec2i = Eigen::Vector2i;
+using Vec3i = Eigen::Vector3i;
 using Vec3b = Eigen::Vector3i;
 using Vec3d = Eigen::Vector3d;
 using Vec3f = Eigen::Vector3f;
@@ -35,11 +36,11 @@ struct ScanObj {
 };
 
 struct Lidar2DFrame {
-    LaserScanMsg::SharedPtr scan_= nullptr;
-    size_t scan_id_     = INVALID_INDEX;
-    size_t keyframe_id_ = INVALID_INDEX2;   // timestamp may not be super useful here
-    SE2 pose_;                              // world to scan pose
-    SE2 pose_submap_;                       // submap to scan pose
+    LaserScanMsg::SharedPtr scan_ = nullptr;
+    size_t scan_id_               = INVALID_INDEX;
+    size_t keyframe_id_           = INVALID_INDEX2;   // timestamp may not be super useful here
+    SE2 pose_;                                        // world to scan pose
+    SE2 pose_submap_;                                 // submap to scan pose
 };
 
 struct NNMatch {
