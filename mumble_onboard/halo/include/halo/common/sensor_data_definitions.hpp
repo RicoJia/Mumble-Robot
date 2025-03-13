@@ -2,6 +2,7 @@
 
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sophus/se2.hpp"
+#include <opencv2/opencv.hpp>
 
 namespace halo {
 
@@ -30,6 +31,13 @@ using Mat3d = Eigen::Matrix3d;
 constexpr size_t INVALID_INDEX  = std::numeric_limits<size_t>::max();
 constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;
 
+constexpr float RES_2D                     = 0.05;              // 0.05m
+constexpr float INV_RES_2D                 = 1.0 / 0.05;        // 0.05m
+constexpr int HALF_MAP_SIZE_2D             = 20 * INV_RES_2D;   // 10m
+constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE = 117;
+constexpr uchar OCCUPANCYMAP2D_FREE_THRE   = 132;
+constexpr uchar UNKNOWN_CELL_VALUE         = 127;
+
 struct ScanObj {
     double range = 0.0;
     double angle = 0.0;
@@ -42,6 +50,8 @@ struct Lidar2DFrame {
     SE2 pose_;                                        // world to scan pose
     SE2 pose_submap_;                                 // submap to scan pose
 };
+
+using Lidar2DFramePtr = std::shared_ptr<Lidar2DFrame>;
 
 struct NNMatch {
     size_t idx_in_this_cloud             = INVALID_INDEX;

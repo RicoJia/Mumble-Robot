@@ -12,10 +12,8 @@ namespace halo {
 
 constexpr size_t LIKELIHOOD_FIELD_ITERATIONS       = 10;
 constexpr size_t LIKELIHOOD_FIELD_MIN_VALID_POINTS = 20;
-constexpr int IMAGE_BOARDER                        = 20;              // 20pixels
-constexpr float INV_RES                            = 1.0 / 0.05;      // 0.05m
-constexpr int TEMPLATE_SIDE                        = 3.0 * INV_RES;   // 1m each side
-constexpr int HALF_MAP_SIZE                        = 20 * INV_RES;    // 10m
+constexpr int IMAGE_BOARDER                        = 20;                 // 20pixels
+constexpr int TEMPLATE_SIDE                        = 3.0 * INV_RES_2D;   // 1m each side
 constexpr float FAR_VALUE                          = 1000.0;
 
 // Why a unary edge? Because this edge is a lidar point. It's associated with only ONE vertex (pose)
@@ -36,7 +34,7 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * INV_RES + Vec2d(HALF_MAP_SIZE, HALF_MAP_SIZE)).cast<int>();
+        Vec2i pose_map   = (pose_world * INV_RES_2D + Vec2d(HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D)).cast<int>();
 
         if (IMAGE_BOARDER <= pose_map[0] &&
             pose_map[0] < grid_.cols - IMAGE_BOARDER &&
@@ -52,7 +50,7 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * INV_RES + Vec2d(HALF_MAP_SIZE, HALF_MAP_SIZE)).cast<int>();
+        Vec2i pose_map   = (pose_world * INV_RES_2D + Vec2d(HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D)).cast<int>();
         if (IMAGE_BOARDER <= pose_map[0] &&
             pose_map[0] < grid_.cols - IMAGE_BOARDER &&
             IMAGE_BOARDER <= pose_map[1] &&
@@ -67,15 +65,15 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * INV_RES + Vec2d(HALF_MAP_SIZE, HALF_MAP_SIZE)).cast<int>();
+        Vec2i pose_map   = (pose_world * INV_RES_2D + Vec2d(HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D)).cast<int>();
         if (IMAGE_BOARDER <= pose_map[0] &&
             pose_map[0] < grid_.cols - IMAGE_BOARDER &&
             IMAGE_BOARDER <= pose_map[1] &&
             pose_map[1] < grid_.rows - IMAGE_BOARDER) {
             float dx = (grid_.at<float>(pose_map[1], pose_map[0] + 1) - grid_.at<float>(pose_map[1], pose_map[0] - 1)) / 2.0;
             float dy = (grid_.at<float>(pose_map[1] + 1, pose_map[0]) - grid_.at<float>(pose_map[1] - 1, pose_map[0])) / 2.0;
-            _jacobianOplusXi << INV_RES * dx, -INV_RES * dy,
-                -INV_RES * dx * (pose_map[1] - HALF_MAP_SIZE) + INV_RES * dy * (pose_map[0] - HALF_MAP_SIZE);
+            _jacobianOplusXi << INV_RES_2D * dx, -INV_RES_2D * dy,
+                -INV_RES_2D * dx * (pose_map[1] - HALF_MAP_SIZE_2D) + INV_RES_2D * dy * (pose_map[0] - HALF_MAP_SIZE_2D);
         } else {
             _jacobianOplusXi.setZero();
         }
@@ -101,24 +99,29 @@ class LikelihoodField2D {
         float dist_to_point_ = 0;
     };
 
-    explicit LikelihoodField2D(
-        LaserScanMsg::SharedPtr source,
-        LaserScanMsg::SharedPtr target) {
+    explicit LikelihoodField2D() {
         // generate template
         for (int x = -TEMPLATE_SIDE; x < TEMPLATE_SIDE; ++x) {
             for (int y = -TEMPLATE_SIDE; y < TEMPLATE_SIDE; ++y) {
                 template_.emplace_back(x, y, std::sqrt(x * x + y * y));
             }
         }
+        grid_ = cv::Mat(HALF_MAP_SIZE_2D * 2, HALF_MAP_SIZE_2D * 2, CV_32F, FAR_VALUE);
+    }
+
+    /**
+     * @brief: when a target cloud comes in, we want to:
+     * 1. Get rid of invalid points all together and store as target_scan_objs_
+     * 2. Update underlying grid_ with the scan points for this to be searched around.
+     */
+    void set_target_scan(LaserScanMsg::SharedPtr target) {
         // get rid of the invalid scan points
         target_scan_objs_ = get_valid_scan_obj(target);
-        source_scan_objs_ = get_valid_scan_obj(source);
-        grid_             = cv::Mat(HALF_MAP_SIZE * 2, HALF_MAP_SIZE * 2, CV_32F, FAR_VALUE);
         // Store the likelihood field as distance. if visualized directly,
         // the image is symmetric about the x axis
         for (const auto &scan_obj : target_scan_objs_) {
-            int x = int(scan_obj.range * std::cos(scan_obj.angle) * INV_RES) + HALF_MAP_SIZE;
-            int y = int(scan_obj.range * std::sin(scan_obj.angle) * INV_RES) + HALF_MAP_SIZE;
+            int x = int(scan_obj.range * std::cos(scan_obj.angle) * INV_RES_2D) + HALF_MAP_SIZE_2D;
+            int y = int(scan_obj.range * std::sin(scan_obj.angle) * INV_RES_2D) + HALF_MAP_SIZE_2D;
             for (const auto &t : template_) {
                 int xx = x + t.dx_;
                 int yy = y + t.dy_;
@@ -132,8 +135,43 @@ class LikelihoodField2D {
         }
     }
 
+    /**
+     * @brief : set the underlying grid_ from an occupancy grid. It's used in sub_map creation.
+     */
+    void set_field_from_occumap(const cv::Mat &occ_grid) {
+        grid_ = cv::Mat(HALF_MAP_SIZE_2D * 2, HALF_MAP_SIZE_2D * 2, CV_32F, FAR_VALUE);
+        for (int x = 0; x < occ_grid.cols; ++x) {
+            for (int y = 0; y < occ_grid.rows; ++y) {
+                uchar occ = occ_grid.at<uchar>(y, x);
+                // This is a grid point
+                if (occ < OCCUPANCYMAP2D_OCCUPY_THRE) {
+                    for (const auto &t : template_) {
+                        int xx = x + t.dx_;
+                        int yy = y + t.dy_;
+                        if (0 <= xx && xx < grid_.cols && 0 <= yy && yy < grid_.rows) {
+                            if (t.dist_to_point_ < grid_.at<float>(yy, xx))
+                                grid_.at<float>(yy, xx) = t.dist_to_point_;
+                        } else {
+                            std::cout << "Likelihood field is smaller than occupancy map, which shouldn't happen. I got rows and columns: " << yy << " | " << xx << std::endl;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief: update the point cloud whose points will be used to find the pose T_source->target
+     */
+    void set_source_scan(LaserScanMsg::SharedPtr source) {
+        source_scan_objs_ = get_valid_scan_obj(source);
+    }
+
     // TODO: to make it a universal function
-    bool mt_pl_gauss_newton(SE2 &relative_pose) {
+    /**
+     * @brief : a wrapper for running scan matching in a multithreaded fashion
+     */
+    bool mt_likelihood_match(SE2 &relative_pose) {
         // Define a set of orientation offsets (in radians)
         // ATTENTION, ACHTUNG, ATTENCION, DIKKAT: INCREASING THIS VALUE COULD CAUSE A CRASHHHHHHHH!!!
         int num_angles = 8, half_dist_offset_num = 6;
@@ -195,6 +233,9 @@ class LikelihoodField2D {
         return true;
     }
 
+    /**
+     * @brief : Use hand-written Gauss-Newton iterations to find scan matching poses.
+     */
     bool align_gauss_newton(SE2 &relative_pose, double &cost) {
         double last_cost = 0;
         const size_t n   = source_scan_objs_.size();
@@ -210,10 +251,10 @@ class LikelihoodField2D {
                            source_scan_objs_.begin(), source_scan_objs_.end(), source_map_cloud->points.begin(),
                            [&](const ScanObj &s) {
                                Vec2d p_vec = scan_point_to_map_frame(s.range, s.angle, relative_pose);
-                               //    (INV_RES * r cos + C,  INV_RES * r sin + C)
+                               //    (INV_RES_2D * r cos + C,  INV_RES_2D * r sin + C)
                                pcl::PointXY pt;
-                               pt.x = int(p_vec[0] * INV_RES) + HALF_MAP_SIZE;
-                               pt.y = int(p_vec[1] * INV_RES) + HALF_MAP_SIZE;
+                               pt.x = int(p_vec[0] * INV_RES_2D) + HALF_MAP_SIZE_2D;
+                               pt.y = int(p_vec[1] * INV_RES_2D) + HALF_MAP_SIZE_2D;
                                return pt;
                            });
             size_t effective_num = 0;
@@ -224,15 +265,14 @@ class LikelihoodField2D {
                     float dx = (grid_.at<float>(pt.y, pt.x + 1) - grid_.at<float>(pt.y, pt.x - 1)) / 2.0;
                     float dy = (grid_.at<float>(pt.y + 1, pt.x) - grid_.at<float>(pt.y - 1, pt.x)) / 2.0;
                     Vec3d J;
-                    J << INV_RES * dx, -INV_RES * dy,
-                        -INV_RES * dx * (pt.y - HALF_MAP_SIZE) + INV_RES * dy * (pt.x - HALF_MAP_SIZE);
+                    J << INV_RES_2D * dx, -INV_RES_2D * dy,
+                        -INV_RES_2D * dx * (pt.y - HALF_MAP_SIZE_2D) + INV_RES_2D * dy * (pt.x - HALF_MAP_SIZE_2D);
                     H += J * J.transpose();
                     float e = grid_.at<float>(pt.y, pt.x);
                     b_vec += J * e;
                     ++effective_num;
                     cost += e * e;
                 } else {
-                    // TODO
                     std::cout << "point is outside of the image: " << pt.x << " | " << pt.y << std::endl;
                 }
             }
@@ -254,12 +294,13 @@ class LikelihoodField2D {
             //  std::cout<<"pose: "<<relative_pose.translation()<<", theta: "<< relative_pose.so2().log()<<std::endl;
             last_cost = cost;
         }
-        // TODO
-        //  std::cout<<"================"<<std::endl;
         cost = last_cost;
         return true;
     }
 
+    /**
+     * @brief : Scan matching with Likelihood Field using G2O
+     */
     bool align_g2o(SE2 &relative_pose, [[maybe_unused]] double &cost) {
         // template parameters: <dof, error dim>
         using BlockSolverType  = g2o::BlockSolver<g2o::BlockSolverTraits<3, 1>>;

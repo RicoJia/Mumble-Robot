@@ -3,7 +3,8 @@
 #include <halo/common/sensor_utils.hpp>
 #include <halo/2d_icp_methods.hpp>
 #include <halo/2d_likelihood_field.hpp>
-#include <halo/2d_map_generation.hpp>
+#include <halo/2d_occupancy_map.hpp>
+#include <halo/2d_submap.hpp>
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
@@ -43,17 +44,21 @@ bool update_last_scan = false;   // Default behavior
 //             //     success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
 //             //     // success = icp_2d.mt_pl_gauss_newton(relative_pose);
 //             // }
-//             // {
-//             //     halo::RAIITimer timer;
-//             //     halo::LikelihoodField2D likelihood_field2d(current_scan_ptr, last_scan_ptr);
-//             //     // success = likelihood_field2d.align_gauss_newton(relative_pose, cost);   //4ms per message
-//             //     success = likelihood_field2d.mt_pl_gauss_newton(relative_pose); // 40ms per message
-//             // }
 //             {
 //                 halo::RAIITimer timer;
-//                 halo::LikelihoodField2D likelihood_field2d(current_scan_ptr, last_scan_ptr);
+//                 halo::LikelihoodField2D likelihood_field2d;
+//                 likelihood_field2d.set_target_scan(last_scan_ptr);
+//                 likelihood_field2d.set_source_scan(current_scan_ptr);
+//                 // success = likelihood_field2d.align_gauss_newton(relative_pose, cost);   //4ms per message
+//                 success = likelihood_field2d.mt_likelihood_match(relative_pose); // 40ms per message
+//             }
+//             {
+//                 halo::RAIITimer timer;
+//                 halo::LikelihoodField2D likelihood_field2d;
+//                 likelihood_field2d.set_target_scan(last_scan_ptr);
+//                 likelihood_field2d.set_source_scan(current_scan_ptr);
 //                 success = likelihood_field2d.align_g2o(relative_pose, cost);   // 5ms per message
-//                 //     success = likelihood_field2d.mt_pl_gauss_newton(relative_pose);
+//                 //     success = likelihood_field2d.mt_likelihood_match(relative_pose);
 //             }
 //             cv::Mat output_img;
 //             if (!success) {
@@ -82,7 +87,7 @@ TEST(Test2DSLAM, TestOccupancyMap) {
     halo::ROS2BagIo ros2_bag_io("bags/straight");
     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
     halo::OccupancyMap2D omap(true);
-    int scan_id = 0;
+    size_t scan_id = 0;
     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
         "/scan",
         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
@@ -104,9 +109,31 @@ TEST(Test2DSLAM, TestOccupancyMap) {
                 last_scan_ptr = current_scan_ptr;
             }
 
-            auto output_img = omap.get_grid();
+            auto output_img = omap.get_grid_for_viz();
             cv::imshow("Submap", output_img);
             cv::waitKey(0);
+        });
+    ros2_bag_io.spin();
+}
+
+TEST(Test2DSLAM, TestSubmapGeneration) {
+    halo::ROS2BagIo ros2_bag_io("bags/straight");
+    std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
+    halo::OccupancyMap2D omap(true);
+    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+        "/scan",
+        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+            if (last_scan_ptr == nullptr) {
+                last_scan_ptr = current_scan_ptr;
+                return;
+            }
+            {
+                halo::SE2 T_w_sub_pose;
+                halo::Submap2D submap2d(T_w_sub_pose);
+            }
+            // auto output_img = omap.get_grid_for_viz();
+            // cv::imshow("Submap", output_img);
+            // cv::waitKey(0);
         });
     ros2_bag_io.spin();
 }
