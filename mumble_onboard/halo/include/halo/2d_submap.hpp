@@ -40,7 +40,7 @@ class Submap2D {
                 occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *(frames_in_other.at(i)));
             }
         }
-        likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid());
+        likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid_reference());
     }
 
     /************************************************************************* */
@@ -51,10 +51,12 @@ class Submap2D {
      * @brief : How scan matching works (very briefly)
      * 1. Match the scan to the likelihood to get the new world pose
      * 2. Update the frame to the new world pose
+     *  - No updates on internal variables
      */
     void match_scan(Lidar2DFramePtr frame) {
         likelihood_field_.set_source_scan(frame->scan_);
         [[maybe_unused]] double dummy_cost;
+        // TODO
         likelihood_field_.align_g2o(frame->pose_submap_, dummy_cost);
         frame->pose_ = T_ws_ * frame->pose_submap_;
     }
@@ -66,7 +68,7 @@ class Submap2D {
      */
     void add_scan_in_occupancy_map(Lidar2DFramePtr frame) {
         occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *frame);
-        likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid());
+        likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid_reference());
     }
 
     /**
@@ -83,7 +85,10 @@ class Submap2D {
     std::vector<Lidar2DFramePtr> get_keyframes() const { return keyframes_; }
     void set_id(size_t id) { id_ = id; }
     size_t get_id() const { return id_; }
-    SE2 GetPose() const { return T_ws_; }
+    SE2 get_pose() const { return T_ws_; }
+    cv::Mat get_occ_map() const { return occupancy_map_.get_grid_for_viz(); }
+    cv::Mat get_likelihood_field() const { return likelihood_field_.get_field_vis_single_channel(); }
+    bool has_outside_points() const { return occupancy_map_.has_outside_points(); }
 
     /**
      * @brief : update all keyframes' world poses using the current T_ws_ and their own pose in the map

@@ -5,6 +5,7 @@
 #include <halo/2d_likelihood_field.hpp>
 #include <halo/2d_occupancy_map.hpp>
 #include <halo/2d_submap.hpp>
+#include <halo/2d_mapping.hpp>
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
@@ -83,57 +84,102 @@ bool update_last_scan = false;   // Default behavior
 //     ros2_bag_io.spin();
 // }
 
-TEST(Test2DSLAM, TestOccupancyMap) {
-    halo::ROS2BagIo ros2_bag_io("bags/straight");
-    std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
-    halo::OccupancyMap2D omap(true);
-    size_t scan_id = 0;
-    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
-        "/scan",
-        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-            if (last_scan_ptr == nullptr) {
-                last_scan_ptr = current_scan_ptr;
-                return;
-            }
-            {
-                halo::RAIITimer timer;
-                auto frame = halo::Lidar2DFrame{
-                    current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}};
-                // Performance: 0.06 ms, with 8x8 template size. within the template, the resolution is good.
-                // But in general, use bresenham since it's fast and doesn't grow O(n^2) with the template
-                omap.add_frame(halo::OccupancyMapMethod::TEMPLATE, frame);
-                // Performance: 2ms for 360 lines
-                // omap.add_frame(halo::OccupancyMapMethod::BRESENHAM, frame);
-            }
-            if (update_last_scan) {
-                last_scan_ptr = current_scan_ptr;
-            }
+// TEST(Test2DSLAM, TestOccupancyMap) {
+//     halo::ROS2BagIo ros2_bag_io("bags/straight");
+//     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
+//     halo::OccupancyMap2D omap(true);
+//     size_t scan_id = 0;
+//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+//         "/scan",
+//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+//             if (last_scan_ptr == nullptr) {
+//                 last_scan_ptr = current_scan_ptr;
+//                 return;
+//             }
+//             {
+//                 halo::RAIITimer timer;
+//                 auto frame = halo::Lidar2DFrame{
+//                     current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}};
+//                 // Performance: 0.06 ms, with 8x8 template size. within the template, the resolution is good.
+//                 // But in general, use bresenham since it's fast and doesn't grow O(n^2) with the template
+//                 // omap.add_frame(halo::OccupancyMapMethod::TEMPLATE, frame);
+//                 // Performance: 2ms for 360 lines
+//                 omap.add_frame(halo::OccupancyMapMethod::BRESENHAM, frame);
+//             }
+//             if (update_last_scan) {
+//                 last_scan_ptr = current_scan_ptr;
+//             }
 
-            auto output_img = omap.get_grid_for_viz();
-            cv::imshow("Submap", output_img);
-            cv::waitKey(0);
-        });
-    ros2_bag_io.spin();
-}
+//             auto output_img = omap.get_grid_for_viz();
+//             cv::imshow("Submap", output_img);
+//             cv::waitKey(0);
+//         });
+//     ros2_bag_io.spin();
+// }
+
+// TEST(Test2DSLAM, TestSubmapGeneration) {
+//     halo::ROS2BagIo ros2_bag_io("bags/straight");
+//     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
+//     std::vector<std::shared_ptr<halo::Submap2D>> submaps;
+//     halo::SE2 initial_pose; // Default (identity) pose.
+//     auto current_submap = std::make_shared<halo::Submap2D>(initial_pose);
+//     submaps.push_back(current_submap);
+//     halo::SE2 current_submap_origin = initial_pose;
+//     int scan_count = 0;
+//     bool first_scan = true;
+
+//     cv::Mat occ_map_img;
+//     cv::Mat likelihood_map_img;
+
+//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+//         "/scan",
+//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+
+//             ++scan_count;
+//             auto frame = std::make_shared<halo::Lidar2DFrame>(
+//                 current_scan_ptr, scan_count, scan_count, halo::SE2{}, halo::SE2{}
+//             );
+
+//             auto frame_pose = frame->pose_;
+//             double dx = frame_pose.translation()[0] - current_submap_origin.translation()[0];
+//             double dy = frame_pose.translation()[1] - current_submap_origin.translation()[1];
+//             double cumulative_dist = std::sqrt(dx * dx + dy * dy);
+//             if (cumulative_dist > 0.5) {
+//                 // Create a new submat,and reset the origin for the new submap.
+//                 current_submap = std::make_shared<halo::Submap2D>(submaps.back()->get_pose());
+//                 submaps.push_back(current_submap);
+//                 current_submap_origin = current_submap->get_pose();}
+
+//             // Can't do scan matching for first scan. Just add it to occ map instead
+//             if (!first_scan){
+//                 // TODO
+//                 current_submap->match_scan(frame);
+//             } else {
+//                 first_scan = false;
+//             }
+//             //TODO
+//             std::cout<<"theta: "<<frame->pose_.so2().log()<<std::endl;
+//             current_submap->add_scan_in_occupancy_map(frame);
+//             current_submap->add_keyframe(frame);
+
+//             occ_map_img = current_submap->get_occ_map();
+//             likelihood_map_img = current_submap->get_likelihood_field();
+//             last_scan_ptr = current_scan_ptr;
+//         });
+//     ros2_bag_io.spin();
+
+//     cv::imshow("Occ map", occ_map_img);
+//     cv::imshow("Likelihood field", likelihood_map_img);
+//     cv::waitKey(0);
+// }
 
 TEST(Test2DSLAM, TestSubmapGeneration) {
     halo::ROS2BagIo ros2_bag_io("bags/straight");
-    std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
-    halo::OccupancyMap2D omap(true);
+    halo::Mapping2DLaser mapper_2d(false);
     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
         "/scan",
         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-            if (last_scan_ptr == nullptr) {
-                last_scan_ptr = current_scan_ptr;
-                return;
-            }
-            {
-                halo::SE2 T_w_sub_pose;
-                halo::Submap2D submap2d(T_w_sub_pose);
-            }
-            // auto output_img = omap.get_grid_for_viz();
-            // cv::imshow("Submap", output_img);
-            // cv::waitKey(0);
+            mapper_2d.process_scan(current_scan_ptr);
         });
     ros2_bag_io.spin();
 }

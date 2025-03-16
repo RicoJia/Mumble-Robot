@@ -30,8 +30,9 @@ class OccupancyMap2D {
     };
 
     OccupancyMap2D(bool gen_template) {
+        grid_ = cv::Mat(2 * HALF_MAP_SIZE_2D, 2 * HALF_MAP_SIZE_2D, CV_8U,
+                        cv::Scalar(UNKNOWN_CELL_VALUE));
         if (gen_template) {
-            grid_ = cv::Mat(2 * HALF_MAP_SIZE_2D, 2 * HALF_MAP_SIZE_2D, CV_8U, UNKNOWN_CELL_VALUE);
             generate_template();
         }
     }
@@ -54,6 +55,10 @@ class OccupancyMap2D {
                                                    Vec2i{HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D},
                                                    INV_RES_2D);
         float theta             = T_map_pose.so2().log();
+        has_outside_points_     = false;
+
+        // TODO
+        std::cout << "map to scan theta: " << theta << std::endl;
 
         // add endpoints (in submap frame) to lookup
         std::unordered_set<Vec2i, CoordHash> endpoints_lookup;
@@ -90,14 +95,10 @@ class OccupancyMap2D {
                     // get interpolated scan range value of the model point orientation
                     float model_pt_range = interpolate_range(model_pt_scan_angle, frame.scan_);
                     // if the template point's range is larger the scan point range, return. Otherwise, set to free
-                    // // TODO
-                    // std::cout << "interpolated range: " << model_pt_range << ", template pt rg:" << pt.range_ << std::endl;
                     if (model_pt_range < frame.scan_->range_min || model_pt_range > frame.scan_->range_max) {
                         return;
                     } else {
                         if (model_pt_range > pt.range_ && endpoints_lookup.find(p_map) == endpoints_lookup.end()) {
-                            // TODO
-                            // std::cout << "white: " << p_map[0] << ", " << p_map[1] << std::endl;
                             set_point(p_map[0], p_map[1], false);
                         }
                     }
@@ -112,16 +113,18 @@ class OccupancyMap2D {
             // No default, a compilation error is good in that case.
         }
         // Set endpoints to filled
-        std::for_each(std::execution::par_unseq, endpoints_lookup.begin(), endpoints_lookup.end(),
-                      [this](const Vec2i &pt) {
-                          set_point(pt[0], pt[1], true);
-                      });
+        std::for_each(
+            std::execution::par_unseq,
+            endpoints_lookup.begin(), endpoints_lookup.end(),
+            [this](const Vec2i &pt) {
+                set_point(pt[0], pt[1], true);
+            });
     }
 
     /**
      * @brief : return a zero copy around the underlying grid
      */
-    cv::Mat get_grid() const {
+    cv::Mat get_grid_reference() const {
         return grid_;
     }
 
@@ -136,9 +139,6 @@ class OccupancyMap2D {
                     ret.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
                 } else if (grid_.at<uchar>(y, x) > UNKNOWN_CELL_VALUE) {
                     ret.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
-                    // // TODO
-                    // std::cout << "white: " << y << "," << x << std::endl;
-
                 } else {
                     ret.at<cv::Vec3b>(y, x) = cv::Vec3b(127, 127, 127);   // grayscale
                 }
@@ -147,10 +147,15 @@ class OccupancyMap2D {
         return ret;
     }
 
+    bool has_outside_points() const {
+        return has_outside_points_;
+    }
+
   private:
     cv::Mat grid_;        // occupancy: 1.0 = free, 0.0 = occupied
     SE2 submap_pose_{};   // T world->submap
     std::vector<TemplatePoint> template_;
+    bool has_outside_points_ = false;
 
     /*************************************************************************** */
     // Bresenham Method
@@ -171,7 +176,9 @@ class OccupancyMap2D {
         dy    = std::abs(dy);
 
         if (dx > dy) {
-            for (int i = 0; i < dx; i++) {
+            // Not adding the end points. It's crucial for likelihood map
+            // generation (otherwise, the first points are not registered as occupied)
+            for (int i = 0; i < dx - 1; i++) {
                 x += delta_x;
                 error += 2 * dy;
                 if (error >= dx) {
@@ -181,7 +188,7 @@ class OccupancyMap2D {
                 set_point(x, y, false);
             }
         } else {
-            for (int i = 0; i < dy; i++) {
+            for (int i = 0; i < dy - 1; i++) {
                 y += delta_y;
                 error += 2 * dx;
                 if (error >= dy) {
@@ -201,17 +208,20 @@ class OccupancyMap2D {
             y < grid_.rows) {
             uchar occupancy_val = grid_.at<uchar>(y, x);
             if (occupy) {
+                // Set an upper and lower limit for occupancy
                 if (occupancy_val >= OCCUPANCYMAP2D_OCCUPY_THRE)
                     --grid_.at<uchar>(y, x);
             } else {
                 if (occupancy_val <= OCCUPANCYMAP2D_FREE_THRE)
                     ++grid_.at<uchar>(y, x);
             }
+        } else {
+            has_outside_points_ = true;
         }
     }
 
     /*************************************************************************** */
-    // Template Method
+    // Template Method (NOT IN USE)
     /*************************************************************************** */
 
     /**

@@ -106,7 +106,7 @@ class LikelihoodField2D {
                 template_.emplace_back(x, y, std::sqrt(x * x + y * y));
             }
         }
-        grid_ = cv::Mat(HALF_MAP_SIZE_2D * 2, HALF_MAP_SIZE_2D * 2, CV_32F, FAR_VALUE);
+        grid_ = cv::Mat(HALF_MAP_SIZE_2D * 2, HALF_MAP_SIZE_2D * 2, CV_32F, cv::Scalar(FAR_VALUE));
     }
 
     /**
@@ -143,8 +143,9 @@ class LikelihoodField2D {
         for (int x = 0; x < occ_grid.cols; ++x) {
             for (int y = 0; y < occ_grid.rows; ++y) {
                 uchar occ = occ_grid.at<uchar>(y, x);
-                // This is a grid point
-                if (occ < OCCUPANCYMAP2D_OCCUPY_THRE) {
+                // This COULD BE a grid point TODO
+                // Of course, it treats all "occupied" points equally, which is not ideal
+                if (occ < UNKNOWN_CELL_VALUE) {
                     for (const auto &t : template_) {
                         int xx = x + t.dx_;
                         int yy = y + t.dy_;
@@ -170,6 +171,7 @@ class LikelihoodField2D {
     // TODO: to make it a universal function
     /**
      * @brief : a wrapper for running scan matching in a multithreaded fashion
+     * This method is slower than the raw likelihood field
      */
     bool mt_likelihood_match(SE2 &relative_pose) {
         // Define a set of orientation offsets (in radians)
@@ -338,6 +340,44 @@ class LikelihoodField2D {
         optimizer.optimize(10);
         relative_pose = v->estimate();
         return true;
+    }
+
+    cv::Mat get_field_reference() const { return grid_; }
+
+    cv::Mat get_field_vis_single_channel() const {
+        if (grid_.empty()) {
+            return cv::Mat();
+        }
+
+        // Create a mask that excludes cells with FAR_VALUE.
+        cv::Mat mask;
+        cv::compare(grid_, FAR_VALUE, mask, cv::CMP_NE);
+        int countNonFar = cv::countNonZero(mask);
+
+        double minVal = 0.0, maxVal = 0.0;
+        if (countNonFar > 0) {
+            // Compute min and max only for cells that are not equal to FAR_VALUE.
+            cv::minMaxLoc(grid_, &minVal, &maxVal, nullptr, nullptr, mask);
+        } else {
+            // If all values are FAR_VALUE, return a uniform white image.
+            return cv::Mat(grid_.size(), CV_8UC1, cv::Scalar(255));
+        }
+
+        cv::Mat vis(grid_.size(), CV_8UC1);
+        // Loop through each cell: if the cell is FAR_VALUE, assign 255;
+        // otherwise, map the value from [minVal, maxVal] to [0, 255].
+        for (int y = 0; y < grid_.rows; ++y) {
+            for (int x = 0; x < grid_.cols; ++x) {
+                float val = grid_.at<float>(y, x);
+                if (val == FAR_VALUE) {
+                    vis.at<uchar>(y, x) = 255;   // Mark cells that remain at FAR_VALUE as white.
+                } else {
+                    vis.at<uchar>(y, x) = static_cast<uchar>(255.0 * (val - minVal) / (maxVal - minVal));
+                }
+            }
+        }
+
+        return vis;
     }
 
   private:
