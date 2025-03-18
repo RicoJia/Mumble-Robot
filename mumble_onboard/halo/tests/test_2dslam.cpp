@@ -6,6 +6,7 @@
 #include <halo/2d_occupancy_map.hpp>
 #include <halo/2d_submap.hpp>
 #include <halo/2d_mapping.hpp>
+#include <halo/2d_multi_resolution_field.hpp>
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
@@ -23,7 +24,7 @@ bool update_last_scan = false;   // Default behavior
 //     ros2_bag_io.spin();
 // }
 
-// TEST(Test2DSLAM, TestVisualization) {
+// TEST(Test2DSLAM, TestICPMethods) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
@@ -173,13 +174,48 @@ bool update_last_scan = false;   // Default behavior
 //     cv::waitKey(0);
 // }
 
-TEST(Test2DSLAM, TestSubmapGeneration) {
+// TEST(Test2DSLAM, TestSubmapGeneration) {
+//     halo::ROS2BagIo ros2_bag_io("bags/straight");
+//     halo::Mapping2DLaser mapper_2d(false);
+//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+//         "/scan",
+//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+//             mapper_2d.process_scan(current_scan_ptr);
+//         });
+//     ros2_bag_io.spin();
+// }
+
+TEST(Test2DSLAM, TestMultiResolutionLikelihoodField) {
     halo::ROS2BagIo ros2_bag_io("bags/straight");
-    halo::Mapping2DLaser mapper_2d(false);
+    std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
+    halo::OccupancyMap2D omap(false);
+    halo::MultiResolutionLikelihoodField mr_likelihood_field;
+    size_t scan_id = 0;
     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
         "/scan",
         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-            mapper_2d.process_scan(current_scan_ptr);
+            if (last_scan_ptr == nullptr) {
+                last_scan_ptr = current_scan_ptr;
+                return;
+            }
+            halo::SE2 relative_pose{};
+            {
+                auto frame = halo::Lidar2DFrame{
+                    current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}};
+                omap.add_frame(halo::OccupancyMapMethod::BRESENHAM, frame);
+
+                halo::RAIITimer timer;
+                mr_likelihood_field.set_field_from_occ_map(omap.get_grid_reference());
+            }
+            last_scan_ptr = current_scan_ptr;
+
+            auto output_img = omap.get_grid_for_viz();
+            cv::imshow("Submap", output_img);
+            std::vector<cv::Mat> likelihood_images = mr_likelihood_field.get_field_images();
+            // for (const auto& image: likelihood_images){
+            //     cv::imshow("likelihood map", image);
+            // }
+            cv::waitKey(0);
         });
     ros2_bag_io.spin();
 }

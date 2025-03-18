@@ -10,12 +10,6 @@
 
 namespace halo {
 
-constexpr size_t LIKELIHOOD_FIELD_ITERATIONS       = 10;
-constexpr size_t LIKELIHOOD_FIELD_MIN_VALID_POINTS = 20;
-constexpr int IMAGE_BOARDER                        = 20;                 // 20pixels
-constexpr int TEMPLATE_SIDE                        = 3.0 * INV_RES_2D;   // 1m each side
-constexpr float FAR_VALUE                          = 1000.0;
-
 // Why a unary edge? Because this edge is a lidar point. It's associated with only ONE vertex (pose)
 // Binary edges connect with two vertices
 // The cost of the likelihood is provided by the likelihood field
@@ -24,9 +18,12 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    Edge2DLikelihoodField(const cv::Mat &grid, float range, float angle) : grid_(grid),
-                                                                           range_(range),
-                                                                           angle_(angle) {}
+    Edge2DLikelihoodField(const cv::Mat &grid, float range, float angle,
+                          float inv_resolution = INV_RES_2D, int half_map_size_2d = HALF_MAP_SIZE_2D) : grid_(grid),
+                                                                                                        range_(range),
+                                                                                                        angle_(angle),
+                                                                                                        inv_resolution_(inv_resolution),
+                                                                                                        half_map_size_2d_(half_map_size_2d) {}
     // Given a pose estimate, how do we update _error
     // In this case, our cost is 1D
     void computeError() override {
@@ -34,12 +31,12 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * INV_RES_2D + Vec2d(HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D)).cast<int>();
+        Vec2i pose_map   = (pose_world * inv_resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_)).cast<int>();
 
-        if (IMAGE_BOARDER <= pose_map[0] &&
-            pose_map[0] < grid_.cols - IMAGE_BOARDER &&
-            IMAGE_BOARDER <= pose_map[1] &&
-            pose_map[1] < grid_.rows - IMAGE_BOARDER) {
+        if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
+            pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
+            LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
+            pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
             _error[0] = grid_.at<float>(pose_map[1], pose_map[0]);
         } else {
             _error[0] = 0.0;
@@ -50,11 +47,11 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * INV_RES_2D + Vec2d(HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D)).cast<int>();
-        if (IMAGE_BOARDER <= pose_map[0] &&
-            pose_map[0] < grid_.cols - IMAGE_BOARDER &&
-            IMAGE_BOARDER <= pose_map[1] &&
-            pose_map[1] < grid_.rows - IMAGE_BOARDER) {
+        Vec2i pose_map   = (pose_world * inv_resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_)).cast<int>();
+        if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
+            pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
+            LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
+            pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
             return false;
         } else {
             return true;
@@ -65,15 +62,15 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * INV_RES_2D + Vec2d(HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D)).cast<int>();
-        if (IMAGE_BOARDER <= pose_map[0] &&
-            pose_map[0] < grid_.cols - IMAGE_BOARDER &&
-            IMAGE_BOARDER <= pose_map[1] &&
-            pose_map[1] < grid_.rows - IMAGE_BOARDER) {
+        Vec2i pose_map   = (pose_world * inv_resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_)).cast<int>();
+        if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
+            pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
+            LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
+            pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
             float dx = (grid_.at<float>(pose_map[1], pose_map[0] + 1) - grid_.at<float>(pose_map[1], pose_map[0] - 1)) / 2.0;
             float dy = (grid_.at<float>(pose_map[1] + 1, pose_map[0]) - grid_.at<float>(pose_map[1] - 1, pose_map[0])) / 2.0;
-            _jacobianOplusXi << INV_RES_2D * dx, -INV_RES_2D * dy,
-                -INV_RES_2D * dx * (pose_map[1] - HALF_MAP_SIZE_2D) + INV_RES_2D * dy * (pose_map[0] - HALF_MAP_SIZE_2D);
+            _jacobianOplusXi << inv_resolution_ * dx, -inv_resolution_ * dy,
+                -inv_resolution_ * dx * (pose_map[1] - half_map_size_2d_) + inv_resolution_ * dy * (pose_map[0] - half_map_size_2d_);
         } else {
             _jacobianOplusXi.setZero();
         }
@@ -85,6 +82,14 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
     const cv::Mat &grid_;
     float range_;
     float angle_;
+    float inv_resolution_;
+    int half_map_size_2d_;
+};
+
+struct Likelihood2DTemplatePoint {
+    int dx_              = 0;
+    int dy_              = 0;
+    float dist_to_point_ = 0;
 };
 
 /**
@@ -92,21 +97,18 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
  * stores dist_to_nearest_pixel/resolution as floats
  */
 class LikelihoodField2D {
-  public:
-    struct TemplatePoint {
-        int dx_              = 0;
-        int dy_              = 0;
-        float dist_to_point_ = 0;
-    };
+    inline static constexpr size_t LIKELIHOOD_FIELD_ITERATIONS       = 10;
+    inline static constexpr size_t LIKELIHOOD_FIELD_MIN_VALID_POINTS = 20;
 
+  public:
     explicit LikelihoodField2D() {
         // generate template
-        for (int x = -TEMPLATE_SIDE; x < TEMPLATE_SIDE; ++x) {
-            for (int y = -TEMPLATE_SIDE; y < TEMPLATE_SIDE; ++y) {
+        for (int x = -LIKELIHOOD_2D_TEMPLATE_SIDE; x < LIKELIHOOD_2D_TEMPLATE_SIDE; ++x) {
+            for (int y = -LIKELIHOOD_2D_TEMPLATE_SIDE; y < LIKELIHOOD_2D_TEMPLATE_SIDE; ++y) {
                 template_.emplace_back(x, y, std::sqrt(x * x + y * y));
             }
         }
-        grid_ = cv::Mat(HALF_MAP_SIZE_2D * 2, HALF_MAP_SIZE_2D * 2, CV_32F, cv::Scalar(FAR_VALUE));
+        grid_ = cv::Mat(HALF_MAP_SIZE_2D * 2, HALF_MAP_SIZE_2D * 2, CV_32F, cv::Scalar(FAR_VALUE_PIXELS_FLOAT));
     }
 
     /**
@@ -139,7 +141,7 @@ class LikelihoodField2D {
      * @brief : set the underlying grid_ from an occupancy grid. It's used in sub_map creation.
      */
     void set_field_from_occumap(const cv::Mat &occ_grid) {
-        grid_ = cv::Mat(HALF_MAP_SIZE_2D * 2, HALF_MAP_SIZE_2D * 2, CV_32F, FAR_VALUE);
+        grid_ = cv::Mat(HALF_MAP_SIZE_2D * 2, HALF_MAP_SIZE_2D * 2, CV_32F, FAR_VALUE_PIXELS_FLOAT);
         for (int x = 0; x < occ_grid.cols; ++x) {
             for (int y = 0; y < occ_grid.rows; ++y) {
                 uchar occ = occ_grid.at<uchar>(y, x);
@@ -261,7 +263,7 @@ class LikelihoodField2D {
                            });
             size_t effective_num = 0;
             for (const auto &pt : source_map_cloud->points) {
-                if (IMAGE_BOARDER <= pt.x && pt.x < grid_.cols - IMAGE_BOARDER && IMAGE_BOARDER <= pt.y && pt.y < grid_.rows - IMAGE_BOARDER) {
+                if (LIKELIHOOD_2D_IMAGE_BOARDER <= pt.x && pt.x < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER && LIKELIHOOD_2D_IMAGE_BOARDER <= pt.y && pt.y < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
                     // NOT USING CV sobel is because it has an additional blurring effect
                     // TODO: this could be done once at the ctor, if necessary.
                     float dx = (grid_.at<float>(pt.y, pt.x + 1) - grid_.at<float>(pt.y, pt.x - 1)) / 2.0;
@@ -349,28 +351,28 @@ class LikelihoodField2D {
             return cv::Mat();
         }
 
-        // Create a mask that excludes cells with FAR_VALUE.
+        // Create a mask that excludes cells with FAR_VALUE_PIXELS_FLOAT.
         cv::Mat mask;
-        cv::compare(grid_, FAR_VALUE, mask, cv::CMP_NE);
+        cv::compare(grid_, FAR_VALUE_PIXELS_FLOAT, mask, cv::CMP_NE);
         int countNonFar = cv::countNonZero(mask);
 
         double minVal = 0.0, maxVal = 0.0;
         if (countNonFar > 0) {
-            // Compute min and max only for cells that are not equal to FAR_VALUE.
+            // Compute min and max only for cells that are not equal to FAR_VALUE_PIXELS_FLOAT.
             cv::minMaxLoc(grid_, &minVal, &maxVal, nullptr, nullptr, mask);
         } else {
-            // If all values are FAR_VALUE, return a uniform white image.
+            // If all values are FAR_VALUE_PIXELS_FLOAT, return a uniform white image.
             return cv::Mat(grid_.size(), CV_8UC1, cv::Scalar(255));
         }
 
         cv::Mat vis(grid_.size(), CV_8UC1);
-        // Loop through each cell: if the cell is FAR_VALUE, assign 255;
+        // Loop through each cell: if the cell is FAR_VALUE_PIXELS_FLOAT, assign 255;
         // otherwise, map the value from [minVal, maxVal] to [0, 255].
         for (int y = 0; y < grid_.rows; ++y) {
             for (int x = 0; x < grid_.cols; ++x) {
                 float val = grid_.at<float>(y, x);
-                if (val == FAR_VALUE) {
-                    vis.at<uchar>(y, x) = 255;   // Mark cells that remain at FAR_VALUE as white.
+                if (val == FAR_VALUE_PIXELS_FLOAT) {
+                    vis.at<uchar>(y, x) = 255;   // Mark cells that remain at FAR_VALUE_PIXELS_FLOAT as white.
                 } else {
                     vis.at<uchar>(y, x) = static_cast<uchar>(255.0 * (val - minVal) / (maxVal - minVal));
                 }
@@ -381,7 +383,7 @@ class LikelihoodField2D {
     }
 
   private:
-    std::vector<TemplatePoint> template_;
+    std::vector<Likelihood2DTemplatePoint> template_;
     std::vector<ScanObj> target_scan_objs_;
     std::vector<ScanObj> source_scan_objs_;
     cv::Mat grid_;

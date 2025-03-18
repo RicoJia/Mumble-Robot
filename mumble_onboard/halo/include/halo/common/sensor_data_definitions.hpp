@@ -31,12 +31,16 @@ using Mat3d = Eigen::Matrix3d;
 constexpr size_t INVALID_INDEX  = std::numeric_limits<size_t>::max();
 constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;
 
-constexpr float RES_2D                     = 0.05;              // 0.05m
-constexpr float INV_RES_2D                 = 1.0 / 0.05;        // 0.05m
-constexpr int HALF_MAP_SIZE_2D             = 20 * INV_RES_2D;   // 10m
+constexpr float RES_2D                     = 0.05;                                                     // 0.05m
+constexpr float INV_RES_2D                 = 1.0 / RES_2D;                                             // 0.05m
+constexpr float HALF_MAP_SIZE_2D_METERS    = 20.0;                                                     // in meters
+constexpr int HALF_MAP_SIZE_2D             = static_cast<int>(HALF_MAP_SIZE_2D_METERS * INV_RES_2D);   // In pixels
 constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE = 117;
 constexpr uchar OCCUPANCYMAP2D_FREE_THRE   = 132;
 constexpr uchar UNKNOWN_CELL_VALUE         = 127;
+constexpr int LIKELIHOOD_2D_TEMPLATE_SIDE  = 3.0 * INV_RES_2D;   // 1m each side
+constexpr int LIKELIHOOD_2D_IMAGE_BOARDER  = 20;                 // 20pixels
+constexpr float FAR_VALUE_PIXELS_FLOAT     = 100.0;
 
 struct ScanObj {
     double range = 0.0;
