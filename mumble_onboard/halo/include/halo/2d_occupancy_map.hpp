@@ -3,6 +3,7 @@
 #include <halo/common/math_utils.hpp>
 #include <halo/common/sensor_data_definitions.hpp>
 #include <halo/common/sensor_utils.hpp>
+#include <halo/common/debug_utils.hpp>
 #include <unordered_set>
 
 namespace halo {
@@ -58,7 +59,7 @@ class OccupancyMap2D {
         has_outside_points_     = false;
 
         // TODO
-        std::cout << "map to scan theta: " << theta << std::endl;
+        std::cout << "world to scan: " << T_map_pose << std::endl;
 
         // add endpoints (in submap frame) to lookup
         std::unordered_set<Vec2i, CoordHash> endpoints_lookup;

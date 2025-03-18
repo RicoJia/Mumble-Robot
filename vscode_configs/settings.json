@@ -78,7 +78,9 @@
         "typeinfo": "cpp",
         "valarray": "cpp",
         "variant": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "core": "cpp",
+        "numericaldiff": "cpp"
     },
     "cmake.sourceDirectory": "/home/mumble_robot/src/mumble_onboard"
 }

@@ -6,13 +6,14 @@
 namespace halo {
 
 class MultiResolutionLikelihoodField {
-    inline static constexpr float MIN_MATCHING_POINT_PERCENTAGE = 0.40;
-    inline static constexpr size_t IMAGE_PYRAMID_LEVELS         = 3;
+    inline static constexpr int MIN_MATCHING_POINT_NUM  = 100;
+    inline static constexpr size_t IMAGE_PYRAMID_LEVELS = 3;
     // size of a pixel cell. RES_2D should always be at the front
-    inline static constexpr std::array<float, IMAGE_PYRAMID_LEVELS> INV_RESOLUTIONS = {INV_RES_2D, 1.0 / 0.1, 1.0 / 0.2};
+    inline static constexpr std::array<float, IMAGE_PYRAMID_LEVELS> INV_RESOLUTIONS = {1.0 / 0.2, 1.0 / 0.1, INV_RES_2D};
+    inline static constexpr float RK_DELTA[]                                        = {0.2, 0.8, 1.6};   // note it progresses as 2^2
 
   public:
-    explicit MultiResolutionLikelihoodField() {
+    explicit MultiResolutionLikelihoodField(float INLIER_RATIO_TH = 0.35) : INLIER_RATIO_TH(INLIER_RATIO_TH) {
         // generate template
         for (int x = -LIKELIHOOD_2D_TEMPLATE_SIDE; x < LIKELIHOOD_2D_TEMPLATE_SIDE; ++x) {
             for (int y = -LIKELIHOOD_2D_TEMPLATE_SIDE; y < LIKELIHOOD_2D_TEMPLATE_SIDE; ++y) {
@@ -22,8 +23,7 @@ class MultiResolutionLikelihoodField {
     }
 
     void set_field_from_occ_map(const cv::Mat &occ_grid) {
-// for each level, create a likelihood field;
-#pragma omp parallel for
+        // for each level, create a likelihood field;
         for (size_t i = 0; i < INV_RESOLUTIONS.size(); ++i) {
             const float &inv_res = INV_RESOLUTIONS.at(i);
             int half_map_size    = int(HALF_MAP_SIZE_2D_METERS * inv_res);
@@ -61,17 +61,98 @@ class MultiResolutionLikelihoodField {
                     img.at<cv::Vec3b>(y, x) = cv::Vec3b(uchar(r), uchar(r), uchar(r));
                 }
             }
+            images.push_back(img);
         }
         return images;
     }
 
-    bool can_align_g2o() const {
-        // return T/F for scan matching result
+    void set_source_scan(LaserScanMsg::SharedPtr source) {
+        source_scan_objs_ = get_valid_scan_obj(source);
+    }
+
+    bool can_align_g2o(SE2 &relative_pose) const {
+        for (size_t level = 0; level < INV_RESOLUTIONS.size(); ++level) {
+            // Create a new optimizer for each resolution level.
+            using BlockSolverType  = g2o::BlockSolver<g2o::BlockSolverTraits<3, 1>>;
+            using LinearSolverType = g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
+            auto *solver           = new g2o::OptimizationAlgorithmLevenberg(
+                          std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
+            g2o::SparseOptimizer optimizer;
+            optimizer.setAlgorithm(solver);
+
+            const float &inv_res = INV_RESOLUTIONS.at(level);
+            const auto &grid     = grids_.at(level);
+            auto *v              = new VertexSE2();
+            v->setId(0);
+            v->setEstimate(relative_pose);
+            optimizer.addVertex(v);
+            int half_map_size = int(HALF_MAP_SIZE_2D_METERS * inv_res);
+
+            // Prepare an index array so we can process the source_scan_objs_ in parallel.
+            std::vector<size_t> indices(source_scan_objs_.size());
+            std::iota(indices.begin(), indices.end(), 0);
+
+            // Pre-allocate vector for edges (some entries may remain nullptr).
+            std::vector<Edge2DLikelihoodField *> edges(source_scan_objs_.size(), nullptr);
+
+            // Parallel edge creation using the standard parallel algorithm.
+            std::for_each(std::execution::par, indices.begin(), indices.end(), [&](size_t i) {
+                const auto &scan_obj = source_scan_objs_.at(i);
+                auto *e              = new Edge2DLikelihoodField(grid,
+                                                                 scan_obj.range, scan_obj.angle,
+                                                                 inv_res, half_map_size);
+                e->setVertex(0, v);
+                if (e->is_outside()) {
+                    delete e;
+                    e = nullptr;
+                } else {
+                    e->setInformation(Eigen::Matrix<double, 1, 1>::Identity());
+                    auto *rk = new g2o::RobustKernelHuber;
+                    rk->setDelta(RK_DELTA[level]);
+                    e->setRobustKernel(rk);
+                }
+                edges.at(i) = e;
+            });
+            // Sequentially add valid edges to the optimizer.
+            for (auto *e : edges) {
+                if (e != nullptr)
+                    optimizer.addEdge(e);
+            }
+
+            optimizer.setVerbose(false);
+            optimizer.initializeOptimization();
+            optimizer.optimize(10);
+
+            // Parallel accumulation for inlier count using transform_reduce.
+            int num_inliers = std::transform_reduce(
+                std::execution::par,
+                edges.begin(),
+                edges.end(),
+                0,
+                std::plus<>(),
+                [&](Edge2DLikelihoodField *e) -> int {
+                    return (e != nullptr && e->level() == 0 && e->chi2() < RK_DELTA[level]) ? 1 : 0;
+                });
+
+            float inlier_ratio = float(num_inliers) / float(source_scan_objs_.size());
+            std::cerr << "inlier_ratio: " << inlier_ratio << ", num_inliers: " << num_inliers
+                      << ", total scan: " << source_scan_objs_.size() << std::endl;
+
+            if (num_inliers > MIN_MATCHING_POINT_NUM && inlier_ratio > INLIER_RATIO_TH) {
+                relative_pose = v->estimate();
+            } else {
+                std::cerr << "===========Rejected because inlier ratio is too low. Level: " << level << std::endl;
+                return false;
+            }
+        }
+        return true;
     }
 
   private:
     std::vector<Likelihood2DTemplatePoint> template_;
     std::array<cv::Mat, IMAGE_PYRAMID_LEVELS> grids_;   // default initialized
+    std::vector<ScanObj> source_scan_objs_;
+    const float INLIER_RATIO_TH;
 };
 
 }   // namespace halo
