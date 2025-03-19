@@ -29,6 +29,11 @@ run_keyboard_teleop(){
     sudo_ros_preserve_env ros2 run mumble_physical_runtime keyboard_teleop_ros2
 }
 
+run_bag_collection(){
+    sudo_ros_preserve_env ros2 bag record -o my_data_bag /imu_data /scan 
+}
+
+
 alias ros2_sudo='sudo_ros_preserve_env ros2'
 
 print_opening_msg_mumble_physical_runtime
