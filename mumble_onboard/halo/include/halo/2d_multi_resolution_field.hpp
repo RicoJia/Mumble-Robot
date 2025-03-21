@@ -13,7 +13,8 @@ class MultiResolutionLikelihoodField {
     inline static constexpr float RK_DELTA[]                                        = {0.2, 0.8, 1.6};   // note it progresses as 2^2
 
   public:
-    explicit MultiResolutionLikelihoodField(float INLIER_RATIO_TH = 0.35) : INLIER_RATIO_TH(INLIER_RATIO_TH) {
+    explicit MultiResolutionLikelihoodField(
+        float INLIER_RATIO_TH = 0.35) : INLIER_RATIO_TH(INLIER_RATIO_TH) {
         // generate template
         for (int x = -LIKELIHOOD_2D_TEMPLATE_SIDE; x < LIKELIHOOD_2D_TEMPLATE_SIDE; ++x) {
             for (int y = -LIKELIHOOD_2D_TEMPLATE_SIDE; y < LIKELIHOOD_2D_TEMPLATE_SIDE; ++y) {
@@ -22,6 +23,9 @@ class MultiResolutionLikelihoodField {
         }
     }
 
+    /**
+     * @brief: Set the likelihood field from an occupancy map. Called once when initializing the likelihood field.
+     */
     void set_field_from_occ_map(const cv::Mat &occ_grid) {
         // for each level, create a likelihood field;
         for (size_t i = 0; i < INV_RESOLUTIONS.size(); ++i) {
@@ -51,6 +55,9 @@ class MultiResolutionLikelihoodField {
         }
     }
 
+    /**
+     * @brief: Get all likelihood field images in grey values for visualization.
+     */
     std::vector<cv::Mat> get_field_images() const {
         std::vector<cv::Mat> images;
         for (int l = 0; l < INV_RESOLUTIONS.size(); ++l) {
@@ -66,10 +73,16 @@ class MultiResolutionLikelihoodField {
         return images;
     }
 
+    /**
+     * @brief: Set the source scan for alignment. Must be called before align_g2o.
+     */
     void set_source_scan(LaserScanMsg::SharedPtr source) {
         source_scan_objs_ = get_valid_scan_obj(source);
     }
 
+    /**
+     * @brief: Align the source scan to the current likelihood field using g2o optimization.
+     */
     bool can_align_g2o(SE2 &relative_pose) const {
         for (size_t level = 0; level < INV_RESOLUTIONS.size(); ++level) {
             // Create a new optimizer for each resolution level.

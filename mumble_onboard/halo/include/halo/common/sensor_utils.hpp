@@ -63,7 +63,8 @@ inline void visualize_2d_scan(
     auto point_pose_2_image_coord = [&](const Vec2d &point_pose)
         -> cv::Point {
         int image_x = static_cast<int>(point_pose[0] / resolution + image_size / 2);
-        int image_y = static_cast<int>(-point_pose[1] / resolution + image_size / 2);
+        // TODO: technically, we want to negate this. But this is to be consistent with the production image coord.
+        int image_y = static_cast<int>(point_pose[1] / resolution + image_size / 2);
         return cv::Point(image_x, image_y);
     };
     int i = 0;

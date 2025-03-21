@@ -2,6 +2,7 @@
 
 #include <halo/2d_submap.hpp>
 #include <halo/common/debug_utils.hpp>
+#include <halo/2d_loop_closure_detection.hpp>
 
 namespace halo {
 

@@ -2,6 +2,7 @@
 
 #include <halo/common/sensor_data_definitions.hpp>
 #include <halo/2d_likelihood_field.hpp>
+#include <halo/2d_multi_resolution_field.hpp>
 #include <halo/2d_occupancy_map.hpp>
 
 namespace halo {
@@ -40,7 +41,9 @@ class Submap2D {
                 occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *(frames_in_other.at(i)));
             }
         }
-        likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid_reference());
+        // TODO
+        // likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid_reference());
+        mr_likelihood_field_.set_field_from_occ_map(occupancy_map_.get_grid_reference());
     }
 
     /************************************************************************* */
@@ -53,12 +56,18 @@ class Submap2D {
      * 2. Update the frame to the new world pose
      *  - No updates on internal variables
      */
-    void match_scan(Lidar2DFramePtr frame) {
-        likelihood_field_.set_source_scan(frame->scan_);
-        [[maybe_unused]] double dummy_cost;
+    // TODO
+    bool match_scan(Lidar2DFramePtr frame) {
         // TODO
-        likelihood_field_.align_g2o(frame->pose_submap_, dummy_cost);
-        frame->pose_ = T_ws_ * frame->pose_submap_;
+        // likelihood_field_.set_source_scan(frame->scan_);
+        // [[maybe_unused]] double dummy_cost;
+        // likelihood_field_.align_g2o(frame->pose_submap_, dummy_cost);
+        mr_likelihood_field_.set_source_scan(frame->scan_);
+        bool success = mr_likelihood_field_.can_align_g2o(frame->pose_submap_);
+        if (success) {
+            frame->pose_ = T_ws_ * frame->pose_submap_;
+        }
+        return success;
     }
 
     /**
@@ -68,7 +77,9 @@ class Submap2D {
      */
     void add_scan_in_occupancy_map(Lidar2DFramePtr frame) {
         occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *frame);
-        likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid_reference());
+        // TODO
+        // likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid_reference());
+        mr_likelihood_field_.set_field_from_occ_map(occupancy_map_.get_grid_reference());
     }
 
     /**
@@ -87,7 +98,12 @@ class Submap2D {
     size_t get_id() const { return id_; }
     SE2 get_pose() const { return T_ws_; }
     cv::Mat get_occ_map() const { return occupancy_map_.get_grid_for_viz(); }
-    cv::Mat get_likelihood_field() const { return likelihood_field_.get_field_vis_single_channel(); }
+    cv::Mat get_likelihood_field() const {
+        // TODO
+        // return likelihood_field_.get_field_vis_single_channel();
+
+        return mr_likelihood_field_.get_field_images().at(0);
+    }
     bool has_outside_points() const { return occupancy_map_.has_outside_points(); }
 
     /**
@@ -104,7 +120,9 @@ class Submap2D {
     }
 
   private:
+    // TODO
     LikelihoodField2D likelihood_field_;
+    MultiResolutionLikelihoodField mr_likelihood_field_;
     OccupancyMap2D occupancy_map_;
     SE2 T_ws_;   // T world->submap
     std::vector<Lidar2DFramePtr> keyframes_;

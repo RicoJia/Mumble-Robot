@@ -53,6 +53,7 @@ class ROS2BagIo {
         storage_options.uri = bag_file_;
         reader_             = rosbag2_transport::ReaderWriterFactory::make_reader(storage_options);
         reader_->open(storage_options);
+        std::cout << "Now playing bag at: " << bag_file << std::endl;
     }
 
     template <typename MessageT>

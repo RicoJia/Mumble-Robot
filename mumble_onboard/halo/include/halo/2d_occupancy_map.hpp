@@ -136,8 +136,12 @@ class OccupancyMap2D {
         cv::Mat ret(2 * HALF_MAP_SIZE_2D, 2 * HALF_MAP_SIZE_2D, CV_8UC3);
         for (int x = 0; x < grid_.cols; ++x) {
             for (int y = 0; y < grid_.rows; ++y) {
+                // TODO
+                // if (grid_.at<uchar>(y, x) <= OCCUPANCYMAP2D_OCCUPY_THRE + 2) {
                 if (grid_.at<uchar>(y, x) < UNKNOWN_CELL_VALUE) {
                     ret.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
+                    // TODO
+                    // } else if (grid_.at<uchar>(y, x) >= OCCUPANCYMAP2D_FREE_THRE - 2) {
                 } else if (grid_.at<uchar>(y, x) > UNKNOWN_CELL_VALUE) {
                     ret.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
                 } else {

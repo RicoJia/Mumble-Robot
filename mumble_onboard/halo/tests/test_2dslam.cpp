@@ -11,7 +11,8 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
-bool update_last_scan = false;   // Default behavior
+bool update_last_scan = false;                       // Default behavior
+std::string bag_path  = "bags/loop_closing_small";   // Global variable to store the bag path
 
 // TEST(Test2DSLAM, TestVisualization) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
@@ -21,6 +22,8 @@ bool update_last_scan = false;   // Default behavior
 //             cv::Mat output_img;
 //             halo::visualize_2d_scan(
 //                 current_scan_ptr, output_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(255, 0, 0));
+//             cv::imshow("2D Laser Scan", output_img);
+//             cv::waitKey(100);
 //         });
 //     ros2_bag_io.spin();
 // }
@@ -119,63 +122,114 @@ bool update_last_scan = false;   // Default behavior
 //     ros2_bag_io.spin();
 // }
 
-// TEST(Test2DSLAM, TestSubmapGeneration) {
-//     halo::ROS2BagIo ros2_bag_io("bags/straight");
+TEST(Test2DSLAM, TestSubmapGeneration) {
+    halo::ROS2BagIo ros2_bag_io(bag_path);
+    std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
+    std::vector<std::shared_ptr<halo::Submap2D>> submaps;
+    halo::SE2 initial_pose;   // Default (identity) pose.
+    auto current_submap = std::make_shared<halo::Submap2D>(initial_pose);
+    submaps.push_back(current_submap);
+    halo::SE2 current_submap_origin = initial_pose;
+    int scan_count                  = 0;
+    bool first_scan                 = true;
+
+    cv::Mat occ_map_img;
+    cv::Mat likelihood_map_img;
+    cv::Mat scan_img;
+
+    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+        "/scan",
+        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+            ++scan_count;
+            auto frame = std::make_shared<halo::Lidar2DFrame>(
+                current_scan_ptr, scan_count, scan_count, halo::SE2{}, halo::SE2{});
+
+            auto frame_pose        = frame->pose_;
+            double dx              = frame_pose.translation()[0] - current_submap_origin.translation()[0];
+            double dy              = frame_pose.translation()[1] - current_submap_origin.translation()[1];
+            double cumulative_dist = std::sqrt(dx * dx + dy * dy);
+            if (cumulative_dist > 0.5) {
+                // Create a new submat,and reset the origin for the new submap.
+                current_submap = std::make_shared<halo::Submap2D>(submaps.back()->get_pose());
+                submaps.push_back(current_submap);
+                current_submap_origin = current_submap->get_pose();
+            }
+
+            bool success = true;
+            // Can't do scan matching for first scan. Just add it to occ map instead
+            if (!first_scan) {
+                success = current_submap->match_scan(frame);
+            } else {
+                first_scan = false;
+            }
+
+            // TODO
+            std::cout << "theta: " << frame->pose_.so2().log() << std::endl;
+            if (success) {
+                current_submap->add_scan_in_occupancy_map(frame);
+                current_submap->add_keyframe(frame);
+                occ_map_img        = current_submap->get_occ_map();
+                likelihood_map_img = current_submap->get_likelihood_field();
+                last_scan_ptr      = current_scan_ptr;
+                // halo::visualize_2d_scan(
+                //     current_scan_ptr, scan_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(255, 0, 0));
+                // cv::imshow("2D Laser Scan", scan_img);
+            } else {
+                // TODO
+                std::cout << "sub map scan match NOT SUCCESSFUL" << std::endl;
+            }
+        });
+    ros2_bag_io.spin();
+    cv::imshow("Occ map", occ_map_img);
+    cv::imshow("Likelihood field", likelihood_map_img);
+    halo::close_cv_window_on_esc();
+}
+
+// TEST(Test2DSLAM, TestMultiResolutionLikelihoodField) {
+//     halo::ROS2BagIo ros2_bag_io(bag_path);
+//     // halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
-//     std::vector<std::shared_ptr<halo::Submap2D>> submaps;
-//     halo::SE2 initial_pose; // Default (identity) pose.
-//     auto current_submap = std::make_shared<halo::Submap2D>(initial_pose);
-//     submaps.push_back(current_submap);
-//     halo::SE2 current_submap_origin = initial_pose;
-//     int scan_count = 0;
-//     bool first_scan = true;
-
-//     cv::Mat occ_map_img;
-//     cv::Mat likelihood_map_img;
-
+//     halo::OccupancyMap2D omap(false);
+//     halo::MultiResolutionLikelihoodField mr_likelihood_field;
+//     size_t scan_id = 0;
+//     halo::SE2 relative_pose{};   // so it can be used to initialize next frame
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
 //         "/scan",
 //         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-
-//             ++scan_count;
-//             auto frame = std::make_shared<halo::Lidar2DFrame>(
-//                 current_scan_ptr, scan_count, scan_count, halo::SE2{}, halo::SE2{}
-//             );
-
-//             auto frame_pose = frame->pose_;
-//             double dx = frame_pose.translation()[0] - current_submap_origin.translation()[0];
-//             double dy = frame_pose.translation()[1] - current_submap_origin.translation()[1];
-//             double cumulative_dist = std::sqrt(dx * dx + dy * dy);
-//             if (cumulative_dist > 0.5) {
-//                 // Create a new submat,and reset the origin for the new submap.
-//                 current_submap = std::make_shared<halo::Submap2D>(submaps.back()->get_pose());
-//                 submaps.push_back(current_submap);
-//                 current_submap_origin = current_submap->get_pose();}
-
-//             // Can't do scan matching for first scan. Just add it to occ map instead
-//             if (!first_scan){
-//                 // TODO
-//                 current_submap->match_scan(frame);
-//             } else {
-//                 first_scan = false;
+//             auto frame = halo::Lidar2DFrame{
+//                 current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}};
+//             if (last_scan_ptr == nullptr) {
+//                 last_scan_ptr = current_scan_ptr;
+//                 omap.add_frame(halo::OccupancyMapMethod::BRESENHAM, frame);
+//                 return;
 //             }
-//             //TODO
-//             std::cout<<"theta: "<<frame->pose_.so2().log()<<std::endl;
-//             current_submap->add_scan_in_occupancy_map(frame);
-//             current_submap->add_keyframe(frame);
-
-//             occ_map_img = current_submap->get_occ_map();
-//             likelihood_map_img = current_submap->get_likelihood_field();
+//             {
+//                 halo::RAIITimer timer;
+//                 mr_likelihood_field.set_field_from_occ_map(omap.get_grid_reference());
+//                 mr_likelihood_field.set_source_scan(current_scan_ptr);
+//                 bool success = mr_likelihood_field.can_align_g2o(relative_pose);
+//                 if (success) {
+//                     frame.pose_ = relative_pose;   // updating world frame, really we should just do subframe
+//                     omap.add_frame(halo::OccupancyMapMethod::BRESENHAM, frame);
+//                 }
+//                 std::cout << "align success: " << success << std::endl;
+//             }
 //             last_scan_ptr = current_scan_ptr;
+
+//             auto output_img = omap.get_grid_for_viz();
+//             cv::imshow("Submap", output_img);
+//             std::vector<cv::Mat> likelihood_images = mr_likelihood_field.get_field_images();
+//             for (int i = 0; i < likelihood_images.size(); ++i) {
+//                 const auto &image = likelihood_images.at(i);
+//                 cv::imshow("likelihood map " + std::to_string(i), image);
+//             }
+//             cv::waitKey(200);
 //         });
 //     ros2_bag_io.spin();
-
-//     cv::imshow("Occ map", occ_map_img);
-//     cv::imshow("Likelihood field", likelihood_map_img);
-//     cv::waitKey(0);
+//     halo::close_cv_window_on_esc();
 // }
 
-// TEST(Test2DSLAM, TestSubmapGeneration) {
+// TEST(Test2DSLAM, TestMapping) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     halo::Mapping2DLaser mapper_2d(false);
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
@@ -186,57 +240,17 @@ bool update_last_scan = false;   // Default behavior
 //     ros2_bag_io.spin();
 // }
 
-TEST(Test2DSLAM, TestMultiResolutionLikelihoodField) {
-    halo::ROS2BagIo ros2_bag_io("bags/straight");
-    std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
-    halo::OccupancyMap2D omap(false);
-    halo::MultiResolutionLikelihoodField mr_likelihood_field;
-    size_t scan_id = 0;
-    halo::SE2 relative_pose{};   // so it can be used to initialize next frame
-    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
-        "/scan",
-        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-            auto frame = halo::Lidar2DFrame{
-                current_scan_ptr, scan_id++, 0, halo::SE2{}, halo::SE2{}};
-            if (last_scan_ptr == nullptr) {
-                last_scan_ptr = current_scan_ptr;
-                omap.add_frame(halo::OccupancyMapMethod::BRESENHAM, frame);
-                return;
-            }
-            {
-                halo::RAIITimer timer;
-                mr_likelihood_field.set_field_from_occ_map(omap.get_grid_reference());
-                mr_likelihood_field.set_source_scan(current_scan_ptr);
-                bool success = mr_likelihood_field.can_align_g2o(relative_pose);
-                if (success) {
-                    frame.pose_ = relative_pose;   // updating world frame, really we should just do subframe
-                    omap.add_frame(halo::OccupancyMapMethod::BRESENHAM, frame);
-                }
-                std::cout << "align success: " << success << std::endl;
-            }
-            last_scan_ptr = current_scan_ptr;
-
-            auto output_img = omap.get_grid_for_viz();
-            cv::imshow("Submap", output_img);
-            std::vector<cv::Mat> likelihood_images = mr_likelihood_field.get_field_images();
-            for (int i = 0; i < likelihood_images.size(); ++i) {
-                const auto &image = likelihood_images.at(i);
-                cv::imshow("likelihood map " + std::to_string(i), image);
-            }
-            cv::waitKey(200);
-        });
-    ros2_bag_io.spin();
-    halo::close_cv_window_on_esc();
-}
-
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
 
-    // Parse command-line arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
+
         if (arg == "--update_last_scan" || arg == "-u") {
             update_last_scan = true;
+        } else if ((arg == "--bag_path" || arg == "-b") && i + 1 < argc) {
+            bag_path = argv[i + 1];   // Store the next argument as bag_path
+            ++i;                      // Skip the next argument since it's the value
         }
     }
 
