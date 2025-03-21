@@ -15,7 +15,8 @@ class Submap2D {
     // Initialization
     /************************************************************************* */
 
-    Submap2D(const SE2 &pose) : occupancy_map_(GEN_TEMPLATE_IN_OCCUPANCY_MAP) {
+    Submap2D(const SE2 &pose, float mr_likelihood_field_inlier_thre = 0.3) : mr_likelihood_field_(mr_likelihood_field_inlier_thre),
+                                                                             occupancy_map_(GEN_TEMPLATE_IN_OCCUPANCY_MAP) {
         set_pose(pose);
     }
 
@@ -41,8 +42,6 @@ class Submap2D {
                 occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *(frames_in_other.at(i)));
             }
         }
-        // TODO
-        // likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid_reference());
         mr_likelihood_field_.set_field_from_occ_map(occupancy_map_.get_grid_reference());
     }
 
@@ -58,10 +57,6 @@ class Submap2D {
      */
     // TODO
     bool match_scan(Lidar2DFramePtr frame) {
-        // TODO
-        // likelihood_field_.set_source_scan(frame->scan_);
-        // [[maybe_unused]] double dummy_cost;
-        // likelihood_field_.align_g2o(frame->pose_submap_, dummy_cost);
         mr_likelihood_field_.set_source_scan(frame->scan_);
         bool success = mr_likelihood_field_.can_align_g2o(frame->pose_submap_);
         if (success) {
@@ -77,8 +72,6 @@ class Submap2D {
      */
     void add_scan_in_occupancy_map(Lidar2DFramePtr frame) {
         occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *frame);
-        // TODO
-        // likelihood_field_.set_field_from_occumap(occupancy_map_.get_grid_reference());
         mr_likelihood_field_.set_field_from_occ_map(occupancy_map_.get_grid_reference());
     }
 
@@ -98,12 +91,7 @@ class Submap2D {
     size_t get_id() const { return id_; }
     SE2 get_pose() const { return T_ws_; }
     cv::Mat get_occ_map() const { return occupancy_map_.get_grid_for_viz(); }
-    cv::Mat get_likelihood_field() const {
-        // TODO
-        // return likelihood_field_.get_field_vis_single_channel();
-
-        return mr_likelihood_field_.get_field_images().at(0);
-    }
+    cv::Mat get_likelihood_field() const { return mr_likelihood_field_.get_field_images().at(0); }
     bool has_outside_points() const { return occupancy_map_.has_outside_points(); }
 
     /**

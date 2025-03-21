@@ -6,17 +6,18 @@
 
 namespace halo {
 
-class Mapping2DLaser {
-    inline constexpr static float KEYFRAME_LINEAR_DIST_THRE_SQUARED = 0.09;   // 1m
-    inline constexpr static float KEYFRAME_ANGULAR_DIST_THRE        = 15 * M_PI / 180;
-    inline constexpr static size_t KEYFRAME_NUM_IN_SUBMAP           = 50;
+using Submap2DPtr = std::shared_ptr<Submap2D>;
 
-    using Submap2DPtr = std::shared_ptr<Submap2D>;
+class Mapping2DLaser {
+    inline constexpr static float KEYFRAME_LINEAR_DIST_THRE_SQUARED          = 0.09;   // 1m
+    inline constexpr static float KEYFRAME_ANGULAR_DIST_THRE                 = 15 * M_PI / 180;
+    inline constexpr static size_t KEYFRAME_NUM_IN_SUBMAP                    = 50;
+    inline constexpr static float MR_LIKELIHOOD_FIELD_INLIER_SUBMAP_GEN_THRE = 0.2;
 
   public:
     Mapping2DLaser(bool with_loop_closure = false) {
         submaps_.emplace_back(
-            std::make_shared<halo::Submap2D>(SE2()));
+            std::make_shared<halo::Submap2D>(SE2(), MR_LIKELIHOOD_FIELD_INLIER_SUBMAP_GEN_THRE));
         // TODO: loop closure init
     }
     ~Mapping2DLaser() = default;
@@ -26,7 +27,9 @@ class Mapping2DLaser {
      * 1. Create a new frame from the scan.
      *  - Its pose estimate is last frame's * pose * last frame's motion estimate.
      *  - Its submap pose is initialized to the last frame's * pose for further scan matching.
-     * 2. Check if it's a key frame:
+        - scan match
+     * 2. Check if scan matching is successful. If not, continue
+     * 3. Check if it's a key frame:
      *  - If there's no frame, yes.
      *  - If the angular or linear displacement is above a threshold, yes
      */
@@ -36,12 +39,17 @@ class Mapping2DLaser {
             scan, frame_id_, frame_id_, halo::SE2{}, halo::SE2{});
 
         std::shared_ptr<Submap2D> current_submap = submaps_.back();
+        bool scan_match_success                  = true;
         if (last_frame_ != nullptr) {
             frame->pose_        = last_frame_->pose_ * motion_guess_;
             frame->pose_submap_ = last_frame_->pose_submap_;
-            current_submap->match_scan(frame);
+            scan_match_success  = current_submap->match_scan(frame);
         }
-        auto frame_pose = frame->pose_;
+
+        if (!scan_match_success) {
+            std::cout << "[2d_mapping]: Scan match NOT SUCCESSFUL. Continue" << std::endl;
+            return;
+        }
 
         if (is_current_frame_keyframe(frame)) {
             current_submap->add_scan_in_occupancy_map(frame);
@@ -57,8 +65,6 @@ class Mapping2DLaser {
             }
         }
 
-        // visualize TODO
-
         // At the end, update motion_guess
         if (last_frame_ != nullptr) {
             motion_guess_ = last_frame_->pose_.inverse() * frame->pose_;
@@ -66,7 +72,11 @@ class Mapping2DLaser {
         last_frame_ = frame;
     }
 
-    cv::Mat get_global_map(int max_size) {
+    Submap2DPtr get_current_submap() const {
+        return submaps_.back();
+    }
+
+    cv::Mat get_global_map(int max_size) const {
     }
 
   private:

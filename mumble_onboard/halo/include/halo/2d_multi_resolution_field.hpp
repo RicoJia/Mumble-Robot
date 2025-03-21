@@ -6,7 +6,7 @@
 namespace halo {
 
 class MultiResolutionLikelihoodField {
-    inline static constexpr int MIN_MATCHING_POINT_NUM  = 100;
+    inline static constexpr int MIN_MATCHING_POINT_NUM  = 10;
     inline static constexpr size_t IMAGE_PYRAMID_LEVELS = 3;
     // size of a pixel cell. RES_2D should always be at the front
     inline static constexpr std::array<float, IMAGE_PYRAMID_LEVELS> INV_RESOLUTIONS = {1.0 / 0.2, 1.0 / 0.1, INV_RES_2D};
@@ -134,6 +134,7 @@ class MultiResolutionLikelihoodField {
 
             optimizer.setVerbose(false);
             optimizer.initializeOptimization();
+            // TODO
             optimizer.optimize(10);
 
             // Parallel accumulation for inlier count using transform_reduce.
@@ -154,7 +155,10 @@ class MultiResolutionLikelihoodField {
             if (num_inliers > MIN_MATCHING_POINT_NUM && inlier_ratio > INLIER_RATIO_TH) {
                 relative_pose = v->estimate();
             } else {
-                std::cerr << "===========Rejected because inlier ratio is too low. Level: " << level << std::endl;
+                if (num_inliers <= MIN_MATCHING_POINT_NUM)
+                    std::cerr << "===========Rejected because inlier count is too low. Level: " << level << std::endl;
+                else
+                    std::cerr << "===========Rejected because inlier ratio is too low. Level: " << level << std::endl;
                 return false;
             }
         }

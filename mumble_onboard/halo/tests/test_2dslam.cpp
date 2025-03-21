@@ -14,6 +14,20 @@
 bool update_last_scan = false;                       // Default behavior
 std::string bag_path  = "bags/loop_closing_small";   // Global variable to store the bag path
 
+void visualize_submap_and_scan(halo::Submap2DPtr current_submap,
+                               std::shared_ptr<sensor_msgs::msg::LaserScan> current_scan_ptr) {
+    cv::Mat occ_map_img        = current_submap->get_occ_map();
+    cv::Mat likelihood_map_img = current_submap->get_likelihood_field();
+    cv::imshow("Occ map", occ_map_img);
+    cv::imshow("Likelihood field", likelihood_map_img);
+
+    cv::Mat scan_img;
+    halo::visualize_2d_scan(
+        current_scan_ptr, scan_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(255, 0, 0));
+    cv::imshow("2D Laser Scan", scan_img);
+    halo::close_cv_window_on_esc();
+}
+
 // TEST(Test2DSLAM, TestVisualization) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
@@ -122,68 +136,60 @@ std::string bag_path  = "bags/loop_closing_small";   // Global variable to store
 //     ros2_bag_io.spin();
 // }
 
-TEST(Test2DSLAM, TestSubmapGeneration) {
-    halo::ROS2BagIo ros2_bag_io(bag_path);
-    std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
-    std::vector<std::shared_ptr<halo::Submap2D>> submaps;
-    halo::SE2 initial_pose;   // Default (identity) pose.
-    auto current_submap = std::make_shared<halo::Submap2D>(initial_pose);
-    submaps.push_back(current_submap);
-    halo::SE2 current_submap_origin = initial_pose;
-    int scan_count                  = 0;
-    bool first_scan                 = true;
+// This test does NOT scan match with the most up-to-date scan pose being the initial estimate.
+// TEST(Test2DSLAM, TestSubmapGeneration) {
+//     halo::ROS2BagIo ros2_bag_io(bag_path);
+//     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
+//     std::vector<std::shared_ptr<halo::Submap2D>> submaps;
+//     halo::SE2 initial_pose;   // Default (identity) pose.
+//     auto current_submap = std::make_shared<halo::Submap2D>(initial_pose);
+//     submaps.push_back(current_submap);
+//     halo::SE2 current_submap_origin = initial_pose;
+//     int scan_count                  = 0;
+//     bool first_scan                 = true;
 
-    cv::Mat occ_map_img;
-    cv::Mat likelihood_map_img;
-    cv::Mat scan_img;
+//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+//         "/scan",
+//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+//             cv::Mat occ_map_img;
+//             cv::Mat likelihood_map_img;
+//             cv::Mat scan_img;
+//             ++scan_count;
+//             auto frame = std::make_shared<halo::Lidar2DFrame>(
+//                 current_scan_ptr, scan_count, scan_count, halo::SE2{}, halo::SE2{});
 
-    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
-        "/scan",
-        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-            ++scan_count;
-            auto frame = std::make_shared<halo::Lidar2DFrame>(
-                current_scan_ptr, scan_count, scan_count, halo::SE2{}, halo::SE2{});
+//             bool success = true;
+//             // Can't do scan matching for first scan. Just add it to occ map instead
+//             if (!first_scan) {
+//                 success = current_submap->match_scan(frame);
+//             } else {
+//                 first_scan = false;
+//             }
 
-            auto frame_pose        = frame->pose_;
-            double dx              = frame_pose.translation()[0] - current_submap_origin.translation()[0];
-            double dy              = frame_pose.translation()[1] - current_submap_origin.translation()[1];
-            double cumulative_dist = std::sqrt(dx * dx + dy * dy);
-            if (cumulative_dist > 0.5) {
-                // Create a new submat,and reset the origin for the new submap.
-                current_submap = std::make_shared<halo::Submap2D>(submaps.back()->get_pose());
-                submaps.push_back(current_submap);
-                current_submap_origin = current_submap->get_pose();
-            }
+//             if (success) {
+//                 current_submap->add_scan_in_occupancy_map(frame);
+//                 current_submap->add_keyframe(frame);
+//                 occ_map_img        = current_submap->get_occ_map();
+//                 likelihood_map_img = current_submap->get_likelihood_field();
 
-            bool success = true;
-            // Can't do scan matching for first scan. Just add it to occ map instead
-            if (!first_scan) {
-                success = current_submap->match_scan(frame);
-            } else {
-                first_scan = false;
-            }
-
-            // TODO
-            std::cout << "theta: " << frame->pose_.so2().log() << std::endl;
-            if (success) {
-                current_submap->add_scan_in_occupancy_map(frame);
-                current_submap->add_keyframe(frame);
-                occ_map_img        = current_submap->get_occ_map();
-                likelihood_map_img = current_submap->get_likelihood_field();
-                last_scan_ptr      = current_scan_ptr;
-                // halo::visualize_2d_scan(
-                //     current_scan_ptr, scan_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(255, 0, 0));
-                // cv::imshow("2D Laser Scan", scan_img);
-            } else {
-                // TODO
-                std::cout << "sub map scan match NOT SUCCESSFUL" << std::endl;
-            }
-        });
-    ros2_bag_io.spin();
-    cv::imshow("Occ map", occ_map_img);
-    cv::imshow("Likelihood field", likelihood_map_img);
-    halo::close_cv_window_on_esc();
-}
+//                 auto frame_pose        = frame->pose_;
+//                 double dx              = frame_pose.translation()[0] - current_submap_origin.translation()[0];
+//                 double dy              = frame_pose.translation()[1] - current_submap_origin.translation()[1];
+//                 double cumulative_dist = std::sqrt(dx * dx + dy * dy);
+//                 if (cumulative_dist > 0.5) {
+//                     // Create a new submat,and reset the origin for the new submap.
+//                     current_submap = std::make_shared<halo::Submap2D>(submaps.back()->get_pose());
+//                     submaps.push_back(current_submap);
+//                     current_submap_origin = current_submap->get_pose();
+//                     visualize_submap_and_scan(*current_submap, current_scan_ptr);
+//                 }
+//             } else {
+//                 std::cout << "sub map scan match NOT SUCCESSFUL" << std::endl;
+//             }
+//             last_scan_ptr      = current_scan_ptr;
+//         });
+//     ros2_bag_io.spin();
+// }
 
 // TEST(Test2DSLAM, TestMultiResolutionLikelihoodField) {
 //     halo::ROS2BagIo ros2_bag_io(bag_path);
@@ -229,16 +235,21 @@ TEST(Test2DSLAM, TestSubmapGeneration) {
 //     halo::close_cv_window_on_esc();
 // }
 
-// TEST(Test2DSLAM, TestMapping) {
-//     halo::ROS2BagIo ros2_bag_io("bags/straight");
-//     halo::Mapping2DLaser mapper_2d(false);
-//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
-//         "/scan",
-//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-//             mapper_2d.process_scan(current_scan_ptr);
-//         });
-//     ros2_bag_io.spin();
-// }
+TEST(Test2DSLAM, TestMapping) {
+    halo::ROS2BagIo ros2_bag_io("bags/straight");
+    halo::Mapping2DLaser mapper_2d(false);
+    halo::Submap2DPtr current_submap = nullptr;
+    halo::LaserScanMsg::SharedPtr scan_ptr;
+    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+        "/scan",
+        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+            mapper_2d.process_scan(current_scan_ptr);
+            current_submap = mapper_2d.get_current_submap();
+            scan_ptr       = current_scan_ptr;
+        });
+    ros2_bag_io.spin();
+    visualize_submap_and_scan(current_submap, scan_ptr);
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

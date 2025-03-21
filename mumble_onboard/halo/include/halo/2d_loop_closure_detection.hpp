@@ -11,7 +11,7 @@ namespace halo {
 //  - We check for matching between the current frame and past submaps.
 //      - Skip the submap if it's too recent to the last submap
 //      - Skip the submap if it already has a valid loop-closing constraint with the current submap
-//      - check if the frame pose and submap pose is within a cartesian distance threshold
+//      - Check if the frame pose and submap pose is within a cartesian distance threshold
 //      - Add the submap id to a vector as a candidate
 // Match in history submaps:
 // - For each loop candidate detection:
