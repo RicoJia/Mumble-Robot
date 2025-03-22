@@ -57,9 +57,14 @@ inline PCLCloud2DPtr laser_scan_2_PointXY(const std::vector<ScanObj> &scan_objs)
  * @brief: Visualization!
  */
 inline void visualize_2d_scan(
-    LaserScanMsg::SharedPtr scan, cv::Mat &image, const SE2 &submap_frame, const SE2 &robot_pose, double resolution, int image_size, const Vec3b &color) {
+    LaserScanMsg::SharedPtr scan, cv::Mat &image, const SE2 &submap_frame,
+    const SE2 &robot_pose, double resolution, int image_size, const Vec3b &color) {
     if (image.data == nullptr)
         image = cv::Mat::zeros(image_size, image_size, CV_8UC3);
+    else {
+        image_size = image.cols;
+    }
+
     auto point_pose_2_image_coord = [&](const Vec2d &point_pose)
         -> cv::Point {
         int image_x = static_cast<int>(point_pose[0] / resolution + image_size / 2);

@@ -99,4 +99,10 @@ class ROS2BagIo {
         callbacks_;
 };
 
+template <typename T>
+T load_param(const std::string &filename, const std::string &param_name) {
+    YAML::Node config = YAML::LoadFile(filename);
+    return config[param_name].as<T>();
+}
+
 }   // namespace halo

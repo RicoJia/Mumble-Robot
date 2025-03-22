@@ -3,21 +3,30 @@
 #include <halo/2d_submap.hpp>
 #include <halo/common/debug_utils.hpp>
 #include <halo/2d_loop_closure_detection.hpp>
+#include <yaml-cpp/yaml.h>
 
 namespace halo {
 
 using Submap2DPtr = std::shared_ptr<Submap2D>;
 
 class Mapping2DLaser {
-    inline constexpr static float KEYFRAME_LINEAR_DIST_THRE_SQUARED          = 0.09;   // 1m
-    inline constexpr static float KEYFRAME_ANGULAR_DIST_THRE                 = 15 * M_PI / 180;
-    inline constexpr static size_t KEYFRAME_NUM_IN_SUBMAP                    = 50;
-    inline constexpr static float MR_LIKELIHOOD_FIELD_INLIER_SUBMAP_GEN_THRE = 0.2;
-
   public:
-    Mapping2DLaser(bool with_loop_closure = false) {
+    Mapping2DLaser(bool with_loop_closure = false, const std::string &yaml_path = "") {
+        Submap2DParams params;
+
+        if (yaml_path != "") {
+            params.mr_likelihood_field_inlier_thre = load_param<float>(yaml_path,
+                                                                       "mr_likelihood_field_inlier_thre");
+            params.mr_rk_delta                     = load_param<float>(yaml_path, "mr_rk_delta");
+            params.mr_optimization_iterations      = load_param<int>(yaml_path, "mr_optimization_iterations");
+            params.print();
+
+            keyframe_angular_dist_thre_        = load_param<float>(yaml_path, "keyframe_angular_dist_thre");
+            keyframe_linear_dist_thre_squared_ = load_param<float>(yaml_path, "keyframe_linear_dist_thre_squared");   // 0.0m
+            keyframe_num_in_submap_            = load_param<float>(yaml_path, "keyframe_num_in_submap");
+        }
         submaps_.emplace_back(
-            std::make_shared<halo::Submap2D>(SE2(), MR_LIKELIHOOD_FIELD_INLIER_SUBMAP_GEN_THRE));
+            std::make_shared<halo::Submap2D>(SE2(), params));
         // TODO: loop closure init
     }
     ~Mapping2DLaser() = default;
@@ -60,7 +69,7 @@ class Mapping2DLaser {
             }
 
             if (current_submap->has_outside_points() ||
-                current_submap->frames_num() > KEYFRAME_NUM_IN_SUBMAP) {
+                current_submap->frames_num() > keyframe_num_in_submap_) {
                 expand_submap();
             }
         }
@@ -87,10 +96,10 @@ class Mapping2DLaser {
 
         SE2 delta_pose        = last_keyframe_->pose_.inverse() * current_frame->pose_;
         double relative_angle = fabs(delta_pose.so2().log());
-        if (relative_angle > KEYFRAME_ANGULAR_DIST_THRE)
+        if (relative_angle > keyframe_angular_dist_thre_)
             return true;
         double relative_dist = delta_pose.translation().squaredNorm();
-        if (relative_dist > KEYFRAME_LINEAR_DIST_THRE_SQUARED)
+        if (relative_dist > keyframe_linear_dist_thre_squared_)
             return true;
         return false;
     }
@@ -114,6 +123,10 @@ class Mapping2DLaser {
     size_t frame_id_     = 0;
     size_t keyframe_id__ = 0;
     bool loop_detection_ = false;
+
+    float keyframe_angular_dist_thre_        = 15 * M_PI / 180;
+    float keyframe_linear_dist_thre_squared_ = 0.01;   // 0.0m
+    size_t keyframe_num_in_submap_           = 40;
 };
 
 }   // namespace halo

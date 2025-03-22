@@ -11,8 +11,9 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
-bool update_last_scan = false;                       // Default behavior
-std::string bag_path  = "bags/loop_closing_small";   // Global variable to store the bag path
+bool update_last_scan = false;                                         // Default behavior
+std::string bag_path  = "bags/no_loop_room";                           // Global variable to store the bag path
+std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global variable to store the bag path
 
 void visualize_submap_and_scan(halo::Submap2DPtr current_submap,
                                std::shared_ptr<sensor_msgs::msg::LaserScan> current_scan_ptr) {
@@ -236,13 +237,16 @@ void visualize_submap_and_scan(halo::Submap2DPtr current_submap,
 // }
 
 TEST(Test2DSLAM, TestMapping) {
-    halo::ROS2BagIo ros2_bag_io("bags/straight");
-    halo::Mapping2DLaser mapper_2d(false);
+    halo::ROS2BagIo ros2_bag_io(bag_path);
+    halo::Mapping2DLaser mapper_2d(false, yaml_path);
     halo::Submap2DPtr current_submap = nullptr;
     halo::LaserScanMsg::SharedPtr scan_ptr;
+    int i = 0;
     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
         "/scan",
         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+            // TODO
+            std::cout << "===================" << i++ << std::endl;
             mapper_2d.process_scan(current_scan_ptr);
             current_submap = mapper_2d.get_current_submap();
             scan_ptr       = current_scan_ptr;
@@ -262,6 +266,9 @@ int main(int argc, char **argv) {
         } else if ((arg == "--bag_path" || arg == "-b") && i + 1 < argc) {
             bag_path = argv[i + 1];   // Store the next argument as bag_path
             ++i;                      // Skip the next argument since it's the value
+        } else if ((arg == "--yaml_path" || arg == "-y") && i + 1 < argc) {
+            yaml_path = argv[i + 1];   // Store the next argument as bag_path
+            ++i;                       // Skip the next argument since it's the value
         }
     }
 

@@ -9,8 +9,6 @@
 #include <halo/common/g2o_definitions.hpp>
 
 namespace halo {
-
-// Why a unary edge? Because this edge is a lidar point. It's associated with only ONE vertex (pose)
 // Binary edges connect with two vertices
 // The cost of the likelihood is provided by the likelihood field
 // The template parameters are: <dimension of the error term, measurement type, Vertex Type>
@@ -19,11 +17,11 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     Edge2DLikelihoodField(const cv::Mat &grid, float range, float angle,
-                          float inv_resolution = INV_RES_2D, int half_map_size_2d = HALF_MAP_SIZE_2D) : grid_(grid),
-                                                                                                        range_(range),
-                                                                                                        angle_(angle),
-                                                                                                        inv_resolution_(inv_resolution),
-                                                                                                        half_map_size_2d_(half_map_size_2d) {}
+                          float inv_resolution = RESOLUTION_2D, int half_map_size_2d = HALF_MAP_SIZE_2D) : grid_(grid),
+                                                                                                           range_(range),
+                                                                                                           angle_(angle),
+                                                                                                           inv_resolution_(inv_resolution),
+                                                                                                           half_map_size_2d_(half_map_size_2d) {}
     // Given a pose estimate, how do we update _error
     // In this case, our cost is 1D
     void computeError() override {
@@ -31,15 +29,19 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * inv_resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_)).cast<int>();
+        Vec2d pose_map   = pose_world * inv_resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_) - Vec2d(0.5, 0.5);
 
         if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
             pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
             LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
             pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
-            _error[0] = grid_.at<float>(pose_map[1], pose_map[0]);
+            _error[0] = math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0]);
+            // vec2i pose_map_int = pose_map.cast<float>();
+            // _error[0] = grid_.at<float>(pose_map_int[1], pose_map_int[0]);   // to cast
         } else {
             _error[0] = 0.0;
+            setLevel(1);   // marks the edge out of bound, so it will be ignored during optimization
+            std::cout << "out of bound, which shouldn't happen: " << pose_map[0] << ", " << pose_map[0] << std::endl;
         }
     }
 
@@ -122,8 +124,8 @@ class LikelihoodField2D {
         // Store the likelihood field as distance. if visualized directly,
         // the image is symmetric about the x axis
         for (const auto &scan_obj : target_scan_objs_) {
-            int x = int(scan_obj.range * std::cos(scan_obj.angle) * INV_RES_2D) + HALF_MAP_SIZE_2D;
-            int y = int(scan_obj.range * std::sin(scan_obj.angle) * INV_RES_2D) + HALF_MAP_SIZE_2D;
+            int x = int(scan_obj.range * std::cos(scan_obj.angle) * RESOLUTION_2D) + HALF_MAP_SIZE_2D;
+            int y = int(scan_obj.range * std::sin(scan_obj.angle) * RESOLUTION_2D) + HALF_MAP_SIZE_2D;
             for (const auto &t : template_) {
                 int xx = x + t.dx_;
                 int yy = y + t.dy_;
@@ -255,10 +257,10 @@ class LikelihoodField2D {
                            source_scan_objs_.begin(), source_scan_objs_.end(), source_map_cloud->points.begin(),
                            [&](const ScanObj &s) {
                                Vec2d p_vec = scan_point_to_map_frame(s.range, s.angle, relative_pose);
-                               //    (INV_RES_2D * r cos + C,  INV_RES_2D * r sin + C)
+                               //    (RESOLUTION_2D * r cos + C,  RESOLUTION_2D * r sin + C)
                                pcl::PointXY pt;
-                               pt.x = int(p_vec[0] * INV_RES_2D) + HALF_MAP_SIZE_2D;
-                               pt.y = int(p_vec[1] * INV_RES_2D) + HALF_MAP_SIZE_2D;
+                               pt.x = int(p_vec[0] * RESOLUTION_2D) + HALF_MAP_SIZE_2D;
+                               pt.y = int(p_vec[1] * RESOLUTION_2D) + HALF_MAP_SIZE_2D;
                                return pt;
                            });
             size_t effective_num = 0;
@@ -269,8 +271,8 @@ class LikelihoodField2D {
                     float dx = (grid_.at<float>(pt.y, pt.x + 1) - grid_.at<float>(pt.y, pt.x - 1)) / 2.0;
                     float dy = (grid_.at<float>(pt.y + 1, pt.x) - grid_.at<float>(pt.y - 1, pt.x)) / 2.0;
                     Vec3d J;
-                    J << INV_RES_2D * dx, -INV_RES_2D * dy,
-                        -INV_RES_2D * dx * (pt.y - HALF_MAP_SIZE_2D) + INV_RES_2D * dy * (pt.x - HALF_MAP_SIZE_2D);
+                    J << RESOLUTION_2D * dx, -RESOLUTION_2D * dy,
+                        -RESOLUTION_2D * dx * (pt.y - HALF_MAP_SIZE_2D) + RESOLUTION_2D * dy * (pt.x - HALF_MAP_SIZE_2D);
                     H += J * J.transpose();
                     float e = grid_.at<float>(pt.y, pt.x);
                     b_vec += J * e;

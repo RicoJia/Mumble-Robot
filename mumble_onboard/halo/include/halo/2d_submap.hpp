@@ -6,6 +6,18 @@
 #include <halo/2d_occupancy_map.hpp>
 
 namespace halo {
+
+struct Submap2DParams {
+    float mr_likelihood_field_inlier_thre = 0.3;
+    float mr_rk_delta                     = 0.1;
+    int mr_optimization_iterations        = 10;
+    void print() const {
+        std::cout << "mr_likelihood_field_inlier_thre: " << mr_likelihood_field_inlier_thre << std::endl;
+        std::cout << "rk_delta: " << mr_rk_delta << std::endl;
+        std::cout << "mr_optimization_iterations: " << mr_optimization_iterations << std::endl;
+    }
+};
+
 class Submap2D {
     static constexpr bool GEN_TEMPLATE_IN_OCCUPANCY_MAP = false;
     static constexpr int NUM_KEYFRAMES_TO_INIT_OCC      = 10;
@@ -15,8 +27,8 @@ class Submap2D {
     // Initialization
     /************************************************************************* */
 
-    Submap2D(const SE2 &pose, float mr_likelihood_field_inlier_thre = 0.3) : mr_likelihood_field_(mr_likelihood_field_inlier_thre),
-                                                                             occupancy_map_(GEN_TEMPLATE_IN_OCCUPANCY_MAP) {
+    Submap2D(const SE2 &pose, const Submap2DParams &p) : mr_likelihood_field_(p.mr_likelihood_field_inlier_thre, p.mr_rk_delta, p.mr_optimization_iterations),
+                                                         occupancy_map_(GEN_TEMPLATE_IN_OCCUPANCY_MAP) {
         set_pose(pose);
     }
 

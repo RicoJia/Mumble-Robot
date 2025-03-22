@@ -8,7 +8,7 @@
 
 namespace halo {
 
-constexpr int OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE = 4.0 * INV_RES_2D;   // 1m each side
+constexpr int OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE = 4.0 * RESOLUTION_2D;   // 1m each side
 
 enum class OccupancyMapMethod {
     TEMPLATE  = 0,
@@ -50,7 +50,7 @@ class OccupancyMap2D {
         Vec2i pose_submap_coord = pose_2_img_coord(
             T_map_pose.translation(),
             Vec2i{HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D},
-            INV_RES_2D);
+            RESOLUTION_2D);
         float theta         = T_map_pose.so2().log();
         has_outside_points_ = false;
 
@@ -69,7 +69,7 @@ class OccupancyMap2D {
             endpoints_lookup.emplace(
                 pose_2_img_coord(T_map_pose * Vec2d{x, y},
                                  Vec2i{HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D},
-                                 INV_RES_2D));
+                                 RESOLUTION_2D));
         }
 
         switch (method) {
@@ -200,7 +200,7 @@ class OccupancyMap2D {
         for (int x = -OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; x < OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; ++x) {
             for (int y = -OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; y < OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; ++y) {
                 float angle = math::wrap_to_2pi(std::atan2(y, x));
-                template_.emplace_back(x, y, std::sqrt(x * x + y * y) * RES_2D, angle);
+                template_.emplace_back(x, y, std::sqrt(x * x + y * y) * INV_RES_2D, angle);
             }
         }
     }

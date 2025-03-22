@@ -1,0 +1,7 @@
+mr_likelihood_field_inlier_thre: 0.6
+mr_rk_delta: 0.2
+mr_optimization_iterations: 40
+
+keyframe_angular_dist_thre: 0.261 #15 deg
+keyframe_linear_dist_thre_squared:  0.25  #0.5m
+keyframe_num_in_submap: 40
