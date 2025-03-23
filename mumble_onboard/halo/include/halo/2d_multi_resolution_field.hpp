@@ -18,7 +18,7 @@ class MultiResolutionLikelihoodField {
         float inlier_ratio_th               = 0.35,
         float rk_delta                      = 0.1,
         int optimization_iterations         = 10,
-        std::vector<float> &&mr_resolutions = {RESOLUTION_2D}) : INLIER_RATIO_TH(inlier_ratio_th), RK_DELTA_(rk_delta), OPTIMIZATION_ITERATIONS(optimization_iterations),
+        std::vector<float> &&mr_resolutions = {RESOLUTION_2D}) : INLIER_RATIO_TH_(inlier_ratio_th), RK_DELTA_(rk_delta), OPTIMIZATION_ITERATIONS(optimization_iterations),
                                                                  MR_RESOLUTIONS_(std::move(mr_resolutions)) {
         IMAGE_PYRAMID_LEVELS_ = MR_RESOLUTIONS_.size();
         grids_.resize(IMAGE_PYRAMID_LEVELS_);   // default initialized
@@ -74,7 +74,7 @@ class MultiResolutionLikelihoodField {
      */
     std::vector<cv::Mat> get_field_images() const {
         std::vector<cv::Mat> images;
-        for (int l = 0; l < MR_RESOLUTIONS_.size(); ++l) {
+        for (size_t l = 0; l < MR_RESOLUTIONS_.size(); ++l) {
             cv::Mat img(grids_[l].rows, grids_[l].cols, CV_8UC3);
             for (int x = 0; x < grids_[l].cols; ++x) {
                 for (int y = 0; y < grids_[l].rows; ++y) {
@@ -169,14 +169,14 @@ class MultiResolutionLikelihoodField {
             std::cerr << "Level: " << level << "inlier_ratio: " << inlier_ratio << ", num_inliers: " << num_inliers
                       << ", total scan: " << source_scan_objs_.size() << std::endl;
 
-            if (num_inliers > MIN_MATCHING_POINT_NUM && inlier_ratio > INLIER_RATIO_TH) {
+            if (num_inliers > MIN_MATCHING_POINT_NUM && inlier_ratio > INLIER_RATIO_TH_) {
                 relative_pose = v->estimate();
             }
 
             // TODO: for visualizing scans on multiple resolutions, we can store poses in a vector
             // and then visualize them outside of this function.
         }
-        if (num_inliers > MIN_MATCHING_POINT_NUM && inlier_ratio > INLIER_RATIO_TH) {
+        if (num_inliers > MIN_MATCHING_POINT_NUM && inlier_ratio > INLIER_RATIO_TH_) {
         } else {
             if (num_inliers <= MIN_MATCHING_POINT_NUM)
                 std::cerr << "===========Rejected because inlier count is too low" << std::endl;
@@ -190,13 +190,13 @@ class MultiResolutionLikelihoodField {
     const std::vector<float> &get_mr_resolutions() const { return MR_RESOLUTIONS_; }
 
   private:
+    const float INLIER_RATIO_TH_;
     float RK_DELTA_;   // it's in meters for error threshold
     int OPTIMIZATION_ITERATIONS;
     std::vector<cv::Mat> grids_;   // default initialized
     std::vector<float> rk_deltas_;
     std::vector<Likelihood2DTemplatePoint> template_;
     std::vector<ScanObj> source_scan_objs_;
-    const float INLIER_RATIO_TH;
     bool has_outside_points_ = false;
     std::vector<float> MR_RESOLUTIONS_;
     size_t IMAGE_PYRAMID_LEVELS_ = 0;
