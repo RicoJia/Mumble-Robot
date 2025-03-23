@@ -6,10 +6,12 @@ max range = 12m
 datasheet: https://www.slamtec.ai/wp-content/uploads/2023/11/LD108_SLAMTEC_rplidar_datasheet_A1M8_v3.0_en.pdf
 """
 import os
-from math import cos, sin, pi, floor, sqrt
-from adafruit_rplidar import RPLidar
-from typing import List
 import subprocess
+from math import cos, floor, pi, sin, sqrt
+from typing import List
+
+from adafruit_rplidar import RPLidar
+
 from mumble_interfaces.mumble_logging import get_logger
 
 # used to scale data to fit on the screen
@@ -76,7 +78,7 @@ def draw_arrow(screen, color, start, end, arrow_size=10):
     dx = end[0] - start[0]
     dy = end[1] - start[1]
     # TODO: use sqrt.
-    length = sqrt(dx ** 2 + dy ** 2)
+    length = sqrt(dx**2 + dy**2)
     if length == 0:
         return  # Cannot draw an arrow if length is 0
 

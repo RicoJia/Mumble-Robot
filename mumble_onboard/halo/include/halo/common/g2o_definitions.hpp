@@ -25,12 +25,12 @@ class VertexSE2 : public g2o::BaseVertex<3, SE2> {
     }
 
     // REQUIRED Dummy implementations for serialization
-    bool read(std::istream &is) override {
+    bool read([[maybe_unused]] std::istream &is) override {
         // Optionally implement proper deserialization here
         return true;
     }
 
-    bool write(std::ostream &os) const override {
+    bool write([[maybe_unused]] std::ostream &os) const override {
         // Optionally implement proper serialization here
         return true;
     }

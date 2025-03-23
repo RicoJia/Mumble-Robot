@@ -9,19 +9,19 @@ Features:
 
 import os
 import threading
-
-import rclpy
-from rclpy.node import Node
-from rosbag2_py._storage import TopicMetadata
-from sensor_msgs.msg import Imu, LaserScan
-import rclpy.serialization
-
-# Import rosbag2_py interfaces
-from rosbag2_py import SequentialWriter, StorageOptions, ConverterOptions
-from mumble_interfaces.mumble_logging import get_logger
-import ament_index_python.packages
 import time
 
+import ament_index_python.packages
+import rclpy
+import rclpy.serialization
+from rclpy.node import Node
+
+# Import rosbag2_py interfaces
+from rosbag2_py import ConverterOptions, SequentialWriter, StorageOptions
+from rosbag2_py._storage import TopicMetadata
+from sensor_msgs.msg import Imu, LaserScan
+
+from mumble_interfaces.mumble_logging import get_logger
 
 logger = get_logger(f"mumble_bag_recorder")
 package_name = "mumble_onboard"

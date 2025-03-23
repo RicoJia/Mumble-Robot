@@ -53,6 +53,7 @@ class ROS2BagIo {
         storage_options.uri = bag_file_;
         reader_             = rosbag2_transport::ReaderWriterFactory::make_reader(storage_options);
         reader_->open(storage_options);
+        std::cout << "Now playing bag at: " << bag_file << std::endl;
     }
 
     template <typename MessageT>
@@ -97,5 +98,17 @@ class ROS2BagIo {
         std::function<void(rosbag2_storage::SerializedBagMessageSharedPtr &)>>
         callbacks_;
 };
+
+template <typename T>
+T load_param(const std::string &yaml_path, const std::string &param_name) {
+    YAML::Node config = YAML::LoadFile(yaml_path);
+    if (!config[param_name]) {
+        std::ostringstream oss;
+        oss << "Error: Parameter '" << param_name
+            << "' not found in YAML file: " << yaml_path;
+        throw std::runtime_error(oss.str());
+    }
+    return config[param_name].as<T>();
+}
 
 }   // namespace halo

@@ -2,12 +2,11 @@
 
 import sys
 import threading
+
 import numpy as np
-
 import rclpy
-from rclpy.node import Node
 from geometry_msgs.msg import Twist
-
+from rclpy.node import Node
 from sshkeyboard import listen_keyboard
 
 # Velocity magnitude limits

@@ -1,6 +1,5 @@
 import logging
 
-
 # ANSI Color Codes for Console Output
 COLOR_RESET = "\033[0m"
 COLOR_INFO = "\033[92m"  # Green
@@ -43,7 +42,8 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-def get_logger(logger_name:str=""):
+
+def get_logger(logger_name: str = ""):
     logger = logging.getLogger(logger_name)
     handler = logging.StreamHandler()
     handler.setFormatter(ColoredFormatter("%(asctime)s [%(levelname)s] %(message)s"))

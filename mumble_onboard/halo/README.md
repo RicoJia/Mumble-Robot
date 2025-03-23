@@ -4,7 +4,15 @@ This is a ROS2 static library for Lidar-Inertial-Odometry SLAM. It supports both
 
 ## Features
 
-`halo` provides high-performance spatial search structures optimized for 2D and 3D data using template metaprogramming for compile-time memory efficiency. It includes:
+`halo` provides high-performance spatial search structures optimized for 2D and 3D data using template metaprogramming for compile-time memory efficiency. It includes infrastructure for:
+
+- K-Nearest Neighbor Search
+- Scan Matching using ICP
+- Submap Generation
+- Loop Detection
+- Global Map Generation From Submaps
+
+### K-Nearest Neighbor Search
 
 - KD Tree: ~3× faster than PCL's KD Tree, achieving 100% precision and recall.
 - OctoTree / QuadTree: Similar speed to PCL’s KD Tree but optimized for structured data.
@@ -20,6 +28,10 @@ Below is a [summary of their performances](./tests/test_knn.cpp)
 | **halo::OctoTree (and QuadTree for 2D)** | 194   (293 on rpi4b)      | 100        | 100         | Similar to PCL KD Tree |
 | **NanoFLANN KD Tree** | 4  (22 on rpi4b)           | 100          | 100           | Fast wrapper           |
 | **3D Grid Search**    | 4  (33 on rpi4b)           | 95.6       | 98.1        | Resolution = 0.5m      |
+
+### Scan Matching
+
+### Submap Generation
 
 ## Usage
 

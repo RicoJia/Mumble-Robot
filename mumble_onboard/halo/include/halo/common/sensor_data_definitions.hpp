@@ -2,6 +2,7 @@
 
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sophus/se2.hpp"
+#include <opencv2/opencv.hpp>
 
 namespace halo {
 
@@ -19,6 +20,7 @@ using SO2 = Sophus::SO2d;
 
 using Vec2d = Eigen::Vector2d;
 using Vec2i = Eigen::Vector2i;
+using Vec3i = Eigen::Vector3i;
 using Vec3b = Eigen::Vector3i;
 using Vec3d = Eigen::Vector3d;
 using Vec3f = Eigen::Vector3f;
@@ -29,10 +31,31 @@ using Mat3d = Eigen::Matrix3d;
 constexpr size_t INVALID_INDEX  = std::numeric_limits<size_t>::max();
 constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;
 
+constexpr float RESOLUTION_2D              = 20;                                                          // 0.05m
+constexpr float INV_RES_2D                 = 1.0 / RESOLUTION_2D;                                         // 0.05m
+constexpr float HALF_MAP_SIZE_2D_METERS    = 20.0;                                                        // in meters
+constexpr int HALF_MAP_SIZE_2D             = static_cast<int>(HALF_MAP_SIZE_2D_METERS * RESOLUTION_2D);   // In pixels
+constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE = 117;
+constexpr uchar OCCUPANCYMAP2D_FREE_THRE   = 137;
+constexpr uchar UNKNOWN_CELL_VALUE         = 127;
+constexpr int LIKELIHOOD_2D_TEMPLATE_SIDE  = 1.0 * RESOLUTION_2D;   // 1m each side
+constexpr int LIKELIHOOD_2D_IMAGE_BOARDER  = 20;                    // 20pixels
+constexpr float FAR_VALUE_PIXELS_FLOAT     = 100.0;
+
 struct ScanObj {
     double range = 0.0;
     double angle = 0.0;
 };
+
+struct Lidar2DFrame {
+    LaserScanMsg::SharedPtr scan_ = nullptr;
+    size_t scan_id_               = INVALID_INDEX;
+    size_t keyframe_id_           = INVALID_INDEX2;   // timestamp may not be super useful here
+    SE2 pose_;                                        // world to scan pose
+    SE2 pose_submap_;                                 // submap to scan pose
+};
+
+using Lidar2DFramePtr = std::shared_ptr<Lidar2DFrame>;
 
 struct NNMatch {
     size_t idx_in_this_cloud             = INVALID_INDEX;

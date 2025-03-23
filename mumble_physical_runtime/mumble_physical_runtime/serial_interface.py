@@ -5,27 +5,28 @@ ALL topic subscribers need sudo as well
 This file includes: IMU and Motor interfaces
 """
 
+import threading
 import time
 from functools import partial
-import threading
 
+import numpy as np
 import rclpy
+from adafruit_rplidar import RPLidar
+
+# from mumble_interfaces.srv import MotorCommand
+from geometry_msgs.msg import Twist
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Imu, LaserScan
 
-# from mumble_interfaces.srv import MotorCommand
-from geometry_msgs.msg import Twist
-from mumble_physical_runtime.waveshare_control import BaseController, test_imu
+from mumble_interfaces.mumble_logging import get_logger
 from mumble_physical_runtime.rpi_lidar_a1_mumble import (
     TOTAL_NUM_ANGLES,
     find_lidar_usb_device,
 )
-from adafruit_rplidar import RPLidar
-import numpy as np
-from mumble_interfaces.mumble_logging import get_logger
+from mumble_physical_runtime.waveshare_control import BaseController, test_imu
 
 READ_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
 imu_msg = Imu()

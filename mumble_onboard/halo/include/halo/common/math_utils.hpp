@@ -4,11 +4,14 @@
 #include <Eigen/Eigenvalues>   // <-- Required for SelfAdjointEigenSolver
 #include <Eigen/Dense>
 #include <cmath>
+#include <opencv2/core.hpp>
 
 namespace math {
+inline constexpr double TWO_PI = 2.0 * M_PI;
+
 template <typename Container, typename VectorType, typename Getter>
-void compute_cov_and_mean(const Container &data, VectorType &mean,
-                          VectorType &cov, Getter &&getter) {
+inline void compute_cov_and_mean(const Container &data, VectorType &mean,
+                                 VectorType &cov, Getter &&getter) {
     const size_t len = data.size();
     assert(len > 1);
     mean = std::accumulate(data.begin(), data.end(), VectorType::Zero().eval(),
@@ -29,7 +32,7 @@ void compute_cov_and_mean(const Container &data, VectorType &mean,
           static_cast<double>(len - 1);
 }
 
-std::pair<Eigen::VectorXf, Eigen::MatrixXf> compute_ATA_eigen(const Eigen::MatrixXf &A) {
+inline std::pair<Eigen::VectorXf, Eigen::MatrixXf> compute_ATA_eigen(const Eigen::MatrixXf &A) {
     Eigen::MatrixXf ATA = A.transpose() * A;   // Compute A^T A
 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> solver(ATA);   // Efficient for symmetric matrices
@@ -41,7 +44,7 @@ std::pair<Eigen::VectorXf, Eigen::MatrixXf> compute_ATA_eigen(const Eigen::Matri
     return {solver.eigenvalues(), solver.eigenvectors()};
 }
 
-Eigen::VectorXf normalize_point_cloud(Eigen::MatrixXf &A) {
+inline Eigen::VectorXf normalize_point_cloud(Eigen::MatrixXf &A) {
     if (A.rows() == 0) {
         throw std::runtime_error("Point cloud is empty, cannot normalize.");
     }
@@ -61,7 +64,7 @@ Eigen::VectorXf normalize_point_cloud(Eigen::MatrixXf &A) {
 // Pass into compute ATA eigen.
 // Get the largest lambda, and its eigen vector. That's the principal component.
 
-Eigen::Vector4f fit_plane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
+inline Eigen::Vector4f fit_plane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     int num_points = cloud->size();
     if (num_points == 0)
         throw std::runtime_error("Empty point cloud passed into fit_plane");
@@ -82,7 +85,7 @@ Eigen::Vector4f fit_plane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
 }
 
 // This is slower than fit_plane, because it operates on a larger matrix mxn, instead of ATA (nxn)
-Eigen::Vector4f FitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
+inline Eigen::Vector4f FitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     int num_points = cloud->size();
     if (num_points < 3) {
         throw std::runtime_error("Not enough points to fit a plane.");
@@ -108,7 +111,7 @@ Eigen::Vector4f FitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
 }
 
 // Returning mean and principal component
-Eigen::Vector3f fit_line(const pcl::PointCloud<pcl::PointXY>::Ptr &cloud) {
+inline Eigen::Vector3f fit_line(const pcl::PointCloud<pcl::PointXY>::Ptr &cloud) {
     // Line: ax + by + c = 0
     // Construct matrix A (each row: [x, y, 1])
     int num_points = cloud->size();
@@ -126,7 +129,7 @@ Eigen::Vector3f fit_line(const pcl::PointCloud<pcl::PointXY>::Ptr &cloud) {
 }
 
 // returning mean and principal component
-std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
+inline std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     // Step 1: find the mean of all points
     // Step 2: normalize the points with mean, get their eigen values and eigen vectors.
     // Choose the vector with the largest eigen value
@@ -147,19 +150,50 @@ std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line(const pcl::PointCloud<pcl::
 }
 
 //////////////////////////////////////////////////////////////////////////////
+// Scan Matching
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename T>
+inline float get_bilinear_interpolated_pixel_value(const cv::Mat &img, float y, float x) {
+    // boundary check
+    if (x < 0)
+        x = 0;
+    if (y < 0)
+        y = 0;
+    if (x >= img.cols)
+        x = img.cols - 1;
+    if (y >= img.rows)
+        y = img.rows - 1;
+    // Assuming this image is stored in contiguous image.
+    // this gives pointer to (y,x).
+    // data[1] is [y, x+1]. data[img.step / sizeof(T)] is [y+1, x],
+    // and data[img.step / sizeof(T) + 1] is [y+1, x+1]
+    const T *data = &img.at<T>(floor(y), floor(x));
+    float xx      = x - floor(x);
+    float yy      = y - floor(y);
+    return float((1 - xx) * (1 - yy) * data[0] + xx * (1 - yy) * data[1] + (1 - xx) * yy * data[img.step / sizeof(T)] +
+                 xx * yy * data[img.step / sizeof(T) + 1]);
+}
+
+//////////////////////////////////////////////////////////////////////////////
 // Search in Tree
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename EigenVectorType>
-double get_squared_distance(const EigenVectorType &p1,
-                            const EigenVectorType &query) {
+inline double get_squared_distance(const EigenVectorType &p1,
+                                   const EigenVectorType &query) {
     return (p1 - query).squaredNorm();
 }
 
 template <typename EigenVectorType>
-double get_l2_distance(const EigenVectorType &p1,
-                       const EigenVectorType &query) {
+inline double get_l2_distance(const EigenVectorType &p1,
+                              const EigenVectorType &query) {
     return std::sqrt((p1 - query).squaredNorm());
+}
+
+inline double wrap_to_2pi(double angle) {
+    angle = std::fmod(angle, TWO_PI);
+    return (angle < 0) ? angle + TWO_PI : angle;
 }
 
 }   // namespace math
