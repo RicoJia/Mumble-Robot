@@ -38,7 +38,7 @@ constexpr int HALF_MAP_SIZE_2D             = static_cast<int>(HALF_MAP_SIZE_2D_M
 constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE = 117;
 constexpr uchar OCCUPANCYMAP2D_FREE_THRE   = 137;
 constexpr uchar UNKNOWN_CELL_VALUE         = 127;
-constexpr int LIKELIHOOD_2D_TEMPLATE_SIDE  = 3.0 * RESOLUTION_2D;   // 1m each side
+constexpr int LIKELIHOOD_2D_TEMPLATE_SIDE  = 1.0 * RESOLUTION_2D;   // 1m each side
 constexpr int LIKELIHOOD_2D_IMAGE_BOARDER  = 20;                    // 20pixels
 constexpr float FAR_VALUE_PIXELS_FLOAT     = 100.0;
 

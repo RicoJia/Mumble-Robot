@@ -17,11 +17,11 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     Edge2DLikelihoodField(const cv::Mat &grid, float range, float angle,
-                          float inv_resolution = RESOLUTION_2D, int half_map_size_2d = HALF_MAP_SIZE_2D) : grid_(grid),
-                                                                                                           range_(range),
-                                                                                                           angle_(angle),
-                                                                                                           inv_resolution_(inv_resolution),
-                                                                                                           half_map_size_2d_(half_map_size_2d) {}
+                          float resolution = RESOLUTION_2D, int half_map_size_2d = HALF_MAP_SIZE_2D) : grid_(grid),
+                                                                                                       range_(range),
+                                                                                                       angle_(angle),
+                                                                                                       resolution_(resolution),
+                                                                                                       half_map_size_2d_(half_map_size_2d) {}
     // Given a pose estimate, how do we update _error
     // In this case, our cost is 1D
     void computeError() override {
@@ -29,7 +29,7 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2d pose_map   = pose_world * inv_resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_) - Vec2d(0.5, 0.5);
+        Vec2d pose_map   = pose_world * resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_) - Vec2d(0.5, 0.5);
 
         if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
             pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
@@ -49,7 +49,8 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * inv_resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_)).cast<int>();
+        // TODO: to make it vec2d
+        Vec2i pose_map = (pose_world * resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_)).cast<int>();
         if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
             pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
             LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
@@ -63,18 +64,24 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
     void linearizeOplus() override {
         VertexSE2 *v     = (VertexSE2 *)_vertices[0];
         SE2 pose         = v->estimate();
+        float theta      = pose.so2().log();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2i pose_map   = (pose_world * inv_resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_)).cast<int>();
+        Vec2d pose_map = pose_world * resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_) - Vec2d(0.5, 0.5);
         if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
             pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
             LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
             pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
-            float dx = (grid_.at<float>(pose_map[1], pose_map[0] + 1) - grid_.at<float>(pose_map[1], pose_map[0] - 1)) / 2.0;
-            float dy = (grid_.at<float>(pose_map[1] + 1, pose_map[0]) - grid_.at<float>(pose_map[1] - 1, pose_map[0])) / 2.0;
-            _jacobianOplusXi << inv_resolution_ * dx, -inv_resolution_ * dy,
-                -inv_resolution_ * dx * (pose_map[1] - half_map_size_2d_) + inv_resolution_ * dy * (pose_map[0] - half_map_size_2d_);
+            // float dx = (grid_.at<float>(pose_map[1], pose_map[0] + 1) - grid_.at<float>(pose_map[1], pose_map[0] - 1)) / 2.0;
+            // float dy = (grid_.at<float>(pose_map[1] + 1, pose_map[0]) - grid_.at<float>(pose_map[1] - 1, pose_map[0])) / 2.0;
+            float dx = 0.5 * (math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] + 1) - math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] - 1));
+            float dy = 0.5 * (math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1] + 1, pose_map[0]) -
+                              math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1] - 1, pose_map[0]));
+            _jacobianOplusXi << resolution_ * dx, resolution_ * dy,
+                -resolution_ * dx * range_ * std::sin(angle_ + theta) +
+                    resolution_ * dy * range_ * std::cos(angle_ + theta);
         } else {
             _jacobianOplusXi.setZero();
+            setLevel(1);
         }
     }
     bool read([[maybe_unused]] std::istream &is) override { return true; }
@@ -84,7 +91,7 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
     const cv::Mat &grid_;
     float range_;
     float angle_;
-    float inv_resolution_;
+    float resolution_;
     int half_map_size_2d_;
 };
 

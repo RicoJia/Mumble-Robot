@@ -106,6 +106,21 @@ class Submap2D {
     cv::Mat get_likelihood_field() const { return mr_likelihood_field_.get_field_images().at(0); }
     bool has_outside_points() const { return occupancy_map_.has_outside_points(); }
 
+    // We show the lidar scan on top of the likelihood field and occupancy map
+    void visualize_submap(Lidar2DFramePtr frame) const {
+        // Find the last likelihood field image
+        cv::Mat mr_likehood_img = mr_likelihood_field_.get_field_images().back();
+        const auto resolution   = mr_likelihood_field_.get_mr_resolutions().back();
+        halo::visualize_2d_scan(
+            frame->scan_, mr_likehood_img, halo::SE2(), frame->pose_submap_, 1.0 / resolution, 1000, halo::Vec3b(255, 0, 0));
+        cv::imshow("scan on last mr field", mr_likehood_img);
+        cv::Mat occ_grid_img = get_occ_map();
+        halo::visualize_2d_scan(frame->scan_, occ_grid_img, halo::SE2(), frame->pose_submap_,
+                                1.0 / resolution, 1000, halo::Vec3b(255, 0, 0));
+        cv::imshow("occ_grid_img", occ_grid_img);
+        halo::close_cv_window_on_esc();
+    }
+
     /**
      * @brief : update all keyframes' world poses using the current T_ws_ and their own pose in the map
      */

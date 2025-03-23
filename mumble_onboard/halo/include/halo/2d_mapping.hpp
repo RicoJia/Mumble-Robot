@@ -24,6 +24,7 @@ class Mapping2DLaser {
             keyframe_angular_dist_thre_        = load_param<float>(yaml_path, "keyframe_angular_dist_thre");
             keyframe_linear_dist_thre_squared_ = load_param<float>(yaml_path, "keyframe_linear_dist_thre_squared");   // 0.0m
             keyframe_num_in_submap_            = load_param<float>(yaml_path, "keyframe_num_in_submap");
+            visualize_submap_                  = load_param<bool>(yaml_path, "visualize_submap");
         }
         submaps_.emplace_back(
             std::make_shared<halo::Submap2D>(SE2(), params));
@@ -79,6 +80,10 @@ class Mapping2DLaser {
             motion_guess_ = last_frame_->pose_.inverse() * frame->pose_;
         }
         last_frame_ = frame;
+
+        if (visualize_submap_) {
+            current_submap->visualize_submap(frame);
+        }
     }
 
     Submap2DPtr get_current_submap() const {
@@ -127,6 +132,7 @@ class Mapping2DLaser {
     float keyframe_angular_dist_thre_        = 15 * M_PI / 180;
     float keyframe_linear_dist_thre_squared_ = 0.01;   // 0.0m
     size_t keyframe_num_in_submap_           = 40;
+    bool visualize_submap_                   = false;
 };
 
 }   // namespace halo

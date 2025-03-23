@@ -15,20 +15,6 @@ bool update_last_scan = false;                                         // Defaul
 std::string bag_path  = "bags/no_loop_room";                           // Global variable to store the bag path
 std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global variable to store the bag path
 
-void visualize_submap_and_scan(halo::Submap2DPtr current_submap,
-                               std::shared_ptr<sensor_msgs::msg::LaserScan> current_scan_ptr) {
-    cv::Mat occ_map_img        = current_submap->get_occ_map();
-    cv::Mat likelihood_map_img = current_submap->get_likelihood_field();
-    cv::imshow("Occ map", occ_map_img);
-    cv::imshow("Likelihood field", likelihood_map_img);
-
-    cv::Mat scan_img;
-    halo::visualize_2d_scan(
-        current_scan_ptr, scan_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(255, 0, 0));
-    cv::imshow("2D Laser Scan", scan_img);
-    halo::close_cv_window_on_esc();
-}
-
 // TEST(Test2DSLAM, TestVisualization) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
@@ -239,8 +225,6 @@ void visualize_submap_and_scan(halo::Submap2DPtr current_submap,
 TEST(Test2DSLAM, TestMapping) {
     halo::ROS2BagIo ros2_bag_io(bag_path);
     halo::Mapping2DLaser mapper_2d(false, yaml_path);
-    halo::Submap2DPtr current_submap = nullptr;
-    halo::LaserScanMsg::SharedPtr scan_ptr;
     int i = 0;
     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
         "/scan",
@@ -248,11 +232,8 @@ TEST(Test2DSLAM, TestMapping) {
             // TODO
             std::cout << "===================" << i++ << std::endl;
             mapper_2d.process_scan(current_scan_ptr);
-            current_submap = mapper_2d.get_current_submap();
-            scan_ptr       = current_scan_ptr;
         });
     ros2_bag_io.spin();
-    visualize_submap_and_scan(current_submap, scan_ptr);
 }
 
 int main(int argc, char **argv) {

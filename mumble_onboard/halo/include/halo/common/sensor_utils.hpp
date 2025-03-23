@@ -82,7 +82,7 @@ inline void visualize_2d_scan(
             cv::circle(image, p, 2, cv::Scalar(color[0], color[1], color[2]), cv::FILLED);
         }
     }
-    cv::circle(image, cv::Point(image_size / 2, image_size / 2), 3, cv::Scalar(0, 0, 255), cv::FILLED);
+    cv::circle(image, cv::Point(image_size / 2, image_size / 2), 2, cv::Scalar(0, 0, 255), cv::FILLED);
 }
 
 /**

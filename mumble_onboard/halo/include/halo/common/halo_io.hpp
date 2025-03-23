@@ -100,8 +100,14 @@ class ROS2BagIo {
 };
 
 template <typename T>
-T load_param(const std::string &filename, const std::string &param_name) {
-    YAML::Node config = YAML::LoadFile(filename);
+T load_param(const std::string &yaml_path, const std::string &param_name) {
+    YAML::Node config = YAML::LoadFile(yaml_path);
+    if (!config[param_name]) {
+        std::ostringstream oss;
+        oss << "Error: Parameter '" << param_name
+            << "' not found in YAML file: " << yaml_path;
+        throw std::runtime_error(oss.str());
+    }
     return config[param_name].as<T>();
 }
 
