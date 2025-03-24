@@ -1,11 +1,13 @@
 #pragma once
 #include <halo/common/sensor_data_definitions.hpp>
+#include <halo/2d_submap.hpp>
+#include <unordered_set>
 
 namespace halo {
 // Assumptions:
 // Submaps have unique ids
 
-// - each submap has a multi-resolution likelihood field for loop closure detection.
+// - each submap has an additional multi-resolution likelihood field for loop closure detection.
 // They are pushed into a set.
 // Policies for loop candidate detection:
 //  - We check for matching between the current frame and past submaps.
@@ -37,12 +39,19 @@ class LoopClosure2D {
         size_t id_submap2_;
         SE2 T_12_;
         bool valid_;
+
+        // TODO: hash function that maps id_submap1 and id_submap2 to the same value
     };
+
+    bool has_new_loops_ = false;
 
     bool detect_loop_closure_candidates();
     void match_in_history_submaps();
 
     void optimize();
+
+    // TODO
+    // std::unordered_set<LoopClosure2D> loop_constraints_;
 
   public:
     LoopClosure2D()  = default;
@@ -51,17 +60,22 @@ class LoopClosure2D {
     /**
      * @brief: start a new submap. This map will be under construction
      */
-    void add_new_submap();
+    void add_new_submap(Submap2DPtr submap) {
+    }
 
     /**
      * @brief: finish the current submap and add it to the history
      */
-    void add_finished_submap();
+    void add_finished_submap(Submap2DPtr submap) {
+    }
 
     /**
      * @brief: perform loop closure detection on the frame. Update its pose and submap_pose
      */
-    void add_new_frame(Lidar2DFramePtr frame);
+    void add_new_frame(Lidar2DFramePtr frame) {
+    }
+
+    bool has_new_loops() const { return has_new_loops_; }
 };
 
 };   // namespace halo

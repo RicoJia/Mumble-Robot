@@ -143,4 +143,7 @@ class Submap2D {
     std::vector<Lidar2DFramePtr> keyframes_;
     size_t id_ = 0;
 };
+
+using Submap2DPtr = std::shared_ptr<Submap2D>;
+
 }   // namespace halo

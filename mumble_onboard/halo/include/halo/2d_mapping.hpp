@@ -1,25 +1,20 @@
 #pragma once
 
-#include <halo/2d_submap.hpp>
 #include <halo/common/debug_utils.hpp>
 #include <halo/2d_loop_closure_detection.hpp>
 #include <yaml-cpp/yaml.h>
 
 namespace halo {
 
-using Submap2DPtr = std::shared_ptr<Submap2D>;
-
 class Mapping2DLaser {
   public:
     Mapping2DLaser(bool with_loop_closure = false, const std::string &yaml_path = "") {
-        Submap2DParams params;
-
         if (yaml_path != "") {
-            params.mr_likelihood_field_inlier_thre = load_param<float>(yaml_path,
-                                                                       "mr_likelihood_field_inlier_thre");
-            params.mr_rk_delta                     = load_param<float>(yaml_path, "mr_rk_delta");
-            params.mr_optimization_iterations      = load_param<int>(yaml_path, "mr_optimization_iterations");
-            params.print();
+            submap_params_.mr_likelihood_field_inlier_thre = load_param<float>(yaml_path,
+                                                                               "mr_likelihood_field_inlier_thre");
+            submap_params_.mr_rk_delta                     = load_param<float>(yaml_path, "mr_rk_delta");
+            submap_params_.mr_optimization_iterations      = load_param<int>(yaml_path, "mr_optimization_iterations");
+            submap_params_.print();
 
             keyframe_angular_dist_thre_        = load_param<float>(yaml_path, "keyframe_angular_dist_thre");
             keyframe_linear_dist_thre_squared_ = load_param<float>(yaml_path, "keyframe_linear_dist_thre_squared");   // 0.0m
@@ -27,8 +22,11 @@ class Mapping2DLaser {
             visualize_submap_                  = load_param<bool>(yaml_path, "visualize_submap");
         }
         submaps_.emplace_back(
-            std::make_shared<halo::Submap2D>(SE2(), params));
-        // TODO: loop closure init
+            std::make_shared<halo::Submap2D>(SE2(), submap_params_));
+
+        if (loop_detection_) {
+            loop_closure_detector_.add_new_submap(submaps_.back());
+        }
     }
     ~Mapping2DLaser() = default;
 
@@ -45,8 +43,8 @@ class Mapping2DLaser {
      */
     void process_scan(LaserScanMsg::SharedPtr scan) {
         frame_id_++;
-        auto frame = std::make_shared<halo::Lidar2DFrame>(
-            scan, frame_id_, frame_id_, halo::SE2{}, halo::SE2{});
+        auto frame = std::make_shared<Lidar2DFrame>(
+            scan, frame_id_, frame_id_, SE2{}, SE2{});
 
         std::shared_ptr<Submap2D> current_submap = submaps_.back();
         bool scan_match_success                  = true;
@@ -67,11 +65,12 @@ class Mapping2DLaser {
             add_keyframe(frame);
 
             if (loop_detection_) {
+                loop_closure_detector_.add_new_frame(frame);
             }
 
             if (current_submap->has_outside_points() ||
                 current_submap->frames_num() > keyframe_num_in_submap_) {
-                expand_submap();
+                expand_submap(frame);
             }
         }
 
@@ -91,6 +90,9 @@ class Mapping2DLaser {
     }
 
     cv::Mat get_global_map(int max_size) const {
+        if (loop_detection_) {
+            // auto loops = loop_closure_detector_.get_loops();
+        }
     }
 
   private:
@@ -115,13 +117,29 @@ class Mapping2DLaser {
         last_keyframe_ = frame;
     }
 
-    void expand_submap() {
+    void expand_submap(Lidar2DFramePtr current_frame) {
         if (loop_detection_) {
-            // TODO
+            loop_closure_detector_.add_finished_submap(submaps_.back());
+        }
+        // creating a new submap here
+        submaps_.emplace_back(
+            std::make_shared<halo::Submap2D>(SE2(), submap_params_));
+        submaps_.back()->set_id(submaps_.size());
+
+        submaps_.back()->set_occupancy_from_another_submap(
+            *(submaps_.at(submaps_.size() - 2)));
+        submaps_.back()->add_scan_in_occupancy_map(current_frame);
+        submaps_.back()->add_keyframe(current_frame);
+
+        if (loop_detection_) {
+            loop_closure_detector_.add_new_submap(submaps_.back());
         }
     }
 
+    Submap2DParams submap_params_;
+
     std::vector<Submap2DPtr> submaps_;
+    LoopClosure2D loop_closure_detector_;
     Lidar2DFramePtr last_keyframe_ = nullptr;
     Lidar2DFramePtr last_frame_    = nullptr;
     SE2 motion_guess_;   // Estimate of T_last_frame -> current_frame
