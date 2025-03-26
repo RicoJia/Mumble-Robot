@@ -175,6 +175,8 @@ class Mapping2DLaser {
         std::for_each(std::execution::par_unseq, render_data.begin(), render_data.end(), [&](const Vec2i &xy) {
             int x = xy[0], y = xy[1];
             Vec2f pw = (Vec2f(x, y) - center_image) / global_map_resolution + global_center;   // 世界坐标
+            // TODO: test code
+            // int probablistic_value = UNKNOWN_CELL_VALUE;
 
             for (auto &m : submaps_) {
                 Vec2f ps = m->get_pose().inverse().cast<float>() * pw;   // in submap
@@ -183,8 +185,15 @@ class Mapping2DLaser {
                 if (pt[0] < 0 || pt[0] >= HALF_MAP_SIZE_2D * 2 || pt[1] < 0 || pt[1] >= HALF_MAP_SIZE_2D * 2) {
                     continue;
                 }
-
                 uchar value = m->get_occ_map()->get_grid_reference().at<uchar>(pt[1], pt[0]);
+                // TODO TEST CODE
+                // if (value > UNKNOWN_CELL_VALUE && probablistic_value < OCCUPANCYMAP2D_FREE_THRE){
+                //     probablistic_value += (value - UNKNOWN_CELL_VALUE);
+                //     probablistic_value = std::max(int(OCCUPANCYMAP2D_FREE_THRE), probablistic_value);
+                // } else if ( value < UNKNOWN_CELL_VALUE && probablistic_value > OCCUPANCYMAP2D_OCCUPY_THRE){
+                //     probablistic_value += (value - UNKNOWN_CELL_VALUE);
+                //     probablistic_value = std::min(int(OCCUPANCYMAP2D_OCCUPY_THRE), probablistic_value);
+                // }
                 // Showing pixels of the current submap slightly differently
                 if (value > UNKNOWN_CELL_VALUE) {
                     // Free
@@ -202,6 +211,12 @@ class Mapping2DLaser {
                 }
                 break;
             }
+            // TODO TEST CODE
+            // if (probablistic_value > UNKNOWN_CELL_VALUE) {
+            //     output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
+            // } else if (probablistic_value < UNKNOWN_CELL_VALUE) {
+            //     output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
+            // }
         });
 
         /// submap pose 在全局地图中的投影

@@ -1,17 +1,17 @@
-mr_likelihood_field_inlier_thre: 0.40
+mr_likelihood_field_inlier_thre: 0.7
 mr_rk_delta: 0.1
 mr_optimization_iterations: 10
 
 keyframe_angular_dist_thre: 0.261 #15 deg
-keyframe_linear_dist_thre_squared:  0.01  #0.1m
-keyframe_num_in_submap: 4  # the min of (keyframe_num_in_submap, submap_frame_num) will be actually used
+keyframe_linear_dist_thre_squared:  0.25  #0.1m
+keyframe_num_in_submap: 10  # the min of (keyframe_num_in_submap, submap_frame_num) will be actually used
+
 frame_2_submap_dist_thre_squared: 9.0  # This values controls the largest distance threshold for frame to submap association
 submap_gap: 1
 loop_rk_delta: 1.0
-
 loop_detection: true
 loop_detection_mr_likelihood_field_inlier_thre: 0.4
 loop_detection_mr_rk_delta: 0.3
 loop_detection_mr_optimization_iterations: 20
 
-visualize_submap: true
+visualize_submap: false
