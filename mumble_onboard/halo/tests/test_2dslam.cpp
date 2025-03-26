@@ -234,6 +234,7 @@ TEST(Test2DSLAM, TestMapping) {
             mapper_2d.process_scan(current_scan_ptr);
         });
     ros2_bag_io.spin();
+    mapper_2d.visualize_global_map();
 }
 
 int main(int argc, char **argv) {
