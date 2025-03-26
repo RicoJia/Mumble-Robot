@@ -223,7 +223,7 @@ class LoopClosure2D {
     /**
      * @brief: start a new submap. This map will be under construction
      */
-    void add_new_submap(Submap2DPtr submap_ptr, const Submap2DParams &loop_closure_params) {
+    void add_new_submap(Submap2DPtr submap_ptr) {
         // add to unordered_map with all mr field
         submaps_.emplace(submap_ptr->get_id(), submap_ptr);
         current_submap_id_ = submap_ptr->get_id();

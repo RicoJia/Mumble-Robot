@@ -60,6 +60,12 @@ target_link_libraries(
 ament_target_dependencies(halo rclcpp rosbag2_cpp rosbag2_storage
                           rosbag2_transport sensor_msgs)
 
+add_executable(
+  export_scan_2_txt
+  src/export_scan_2_txt.cpp)
+target_link_libraries(
+  export_scan_2_txt halo pthread ${G2O_LIBS})
+
 # Optionally build tests
 option(BUILD_HALO_TESTS "Build halo unit tests" ON)
 if(BUILD_HALO_TESTS)

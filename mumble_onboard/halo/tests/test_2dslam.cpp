@@ -224,7 +224,7 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 
 TEST(Test2DSLAM, TestMapping) {
     halo::ROS2BagIo ros2_bag_io(bag_path);
-    halo::Mapping2DLaser mapper_2d(false, yaml_path);
+    halo::Mapping2DLaser mapper_2d(yaml_path);
     int i = 0;
     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
         "/scan",

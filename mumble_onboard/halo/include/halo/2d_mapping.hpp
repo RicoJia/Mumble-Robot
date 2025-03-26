@@ -8,7 +8,7 @@ namespace halo {
 
 class Mapping2DLaser {
   public:
-    Mapping2DLaser(bool with_loop_closure = false, const std::string &yaml_path = "") {
+    Mapping2DLaser(const std::string &yaml_path = "") {
         if (yaml_path != "") {
             submap_params_.mr_likelihood_field_inlier_thre = load_param<float>(yaml_path,
                                                                                "mr_likelihood_field_inlier_thre");
@@ -40,7 +40,7 @@ class Mapping2DLaser {
             std::make_shared<halo::Submap2D>(SE2(), submap_params_));
 
         if (loop_detection_) {
-            loop_closure_detector_.add_new_submap(submaps_.back(), loop_detection_params_);
+            loop_closure_detector_.add_new_submap(submaps_.back());
         }
     }
     ~Mapping2DLaser() = default;
@@ -176,7 +176,7 @@ class Mapping2DLaser {
             int x = xy[0], y = xy[1];
             Vec2f pw = (Vec2f(x, y) - center_image) / global_map_resolution + global_center;   // 世界坐标
             // TODO: test code
-            // int probablistic_value = UNKNOWN_CELL_VALUE;
+            int probablistic_value = UNKNOWN_CELL_VALUE;
 
             for (auto &m : submaps_) {
                 Vec2f ps = m->get_pose().inverse().cast<float>() * pw;   // in submap
@@ -187,36 +187,36 @@ class Mapping2DLaser {
                 }
                 uchar value = m->get_occ_map()->get_grid_reference().at<uchar>(pt[1], pt[0]);
                 // TODO TEST CODE
-                // if (value > UNKNOWN_CELL_VALUE && probablistic_value < OCCUPANCYMAP2D_FREE_THRE){
-                //     probablistic_value += (value - UNKNOWN_CELL_VALUE);
-                //     probablistic_value = std::max(int(OCCUPANCYMAP2D_FREE_THRE), probablistic_value);
-                // } else if ( value < UNKNOWN_CELL_VALUE && probablistic_value > OCCUPANCYMAP2D_OCCUPY_THRE){
-                //     probablistic_value += (value - UNKNOWN_CELL_VALUE);
-                //     probablistic_value = std::min(int(OCCUPANCYMAP2D_OCCUPY_THRE), probablistic_value);
-                // }
-                // Showing pixels of the current submap slightly differently
-                if (value > UNKNOWN_CELL_VALUE) {
-                    // Free
-                    if (m == submaps_.back()) {
-                        output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(235, 250, 230);
-                    } else {
-                        output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
-                    }
-                } else if (value < UNKNOWN_CELL_VALUE) {
-                    if (m == submaps_.back()) {
-                        output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(230, 20, 30);
-                    } else {
-                        output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
-                    }
+                if (value > UNKNOWN_CELL_VALUE && probablistic_value < OCCUPANCYMAP2D_FREE_THRE) {
+                    probablistic_value += (value - UNKNOWN_CELL_VALUE);
+                    probablistic_value = std::max(int(OCCUPANCYMAP2D_FREE_THRE), probablistic_value);
+                } else if (value < UNKNOWN_CELL_VALUE && probablistic_value > OCCUPANCYMAP2D_OCCUPY_THRE) {
+                    probablistic_value += (value - UNKNOWN_CELL_VALUE);
+                    probablistic_value = std::min(int(OCCUPANCYMAP2D_OCCUPY_THRE), probablistic_value);
                 }
-                break;
+                // // Showing pixels of the current submap slightly differently
+                // if (value > UNKNOWN_CELL_VALUE) {
+                //     // Free
+                //     if (m == submaps_.back()) {
+                //         output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(235, 250, 230);
+                //     } else {
+                //         output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
+                //     }
+                // } else if (value < UNKNOWN_CELL_VALUE) {
+                //     if (m == submaps_.back()) {
+                //         output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(230, 20, 30);
+                //     } else {
+                //         output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
+                //     }
+                // }
+                // break;
             }
             // TODO TEST CODE
-            // if (probablistic_value > UNKNOWN_CELL_VALUE) {
-            //     output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
-            // } else if (probablistic_value < UNKNOWN_CELL_VALUE) {
-            //     output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
-            // }
+            if (probablistic_value > UNKNOWN_CELL_VALUE) {
+                output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
+            } else if (probablistic_value < UNKNOWN_CELL_VALUE) {
+                output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
+            }
         });
 
         /// submap pose 在全局地图中的投影
@@ -312,7 +312,7 @@ class Mapping2DLaser {
         submaps_.back()->add_keyframe(current_frame);
 
         if (loop_detection_) {
-            loop_closure_detector_.add_new_submap(submaps_.back(), loop_detection_params_);
+            loop_closure_detector_.add_new_submap(submaps_.back());
         }
     }
 
