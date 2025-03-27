@@ -38,7 +38,7 @@ class VertexSE2 : public g2o::BaseVertex<3, SE2> {
     }
 };
 
-// 3 dims for the error, SE2 is the measurement type
+// Edge used for submap pose vertices. 3 dims for the error, SE2 is the measurement type
 class EdgeSE2 : public g2o::BaseBinaryEdge<3, SE2, VertexSE2, VertexSE2> {
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

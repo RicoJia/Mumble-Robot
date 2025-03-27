@@ -62,7 +62,7 @@ class NanoFlannKDTree {
     // This function performs a multi-threaded nearest neighbor search.
     // It expects:
     // - query_cloud: the point cloud whose points will be searched against the kd-tree.
-    // - matches: a pre-sized vector where each query point will yield k matches
+    // - matches: vector where each query point will yield k matches
     //            (i.e. matches.size() should equal query_cloud->points.size() * k).
     // - k: the number of nearest neighbors to find for each query point.
     //
