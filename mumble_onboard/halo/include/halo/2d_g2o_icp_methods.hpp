@@ -24,13 +24,13 @@ class EdgeICP2D_PT2Line : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
 
     // point_line_data_vec[point_idx_] is the data for this edge
     void computeError() override {
-        auto point_line_data = point_line_data_vec_ptr_->at(point_idx_);
-        if (point_line_data.idx_in_source_cloud_ != INVALID_INDEX) {
-            _error[0] = point_line_data.error_;
-        } else {
-            _error[0] = 0.0;
-            setLevel(1);   // marks the edge out of bound, so it will be ignored during optimization
-        }
+        auto *pose   = dynamic_cast<const VertexSE2 *>(_vertices[0]);   // static cast?
+        double range = source_scan_objs_ptr_->at(point_idx_).range;
+        double angle = source_scan_objs_ptr_->at(point_idx_).angle;
+
+        Vec2d pw         = Vec2d(range * std::cos(angle), range * std::sin(angle));
+        auto line_coeffs = point_line_data_vec_ptr_->at(point_idx_).params_;
+        _error[0]        = line_coeffs[0] * pw[0] + line_coeffs[1] * pw[1] + line_coeffs[2];
     }
 
     // Not called for optimization if the edge already is bad
@@ -125,39 +125,37 @@ class ICP2DG2O : public ICP2D {
     explicit ICP2DG2O(LaserScanMsg::SharedPtr source, LaserScanMsg::SharedPtr target) : ICP2D(source, target) {}
 
     bool point_line_icp_g2o(SE2 &relative_pose, double &cost) {
-        const size_t n         = source_scan_objs_.size();
-        cost                   = 0;
-        using BlockSolverType  = g2o::BlockSolver<g2o::BlockSolverTraits<3, 1>>;
-        using LinearSolverType = g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
-        auto *solver           = new g2o::OptimizationAlgorithmLevenberg(
-                      std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
-        g2o::SparseOptimizer optimizer;
-        optimizer.setAlgorithm(solver);
-        auto *v = new VertexSE2();
-        v->setEstimate(relative_pose);
-        v->setId(0);   // So optimizer will create a look up [id, vertex]?
-        optimizer.addVertex(v);
-
-        std::vector<NNMatch> matches;
-        PCLCloud2DPtr source_map_cloud(new pcl::PointCloud<PCLPoint2D>());
-        std::vector<PointLine2DICPData> point_line_data_vec;
-
-        // Add edges:
-        for (size_t point_idx = 0; point_idx < n; ++point_idx) {
-            auto e = new EdgeICP2D_PT2Line(point_idx, &point_line_data_vec, source_map_cloud, pcl_target_cloud_, &source_scan_objs_);
-            e->setInformation(Eigen::Matrix<double, 1, 1>::Identity());
-            e->setVertex(0, v);   // 0 is the index of the vertex within this edge
-            auto rk               = new g2o::RobustKernelHuber;
-            const double rk_delta = 0.8;
-            rk->setDelta(rk_delta);
-            e->setRobustKernel(rk);
-            optimizer.addEdge(e);
-        }
-
-        optimizer.setVerbose(true);
-        optimizer.initializeOptimization();
+        const size_t n = source_scan_objs_.size();
+        cost           = 0;
 
         for (size_t iter = 0; iter < GAUSS_NEWTON_ITERATIONS; ++iter) {
+            using BlockSolverType  = g2o::BlockSolver<g2o::BlockSolverTraits<3, 1>>;
+            using LinearSolverType = g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
+            auto *solver           = new g2o::OptimizationAlgorithmLevenberg(
+                          std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
+            g2o::SparseOptimizer optimizer;
+            optimizer.setAlgorithm(solver);
+            auto *v = new VertexSE2();
+            v->setEstimate(relative_pose);
+            v->setId(0);   // So optimizer will create a look up [id, vertex]?
+            optimizer.addVertex(v);
+
+            std::vector<NNMatch> matches;
+            PCLCloud2DPtr source_map_cloud(new pcl::PointCloud<PCLPoint2D>());
+            std::vector<PointLine2DICPData> point_line_data_vec;
+
+            // Add edges:
+            for (size_t point_idx = 0; point_idx < n; ++point_idx) {
+                auto e = new EdgeICP2D_PT2Line(point_idx, &point_line_data_vec, source_map_cloud, pcl_target_cloud_, &source_scan_objs_);
+                e->setInformation(Eigen::Matrix<double, 1, 1>::Identity() * 1e4);   // TODO
+                e->setVertex(0, v);                                                 // 0 is the index of the vertex within this edge
+                auto rk               = new g2o::RobustKernelHuber;
+                const double rk_delta = 0.8;
+                rk->setDelta(rk_delta);
+                e->setRobustKernel(rk);
+                optimizer.addEdge(e);
+            }
+
             // 1: Get each source point's map pose
             source_map_cloud->points =
                 std::vector<pcl::PointXY, Eigen::aligned_allocator<pcl::PointXY>>(n);
@@ -183,7 +181,9 @@ class ICP2DG2O : public ICP2D {
             point_line_data_vec = knn_to_line_fitting_data(matches, PL_ICP_K_NEAREST_NUM, source_map_cloud, pcl_target_cloud_);
             // update edges using the matches, because matches[i] is the match of source_map_cloud->points[i]
             // See "matches[i * k + j].idx_in_this_cloud             = i;", (nanoflann_kdtree.hpp)
-            optimizer.optimize(10);
+            optimizer.setVerbose(true);
+            optimizer.initializeOptimization();
+            optimizer.optimize(1);
 
             // Update pose and chi2
             relative_pose = v->estimate();

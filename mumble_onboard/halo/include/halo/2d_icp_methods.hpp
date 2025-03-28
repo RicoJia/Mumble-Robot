@@ -16,12 +16,11 @@ constexpr size_t MIN_NUM_VALID_POINTS      = 20;
 constexpr double POINT_LINE_DIST_THRES     = 0.4;   // 0.4m
 
 constexpr double PL_ICP_MAX_NEIGHBOR_DIST_SQUARED = 4.0;   // squared value, kind of useless
-constexpr size_t PL_ICP_K_NEAREST_NUM             = 3;
+constexpr size_t PL_ICP_K_NEAREST_NUM             = 5;
 constexpr size_t PL_ICP_MIN_LINE_POINT_NUM        = 3;   // should always be greater than 2
 
 struct PointLine2DICPData {
     Vec3f params_;   //[a,b,c] in ax + by + c = 0
-    double error_;   // distance between the line and the point
     size_t idx_in_source_cloud_ = INVALID_INDEX;
 };
 
@@ -86,7 +85,6 @@ std::vector<PointLine2DICPData> knn_to_line_fitting_data(
                           Eigen::Vector3f least_principal_component = math::fit_line(cloud);
                           ret.at(idx).params_                       = least_principal_component;
                           ret.at(idx).idx_in_source_cloud_          = idx_in_source_cloud;
-                          ret.at(idx).error_                        = ret.at(idx).params_.dot(point_coord);
                       }
                   });
 
