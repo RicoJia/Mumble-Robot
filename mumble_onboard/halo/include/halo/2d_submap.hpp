@@ -20,14 +20,14 @@ struct Submap2DParams {
 
 class Submap2D {
     static constexpr bool GEN_TEMPLATE_IN_OCCUPANCY_MAP = false;
-    static constexpr int NUM_KEYFRAMES_TO_INIT_OCC      = 10;
 
   public:
     /************************************************************************* */
     // Initialization
     /************************************************************************* */
 
-    Submap2D(const SE2 &pose, const Submap2DParams &p) : mr_likelihood_field_(p.mr_likelihood_field_inlier_thre, p.mr_rk_delta, p.mr_optimization_iterations),
+    Submap2D(const SE2 &pose, const Submap2DParams &p) : mr_likelihood_field_(SCAN_MATCHING_MR_RESOLUTIONS, p.mr_likelihood_field_inlier_thre,
+                                                                              p.mr_rk_delta, p.mr_optimization_iterations),
                                                          occupancy_map_(GEN_TEMPLATE_IN_OCCUPANCY_MAP) {
         set_pose(pose);
     }
@@ -38,7 +38,8 @@ class Submap2D {
      */
     void set_pose(const SE2 &pose) {
         T_ws_ = pose;
-        occupancy_map_.set_pose(pose);
+        T_sw_ = T_ws_.inverse();
+        occupancy_map_.set_pose(pose, T_sw_);
     }
     /**
      * @brief : There are two ways to initialize:
@@ -46,13 +47,13 @@ class Submap2D {
      * 2. Otherwise, initialize a submap from last N frames of other.
      *  - If the other doesn't have them, it's ok, all last frames will be added
      */
-    void set_occupancy_from_another_submap(const Submap2D &other) {
+    void set_occupancy_from_another_submap(const Submap2D &other, int num_keyframes_to_copy) {
         auto frames_in_other = other.get_keyframes();
         // Get most recent 10 frames
-        for (int i = frames_in_other.size() - NUM_KEYFRAMES_TO_INIT_OCC; i < int(frames_in_other.size()); ++i) {
-            if (i >= 0) {
-                occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *(frames_in_other.at(i)));
-            }
+
+        size_t i = size_t(std::max(0, int(frames_in_other.size()) - num_keyframes_to_copy));
+        for (; i < frames_in_other.size(); ++i) {
+            occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *(frames_in_other.at(i)));
         }
         mr_likelihood_field_.set_field_from_occ_map(occupancy_map_.get_grid_reference());
     }
@@ -102,8 +103,10 @@ class Submap2D {
     void set_id(size_t id) { id_ = id; }
     size_t get_id() const { return id_; }
     SE2 get_pose() const { return T_ws_; }
-    cv::Mat get_occ_map() const { return occupancy_map_.get_grid_for_viz(); }
+    SE2 get_pose_inv() const { return T_sw_; }
+    const OccupancyMap2D *get_occ_map() const { return &occupancy_map_; }
     cv::Mat get_likelihood_field() const { return mr_likelihood_field_.get_field_images().at(0); }
+    MultiResolutionLikelihoodField *get_likelihood_field_ptr() { return &mr_likelihood_field_; }
     bool has_outside_points() const { return occupancy_map_.has_outside_points(); }
 
     // We show the lidar scan on top of the likelihood field and occupancy map
@@ -114,10 +117,10 @@ class Submap2D {
         halo::visualize_2d_scan(
             frame->scan_, mr_likehood_img, halo::SE2(), frame->pose_submap_, 1.0 / resolution, 1000, halo::Vec3b(255, 0, 0));
         cv::imshow("scan on last mr field", mr_likehood_img);
-        cv::Mat occ_grid_img = get_occ_map();
+        cv::Mat occ_grid_img = get_occ_map()->get_grid_for_viz();
         halo::visualize_2d_scan(frame->scan_, occ_grid_img, halo::SE2(), frame->pose_submap_,
                                 1.0 / resolution, 1000, halo::Vec3b(255, 0, 0));
-        cv::imshow("occ_grid_img", occ_grid_img);
+        cv::imshow("occ_grid_img: " + std::to_string(id_), occ_grid_img);
         halo::close_cv_window_on_esc();
     }
 
@@ -140,7 +143,11 @@ class Submap2D {
     MultiResolutionLikelihoodField mr_likelihood_field_;
     OccupancyMap2D occupancy_map_;
     SE2 T_ws_;   // T world->submap
+    SE2 T_sw_;
     std::vector<Lidar2DFramePtr> keyframes_;
     size_t id_ = 0;
 };
+
+using Submap2DPtr = std::shared_ptr<Submap2D>;
+
 }   // namespace halo

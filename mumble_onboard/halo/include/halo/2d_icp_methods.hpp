@@ -8,19 +8,19 @@
 
 namespace halo {
 
-constexpr double PT_MAX_VALID_SQUARED_DIST = 0.16;   // 0.4m
-constexpr double LAST_COST_SCALAR          = 0.9;    // 0.3m
+// TODO: this is kind of useless, because due to the initial pose, this value could be large
+constexpr double PT_MAX_VALID_SQUARED_DIST = 400.0;   // 20m
+constexpr double LAST_COST_SCALAR          = 1.1;
 constexpr size_t GAUSS_NEWTON_ITERATIONS   = 10;
 constexpr size_t MIN_NUM_VALID_POINTS      = 20;
 constexpr double POINT_LINE_DIST_THRES     = 0.4;   // 0.4m
 
-constexpr double PL_ICP_MAX_NEIGHBOR_DIST_SQUARED = 0.01;   // squared value
+constexpr double PL_ICP_MAX_NEIGHBOR_DIST_SQUARED = 4.0;   // squared value, kind of useless
 constexpr size_t PL_ICP_K_NEAREST_NUM             = 5;
 constexpr size_t PL_ICP_MIN_LINE_POINT_NUM        = 3;   // should always be greater than 2
 
 struct PointLine2DICPData {
     Vec3f params_;   //[a,b,c] in ax + by + c = 0
-    double error_;   // distance between the line and the point
     size_t idx_in_source_cloud_ = INVALID_INDEX;
 };
 
@@ -73,8 +73,11 @@ std::vector<PointLine2DICPData> knn_to_line_fitting_data(
                           double dist = math::get_squared_distance(
                               point_coord,
                               Eigen::Vector3f{target_pt.x, target_pt.y, 1.0});
-                          if (dist > PL_ICP_MAX_NEIGHBOR_DIST_SQUARED)
+                          if (dist > PL_ICP_MAX_NEIGHBOR_DIST_SQUARED) {
+                              // TODO
+                              std::cout << "pl-icp, distance too large: " << dist << std::endl;
                               continue;
+                          }
                           cloud->points.emplace_back(target_pt);
                       }
 
@@ -82,7 +85,6 @@ std::vector<PointLine2DICPData> knn_to_line_fitting_data(
                           Eigen::Vector3f least_principal_component = math::fit_line(cloud);
                           ret.at(idx).params_                       = least_principal_component;
                           ret.at(idx).idx_in_source_cloud_          = idx_in_source_cloud;
-                          ret.at(idx).error_                        = ret.at(idx).params_.dot(point_coord);
                       }
                   });
 
@@ -153,14 +155,14 @@ class ICP2D {
     }
 
     bool align_pl_gauss_newton(SE2 &relative_pose, double &cost) {
-        double pose_angle = relative_pose.so2().log();
-        const size_t n    = source_scan_objs_.size();
-        cost              = 0;
-        double last_cost  = 0;
+        const size_t n   = source_scan_objs_.size();
+        cost             = 0;
+        double last_cost = 0;
 
         for (size_t iter = 0; iter < GAUSS_NEWTON_ITERATIONS; ++iter) {
-            Mat3d H     = Mat3d::Zero();
-            Vec3d b_vec = Vec3d::Zero();
+            double pose_angle = relative_pose.so2().log();
+            Mat3d H           = Mat3d::Zero();
+            Vec3d b_vec       = Vec3d::Zero();
             // 1: Get each source point's map pose
             PCLCloud2DPtr source_map_cloud(new pcl::PointCloud<PCLPoint2D>());
             source_map_cloud->points =
@@ -211,9 +213,12 @@ class ICP2D {
                 return false;
             }
             Vec3d dx = H.ldlt().solve(-b_vec);
+            // TODO
+            std::cout << "dx: " << dx << std::endl;
             if (std::isnan(dx[0]))
                 break;   // Something degenerating might have happened
             cost /= effective_num;
+            // TODO test code, should resume
             if (iter > 0 && cost > LAST_COST_SCALAR * last_cost)
                 break;
             // std::cout << "iter: " << iter << "cost: " << cost << std::endl;
@@ -228,14 +233,15 @@ class ICP2D {
         return true;
     }
 
-    bool align_gauss_newton(SE2 &relative_pose) {
-        double pose_angle = relative_pose.so2().log();
-        const size_t n    = source_scan_objs_.size();
-        double cost = 0, last_cost = 0;
+    bool align_gauss_newton(SE2 &relative_pose, double &cost) {
+        const size_t n   = source_scan_objs_.size();
+        cost             = 0;
+        double last_cost = 0;
 
         for (size_t iter = 0; iter < GAUSS_NEWTON_ITERATIONS; ++iter) {
-            Mat3d H = Mat3d::Zero();
-            Vec3d b = Vec3d::Zero();
+            double pose_angle = relative_pose.so2().log();
+            Mat3d H           = Mat3d::Zero();
+            Vec3d b           = Vec3d::Zero();
             // 1: Get each source point's map pose
             PCLCloud2DPtr source_map_cloud(new pcl::PointCloud<PCLPoint2D>());
             source_map_cloud->points =
@@ -277,7 +283,8 @@ class ICP2D {
                 double angle = source_scan_objs_.at(source_id).angle;
                 J << 1, 0, -r * std::sin(angle + pose_angle), 0, 1, r * std::cos(angle + pose_angle);
                 H += J.transpose() * J;
-                Vec2d e = source_vec - target_vec;
+                Vec2d pw = relative_pose * Vec2d(r * std::cos(angle), r * std::sin(angle));
+                Vec2d e  = pw - target_vec;
                 b += J.transpose() * e;
                 cost += e.dot(e);
                 ++effective_num;
@@ -303,7 +310,7 @@ class ICP2D {
         return true;
     }
 
-  private:
+  protected:
     std::vector<ScanObj> target_scan_objs_;
     std::vector<ScanObj> source_scan_objs_;
     PCLCloud2DPtr pcl_target_cloud_                                    = nullptr;

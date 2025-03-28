@@ -41,12 +41,17 @@ class OccupancyMap2D {
 
     ~OccupancyMap2D() = default;
 
-    void set_pose(const SE2 &pose) {
+    void set_pose(const SE2 &pose, const SE2 &pose_inv) {
         submap_pose_ = pose;
+        T_sw_        = pose_inv;
+        // TODO
+        std::cout << "occ pose: " << submap_pose_ << std::endl;
     }
 
     void add_frame(const OccupancyMapMethod &method, const Lidar2DFrame &frame) {
-        SE2 T_map_pose          = submap_pose_ * frame.pose_;
+        // TODO
+        std::cout << "Inv occ pose in add_frame: " << T_sw_ << std::endl;
+        SE2 T_map_pose          = T_sw_ * frame.pose_;
         Vec2i pose_submap_coord = pose_2_img_coord(
             T_map_pose.translation(),
             Vec2i{HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D},
@@ -54,7 +59,7 @@ class OccupancyMap2D {
         float theta         = T_map_pose.so2().log();
         has_outside_points_ = false;
 
-        std::cout << "world to scan: " << T_map_pose << std::endl;
+        std::cout << "Adding world to scan: " << T_map_pose << std::endl;
 
         std::unordered_set<Vec2i, CoordHash> endpoints_lookup;
         for (size_t i = 0; i < frame.scan_->ranges.size(); ++i) {
@@ -143,6 +148,7 @@ class OccupancyMap2D {
   private:
     cv::Mat grid_;
     SE2 submap_pose_;
+    SE2 T_sw_;
     std::vector<TemplatePoint> template_;
     bool has_outside_points_ = false;
 

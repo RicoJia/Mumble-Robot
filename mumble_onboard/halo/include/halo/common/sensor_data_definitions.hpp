@@ -15,10 +15,12 @@ using PCLCloud2DPtr  = pcl::PointCloud<PCLPoint2D>::Ptr;
 
 using LaserScanMsg = sensor_msgs::msg::LaserScan;
 
-using SE2 = Sophus::SE2d;
-using SO2 = Sophus::SO2d;
+using SE2  = Sophus::SE2d;
+using SE2f = Sophus::SE2f;
+using SO2  = Sophus::SO2d;
 
 using Vec2d = Eigen::Vector2d;
+using Vec2f = Eigen::Vector2f;
 using Vec2i = Eigen::Vector2i;
 using Vec3i = Eigen::Vector3i;
 using Vec3b = Eigen::Vector3i;
@@ -33,7 +35,7 @@ constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;
 
 constexpr float RESOLUTION_2D              = 20;                                                          // 0.05m
 constexpr float INV_RES_2D                 = 1.0 / RESOLUTION_2D;                                         // 0.05m
-constexpr float HALF_MAP_SIZE_2D_METERS    = 20.0;                                                        // in meters
+constexpr float HALF_MAP_SIZE_2D_METERS    = 10.0;                                                        // in meters
 constexpr int HALF_MAP_SIZE_2D             = static_cast<int>(HALF_MAP_SIZE_2D_METERS * RESOLUTION_2D);   // In pixels
 constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE = 117;
 constexpr uchar OCCUPANCYMAP2D_FREE_THRE   = 137;
@@ -41,6 +43,10 @@ constexpr uchar UNKNOWN_CELL_VALUE         = 127;
 constexpr int LIKELIHOOD_2D_TEMPLATE_SIDE  = 1.0 * RESOLUTION_2D;   // 1m each side
 constexpr int LIKELIHOOD_2D_IMAGE_BOARDER  = 20;                    // 20pixels
 constexpr float FAR_VALUE_PIXELS_FLOAT     = 100.0;
+constexpr int NUM_KEYFRAMES_TO_INIT_OCC    = 10;
+
+const std::vector<float> SCAN_MATCHING_MR_RESOLUTIONS{RESOLUTION_2D};
+const std::vector<float> LOOP_DETECTION_MR_RESOLUTIONS{RESOLUTION_2D / 4.0, RESOLUTION_2D / 2.0};
 
 struct ScanObj {
     double range = 0.0;

@@ -15,14 +15,14 @@ class MultiResolutionLikelihoodField {
 
   public:
     explicit MultiResolutionLikelihoodField(
-        float inlier_ratio_th               = 0.35,
-        float rk_delta                      = 0.1,
-        int optimization_iterations         = 10,
-        std::vector<float> &&mr_resolutions = {RESOLUTION_2D}) : INLIER_RATIO_TH_(inlier_ratio_th), RK_DELTA_(rk_delta), OPTIMIZATION_ITERATIONS(optimization_iterations),
-                                                                 MR_RESOLUTIONS_(std::move(mr_resolutions)) {
+        const std::vector<float> &mr_resolutions,
+        float inlier_ratio_th       = 0.35,
+        float rk_delta              = 0.4,
+        int optimization_iterations = 10) : INLIER_RATIO_TH_(inlier_ratio_th), RK_DELTA_(rk_delta), OPTIMIZATION_ITERATIONS(optimization_iterations),
+                                            // TODO: to make this a ptr
+                                            MR_RESOLUTIONS_(mr_resolutions) {
         IMAGE_PYRAMID_LEVELS_ = MR_RESOLUTIONS_.size();
         grids_.resize(IMAGE_PYRAMID_LEVELS_);   // default initialized
-        rk_deltas_.resize(IMAGE_PYRAMID_LEVELS_);
 
         // generate template
         for (int x = -LIKELIHOOD_2D_TEMPLATE_SIDE; x < LIKELIHOOD_2D_TEMPLATE_SIDE; ++x) {
@@ -30,12 +30,7 @@ class MultiResolutionLikelihoodField {
                 template_.emplace_back(x, y, std::sqrt(x * x + y * y));
             }
         }
-        for (size_t i = 0; i < IMAGE_PYRAMID_LEVELS_; ++i) {
-            // This is the error threshold in (minimum_pixel_distance)^2
-            // By setting a minimum value, the optimizer has an easier time getting to some optimal point on
-            // low resolution images
-            rk_deltas_[i] = std::max(RK_DELTA_ * RK_DELTA_ * (MR_RESOLUTIONS_[i] * MR_RESOLUTIONS_[i]), 2.0f);
-        }
+        _set_rk_deltas();
     }
 
     /**
@@ -189,8 +184,16 @@ class MultiResolutionLikelihoodField {
 
     const std::vector<float> &get_mr_resolutions() const { return MR_RESOLUTIONS_; }
 
+    void set_inlier_ratio(float inlier_ratio_th) {
+        INLIER_RATIO_TH_ = inlier_ratio_th;
+    }
+
+    void set_rk_deltas(float rk_delta) {
+        RK_DELTA_ = rk_delta;
+    }
+
   private:
-    const float INLIER_RATIO_TH_;
+    float INLIER_RATIO_TH_;
     float RK_DELTA_;   // it's in meters for error threshold
     int OPTIMIZATION_ITERATIONS;
     std::vector<cv::Mat> grids_;   // default initialized
@@ -200,6 +203,16 @@ class MultiResolutionLikelihoodField {
     bool has_outside_points_ = false;
     std::vector<float> MR_RESOLUTIONS_;
     size_t IMAGE_PYRAMID_LEVELS_ = 0;
+
+    void _set_rk_deltas() {
+        rk_deltas_.resize(IMAGE_PYRAMID_LEVELS_);
+        for (size_t i = 0; i < IMAGE_PYRAMID_LEVELS_; ++i) {
+            // This is the error threshold in (minimum_pixel_distance)^2
+            // By setting a minimum value, the optimizer has an easier time getting to some optimal point on
+            // low resolution images
+            rk_deltas_[i] = std::max(RK_DELTA_ * RK_DELTA_ * (MR_RESOLUTIONS_[i] * MR_RESOLUTIONS_[i]), 2.0f);
+        }
+    }
 };
 
 }   // namespace halo
