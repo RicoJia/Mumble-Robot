@@ -43,19 +43,19 @@ TEST(Test2DSLAM, TestICPMethods) {
             halo::SE2 relative_pose{};
             bool success                 = false;
             [[maybe_unused]] double cost = -1;
-            {
-                // source, target
-                halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
-                halo::RAIITimer timer;
-                success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
-                // success = icp_2d.mt_pl_gauss_newton(relative_pose);
-            }
             // {
-            //     halo::ICP2DG2O icp_2d_g2o(current_scan_ptr, last_scan_ptr);
+            //     // source, target
+            //     halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
             //     halo::RAIITimer timer;
-            //     // success = icp_2d_g2o.point_point_icp_g2o(relative_pose, cost);
-            //     success = icp_2d_g2o.point_line_icp_g2o(relative_pose, cost);
+            //     success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
+            //     // success = icp_2d.mt_pl_gauss_newton(relative_pose);
             // }
+            {
+                halo::ICP2DG2O icp_2d_g2o(current_scan_ptr, last_scan_ptr);
+                halo::RAIITimer timer;
+                // success = icp_2d_g2o.point_point_icp_g2o(relative_pose, cost);
+                success = icp_2d_g2o.point_line_icp_g2o(relative_pose, cost);
+            }
             // {
             //     halo::RAIITimer timer;
             //     halo::LikelihoodField2D likelihood_field2d;
