@@ -108,7 +108,7 @@ TEST(TestLinearFitting, TestLineFitting) {
     {
         std::cout << "Test case 3: line fitting " << std::endl;
         halo::RAIITimer timer;
-        auto [p0_e, d_e] = math::fit_line(pcl_cloud);
+        auto [p0_e, d_e] = math::fit_line_3d(pcl_cloud);
         p0_estimate      = p0_e;
         d_estimate       = d_e;
         // std::cout<<"p0_estimate: "<<p0_estimate.format(CleanFmt)<<std::endl;

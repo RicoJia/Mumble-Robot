@@ -18,6 +18,7 @@ find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(g2o REQUIRED)
 find_package(fmt REQUIRED)
+find_package(gflags REQUIRED)
 
 # Ensure we have a release type
 if(NOT CMAKE_BUILD_TYPE)
@@ -60,6 +61,12 @@ target_link_libraries(
 ament_target_dependencies(halo rclcpp rosbag2_cpp rosbag2_storage
                           rosbag2_transport sensor_msgs)
 
+add_executable(
+  export_scan_2_txt
+  src/export_scan_2_txt.cpp)
+target_link_libraries(
+  export_scan_2_txt halo pthread ${G2O_LIBS})
+
 # Optionally build tests
 option(BUILD_HALO_TESTS "Build halo unit tests" ON)
 if(BUILD_HALO_TESTS)
@@ -81,6 +88,12 @@ if(BUILD_HALO_TESTS)
   target_link_libraries(test_2dslam halo GTest::GTest GTest::Main pthread
                         ${G2O_LIBS})
   add_test(NAME test_2dslam COMMAND test_2dslam)
+
+  add_executable(test_degradation_detection tests/test_2d_slam_degredation.cpp)
+  target_link_libraries(test_degradation_detection halo GTest::GTest
+                        GTest::Main pthread ${G2O_LIBS})
+  add_test(NAME test_degradation_detection COMMAND test_degradation_detection)
+
 endif()
 
 ament_package()

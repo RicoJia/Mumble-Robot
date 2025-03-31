@@ -6,19 +6,24 @@
 
 namespace halo {
 
-using PointType      = pcl::PointXYZI;
-using PointCloudType = pcl::PointCloud<PointType>;
-using CloudPtr       = PointCloudType::Ptr;
-using PCLPoint2D     = pcl::PointXY;
-using PCLCloud2D     = pcl::PointCloud<PCLPoint2D>;
-using PCLCloud2DPtr  = pcl::PointCloud<PCLPoint2D>::Ptr;
+using PCLPointXYZI    = pcl::PointXYZI;
+using PCLCloudXYZI    = pcl::PointCloud<PCLPointXYZI>;
+using PCLCloudXYZIPtr = PCLCloudXYZI::Ptr;
+using PCLPoint2D      = pcl::PointXY;
+using PCLCloud2D      = pcl::PointCloud<PCLPoint2D>;
+using PCLCloud2DPtr   = pcl::PointCloud<PCLPoint2D>::Ptr;
+using PCLPoint3D      = pcl::PointXYZ;
+using PCLCloud3D      = pcl::PointCloud<pcl::PointXYZ>;
+using PCLCloud3DPtr   = pcl::PointCloud<pcl::PointXYZ>::Ptr;
 
 using LaserScanMsg = sensor_msgs::msg::LaserScan;
 
-using SE2 = Sophus::SE2d;
-using SO2 = Sophus::SO2d;
+using SE2  = Sophus::SE2d;
+using SE2f = Sophus::SE2f;
+using SO2  = Sophus::SO2d;
 
 using Vec2d = Eigen::Vector2d;
+using Vec2f = Eigen::Vector2f;
 using Vec2i = Eigen::Vector2i;
 using Vec3i = Eigen::Vector3i;
 using Vec3b = Eigen::Vector3i;
@@ -31,8 +36,8 @@ using Mat3d = Eigen::Matrix3d;
 constexpr size_t INVALID_INDEX  = std::numeric_limits<size_t>::max();
 constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;
 
-constexpr float RESOLUTION_2D              = 20;                                                          // 0.05m
-constexpr float INV_RES_2D                 = 1.0 / RESOLUTION_2D;                                         // 0.05m
+constexpr float RESOLUTION_2D              = 10;                                                          // 0.1m
+constexpr float INV_RES_2D                 = 1.0 / RESOLUTION_2D;                                         // 0.1m
 constexpr float HALF_MAP_SIZE_2D_METERS    = 20.0;                                                        // in meters
 constexpr int HALF_MAP_SIZE_2D             = static_cast<int>(HALF_MAP_SIZE_2D_METERS * RESOLUTION_2D);   // In pixels
 constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE = 117;
@@ -41,6 +46,10 @@ constexpr uchar UNKNOWN_CELL_VALUE         = 127;
 constexpr int LIKELIHOOD_2D_TEMPLATE_SIDE  = 1.0 * RESOLUTION_2D;   // 1m each side
 constexpr int LIKELIHOOD_2D_IMAGE_BOARDER  = 20;                    // 20pixels
 constexpr float FAR_VALUE_PIXELS_FLOAT     = 100.0;
+constexpr int NUM_KEYFRAMES_TO_INIT_OCC    = 10;
+
+const std::vector<float> SCAN_MATCHING_MR_RESOLUTIONS{RESOLUTION_2D};
+const std::vector<float> LOOP_DETECTION_MR_RESOLUTIONS{RESOLUTION_2D / 4.0, RESOLUTION_2D / 2.0};
 
 struct ScanObj {
     double range = 0.0;

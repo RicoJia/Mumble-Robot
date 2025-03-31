@@ -3,6 +3,7 @@
 #include <halo/common/sensor_utils.hpp>
 #include <halo/common/debug_utils.hpp>
 #include <halo/2d_icp_methods.hpp>
+#include <halo/2d_g2o_icp_methods.hpp>
 #include <halo/2d_likelihood_field.hpp>
 #include <halo/2d_occupancy_map.hpp>
 #include <halo/2d_submap.hpp>
@@ -39,8 +40,6 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //                 last_scan_ptr = current_scan_ptr;
 //                 return;
 //             }
-//             // TODO
-//             // bool success = icp_2d.align_gauss_newton(relative_pose);
 //             halo::SE2 relative_pose{};
 //             bool success                 = false;
 //             [[maybe_unused]] double cost = -1;
@@ -51,21 +50,19 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //             //     success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
 //             //     // success = icp_2d.mt_pl_gauss_newton(relative_pose);
 //             // }
+//             // {
+//             //     halo::ICP2DG2O icp_2d_g2o(current_scan_ptr, last_scan_ptr);
+//             //     halo::RAIITimer timer;
+//             //     // success = icp_2d_g2o.point_point_icp_g2o(relative_pose, cost);
+//             //     success = icp_2d_g2o.point_line_icp_g2o(relative_pose, cost);
+//             // }
 //             {
 //                 halo::RAIITimer timer;
 //                 halo::LikelihoodField2D likelihood_field2d;
 //                 likelihood_field2d.set_target_scan(last_scan_ptr);
 //                 likelihood_field2d.set_source_scan(current_scan_ptr);
 //                 // success = likelihood_field2d.align_gauss_newton(relative_pose, cost);   //4ms per message
-//                 success = likelihood_field2d.mt_likelihood_match(relative_pose); // 40ms per message
-//             }
-//             {
-//                 halo::RAIITimer timer;
-//                 halo::LikelihoodField2D likelihood_field2d;
-//                 likelihood_field2d.set_target_scan(last_scan_ptr);
-//                 likelihood_field2d.set_source_scan(current_scan_ptr);
-//                 success = likelihood_field2d.align_g2o(relative_pose, cost);   // 5ms per message
-//                 //     success = likelihood_field2d.mt_likelihood_match(relative_pose);
+//                 success = likelihood_field2d.mt_likelihood_match(relative_pose);   // 40ms per message
 //             }
 //             cv::Mat output_img;
 //             if (!success) {
@@ -183,7 +180,13 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //     // halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
 //     halo::OccupancyMap2D omap(false);
-//     halo::MultiResolutionLikelihoodField mr_likelihood_field;
+//     float inlier_ratio_th       = 0.35;
+//     float rk_delta              = 0.4;
+//     int optimization_iterations = 10;
+//     halo::MultiResolutionLikelihoodField mr_likelihood_field{
+//         {20.0},
+//         inlier_ratio_th, rk_delta, optimization_iterations
+//     };
 //     size_t scan_id = 0;
 //     halo::SE2 relative_pose{};   // so it can be used to initialize next frame
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
@@ -210,10 +213,14 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //             last_scan_ptr = current_scan_ptr;
 
 //             auto output_img = omap.get_grid_for_viz();
+//             halo::visualize_2d_scan(
+//                 current_scan_ptr, output_img, halo::SE2(), relative_pose, 0.05, 1000, halo::Vec3b(0, 255, 255));
 //             cv::imshow("Submap", output_img);
 //             std::vector<cv::Mat> likelihood_images = mr_likelihood_field.get_field_images();
 //             for (int i = 0; i < likelihood_images.size(); ++i) {
-//                 const auto &image = likelihood_images.at(i);
+//                 auto image = likelihood_images.at(i);
+//                 halo::visualize_2d_scan(
+//                     current_scan_ptr, image, halo::SE2(), relative_pose, 0.05, 1000, halo::Vec3b(0, 255, 255));
 //                 cv::imshow("likelihood map " + std::to_string(i), image);
 //             }
 //             cv::waitKey(200);
@@ -224,7 +231,7 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 
 TEST(Test2DSLAM, TestMapping) {
     halo::ROS2BagIo ros2_bag_io(bag_path);
-    halo::Mapping2DLaser mapper_2d(false, yaml_path);
+    halo::Mapping2DLaser mapper_2d(yaml_path);
     int i = 0;
     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
         "/scan",
@@ -234,6 +241,7 @@ TEST(Test2DSLAM, TestMapping) {
             mapper_2d.process_scan(current_scan_ptr);
         });
     ros2_bag_io.spin();
+    mapper_2d.visualize_global_map();
 }
 
 int main(int argc, char **argv) {
