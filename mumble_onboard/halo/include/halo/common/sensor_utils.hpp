@@ -54,6 +54,40 @@ inline PCLCloud2DPtr laser_scan_2_PointXY(const std::vector<ScanObj> &scan_objs)
 }
 
 /**
+ * @brief: Convert a raw laser scan message to a pcl point cloud
+ */
+PCLCloud3DPtr laser_scan_2_PointXYZ(std::shared_ptr<sensor_msgs::msg::LaserScan> current_scan_ptr) {
+    // Create a new point cloud pointer.
+    PCLCloud3DPtr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+    // Initialize the starting angle from the scan.
+    float angle = current_scan_ptr->angle_min;
+
+    // Iterate through each range measurement.
+    for (size_t i = 0; i < current_scan_ptr->ranges.size(); ++i) {
+        float range = current_scan_ptr->ranges[i];
+
+        // Process only valid measurements.
+        if (range >= current_scan_ptr->range_min && range <= current_scan_ptr->range_max) {
+            pcl::PointXYZ point;
+            point.x = range * std::cos(angle);
+            point.y = range * std::sin(angle);
+            point.z = 0.0f;   // Since it's a 2D scan, z is set to zero.
+            cloud->points.push_back(point);
+        }
+
+        // Increment the angle by the specified angle increment.
+        angle += current_scan_ptr->angle_increment;
+    }
+
+    // Update cloud metadata.
+    cloud->width  = static_cast<uint32_t>(cloud->points.size());
+    cloud->height = 1;   // Unorganized point cloud.
+
+    return cloud;
+}
+
+/**
  * @brief: Visualization!
  */
 inline void visualize_2d_scan(

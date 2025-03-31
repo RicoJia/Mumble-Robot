@@ -36,7 +36,7 @@ struct AlignResult {
  * @param matches : list of matches
  * @param k : number of neighbors
  * @param source_cloud : cloud we want to search for
- * @param other_cloud : cloud to search in
+ * @param other_cloud : cloud to search in. IMPORTANT: the final line params are in specific to this cloud's coordinate frame!
  * @return std::vector<PointLine2DICPData> : vector for result point fitted lines
  */
 std::vector<PointLine2DICPData> knn_to_line_fitting_data(
@@ -82,7 +82,7 @@ std::vector<PointLine2DICPData> knn_to_line_fitting_data(
                       }
 
                       if (cloud->points.size() >= PL_ICP_MIN_LINE_POINT_NUM) {
-                          Eigen::Vector3f least_principal_component = math::fit_line(cloud);
+                          Eigen::Vector3f least_principal_component = math::fit_line_2d(cloud);
                           ret.at(idx).params_                       = least_principal_component;
                           ret.at(idx).idx_in_source_cloud_          = idx_in_source_cloud;
                       }
@@ -201,7 +201,10 @@ class ICP2D {
                     double a = point_line_data.params_[0], b = point_line_data.params_[1];
                     J << a, b, -a * r * std::sin(angle + pose_angle) + b * r * std::cos(angle + pose_angle);
                     H += J.transpose() * J;
-                    double e = point_line_data.error_;
+
+                    Vec2d pw = relative_pose * Vec2d(r * std::cos(angle), r * std::sin(angle));
+                    double e = point_line_data.params_[0] * pw[0] + point_line_data.params_[1] * pw[1] + point_line_data.params_[2];
+
                     b_vec += e * J.transpose();
                     cost += e * e;
                     ++effective_num;

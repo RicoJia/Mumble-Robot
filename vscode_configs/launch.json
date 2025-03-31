@@ -5,7 +5,7 @@
    "name": "Debug My Executable",
    "type": "cppdbg",
    "request": "launch",
-   "program": "${workspaceFolder}/build/mumble_onboard/halo/test_2dslam",  // change me for your tests
+   "program": "${workspaceFolder}/build/mumble_onboard/halo/test_degradation_detection",  // change me for your tests
    "args": [],
    "stopAtEntry": false,
    "cwd": "/home/mumble_robot", // explicitly set your working directory here

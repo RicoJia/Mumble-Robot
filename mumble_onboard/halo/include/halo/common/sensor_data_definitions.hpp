@@ -6,12 +6,15 @@
 
 namespace halo {
 
-using PointType      = pcl::PointXYZI;
-using PointCloudType = pcl::PointCloud<PointType>;
-using CloudPtr       = PointCloudType::Ptr;
-using PCLPoint2D     = pcl::PointXY;
-using PCLCloud2D     = pcl::PointCloud<PCLPoint2D>;
-using PCLCloud2DPtr  = pcl::PointCloud<PCLPoint2D>::Ptr;
+using PCLPointXYZI    = pcl::PointXYZI;
+using PCLCloudXYZI    = pcl::PointCloud<PCLPointXYZI>;
+using PCLCloudXYZIPtr = PCLCloudXYZI::Ptr;
+using PCLPoint2D      = pcl::PointXY;
+using PCLCloud2D      = pcl::PointCloud<PCLPoint2D>;
+using PCLCloud2DPtr   = pcl::PointCloud<PCLPoint2D>::Ptr;
+using PCLPoint3D      = pcl::PointXYZ;
+using PCLCloud3D      = pcl::PointCloud<pcl::PointXYZ>;
+using PCLCloud3DPtr   = pcl::PointCloud<pcl::PointXYZ>::Ptr;
 
 using LaserScanMsg = sensor_msgs::msg::LaserScan;
 
@@ -33,9 +36,9 @@ using Mat3d = Eigen::Matrix3d;
 constexpr size_t INVALID_INDEX  = std::numeric_limits<size_t>::max();
 constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;
 
-constexpr float RESOLUTION_2D              = 20;                                                          // 0.05m
-constexpr float INV_RES_2D                 = 1.0 / RESOLUTION_2D;                                         // 0.05m
-constexpr float HALF_MAP_SIZE_2D_METERS    = 10.0;                                                        // in meters
+constexpr float RESOLUTION_2D              = 10;                                                          // 0.1m
+constexpr float INV_RES_2D                 = 1.0 / RESOLUTION_2D;                                         // 0.1m
+constexpr float HALF_MAP_SIZE_2D_METERS    = 20.0;                                                        // in meters
 constexpr int HALF_MAP_SIZE_2D             = static_cast<int>(HALF_MAP_SIZE_2D_METERS * RESOLUTION_2D);   // In pixels
 constexpr uchar OCCUPANCYMAP2D_OCCUPY_THRE = 117;
 constexpr uchar OCCUPANCYMAP2D_FREE_THRE   = 137;

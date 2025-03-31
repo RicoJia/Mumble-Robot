@@ -2,7 +2,7 @@
 
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/visualization/cloud_viewer.h>
-
+#include <type_traits>
 #include <chrono>
 #include <execution>
 #include <halo/common/sensor_data_definitions.hpp>
@@ -17,12 +17,12 @@ namespace halo {
  * @note: THIS MIGHT CAUSE A SEGFAULT in GTest. Maybe in other frameworks, too.
  * specifically, it's the line `voxel.filter(*output);`
  */
-inline void downsample_point_cloud(CloudPtr &cloud, float voxel_size) {
-    pcl::VoxelGrid<PointType> voxel;
+inline void downsample_point_cloud(PCLCloudXYZIPtr &cloud, float voxel_size) {
+    pcl::VoxelGrid<PCLPointXYZI> voxel;
     voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
     voxel.setInputCloud(cloud);
 
-    CloudPtr output(new PointCloudType);
+    PCLCloudXYZIPtr output(new PCLCloudXYZI);
     voxel.filter(*output);
 
     cloud->swap(*output);
@@ -32,28 +32,55 @@ inline void downsample_point_cloud(CloudPtr &cloud, float voxel_size) {
  * @brief Bring up a clickable view window without segfault (1.12.x has such an
  * issue)
  */
-inline void view_cloud(CloudPtr cloud) {
-    // Create PCLVisualizer as a shared pointer
-    pcl::visualization::PCLVisualizer::Ptr viewer(
-        new pcl::visualization::PCLVisualizer("Viewer"));
-    viewer->addPointCloud<PointType>(cloud, "sample cloud");
-    // Keep the viewer running
-    viewer->spin();   // This will block until the user closes the window
-    // Explicitly reset the viewer to avoid segfault
-    viewer.reset();
-}
 
-inline Vec3f to_vec_3f(const PointType &pt) { return pt.getVector3fMap(); }
+template <typename PointT>
+class CloudViewer {
+  public:
+    CloudViewer() : viewer(new pcl::visualization::PCLVisualizer("Viewer")) {
+    }
+
+    ~CloudViewer() = default;
+    // Getter function so the viewer can be modified
+    pcl::visualization::PCLVisualizer::Ptr get_viewer() {
+        return viewer;
+    }
+
+    inline void view_cloud(const std::shared_ptr<pcl::PointCloud<PointT>> &cloud, uchar r = 255, uchar g = 255, uchar b = 255) {
+        // Use a color handler based on the point type.
+        if constexpr (std::is_same<PointT, pcl::PointXYZI>::value) {
+            // Use the intensity field for coloring if available.
+            pcl::visualization::PointCloudColorHandlerGenericField<PointT> intensity_handler(cloud, "intensity");
+            viewer->addPointCloud<PointT>(cloud, intensity_handler, "sample cloud");
+        } else if constexpr (std::is_same<PointT, pcl::PointXYZ>::value) {
+            // For pcl::PointXYZ, use a custom color handler (e.g., fixed red color).
+            pcl::visualization::PointCloudColorHandlerCustom<PointT> color_handler(cloud, r, g, b);
+            viewer->addPointCloud<PointT>(cloud, color_handler, "sample cloud");
+        } else {
+            // Default: use the built-in handler (which will assign random colors).
+            viewer->addPointCloud<PointT>(cloud, "sample cloud");
+        }
+
+        // Keep the viewer running until the user closes the window.
+        viewer->spin();
+        // Reset the viewer to avoid potential segfaults.
+        viewer.reset();
+    }
+
+  private:
+    pcl::visualization::PCLVisualizer::Ptr viewer;
+};
+
+inline Vec3f to_vec_3f(const PCLPointXYZI &pt) { return pt.getVector3fMap(); }
 
 /**
  * @brief Return the index of the closest point in the cloud
  */
-inline size_t brute_force_single_point(const PointType &pt,
-                                       const CloudPtr &cloud) {
+inline size_t brute_force_single_point(const PCLPointXYZI &pt,
+                                       const PCLCloudXYZIPtr &cloud) {
     auto pt_vec3f = to_vec_3f(pt);
     return std::min_element(
                cloud->points.begin(), cloud->points.end(),
-               [&pt_vec3f](const PointType &pt1, const PointType &pt2) -> bool {
+               [&pt_vec3f](const PCLPointXYZI &pt1, const PCLPointXYZI &pt2) -> bool {
                    return (pt1.getVector3fMap() - pt_vec3f).squaredNorm() <
                           (pt2.getVector3fMap() - pt_vec3f).squaredNorm();
                }) -
@@ -64,7 +91,7 @@ inline size_t brute_force_single_point(const PointType &pt,
  * @brief return a vector of matches from cloud2 to cloud1. This could lead to
  * 10x speed up
  */
-inline std::vector<NNMatch> brute_force_nn(CloudPtr cloud1, CloudPtr cloud2,
+inline std::vector<NNMatch> brute_force_nn(PCLCloudXYZIPtr cloud1, PCLCloudXYZIPtr cloud2,
                                            bool parallel = false) {
     std::vector<NNMatch> matches(cloud2->size(), NNMatch{0, 0});
     // We have to use an if-else because the parallelism_policy are different
@@ -103,7 +130,7 @@ enum class NeighborCount {
 
 /**
  * @brief Workflow: add point cloud: hash (x,y,z) into size_t; -> add to
- * std::unordered_map<size_t, std::vector<PointType>>
+ * std::unordered_map<size_t, std::vector<PCLPointXYZI>>
  *
  * @tparam dim
  * @tparam neighbor_count
@@ -129,9 +156,9 @@ requires(dim == 2 || dim == 3) class NearestNeighborGrid {
         _generate_grid();
     }
 
-    void set_pointcloud(CloudPtr cloud);
+    void set_pointcloud(PCLCloudXYZIPtr cloud);
 
-    std::vector<NNMatch> get_closest_point(CloudPtr query);
+    std::vector<NNMatch> get_closest_point(PCLCloudXYZIPtr query);
 
   private:
     struct NNCoordHash {
@@ -149,18 +176,18 @@ requires(dim == 2 || dim == 3) class NearestNeighborGrid {
     // A specific hash function for spatial points.
     // https://matthias-research.github.io/pages/publications/tetraederCollision.pdf
     void _generate_grid();
-    NNCoord _get_coord(const PointType &pt) const;
+    NNCoord _get_coord(const PCLPointXYZI &pt) const;
     /**
      * @brief: Get the closest point to query. If no closest point is found, idx_in_cloud will not be changed.
      */
-    void _get_closest_point(const PointType &pt,
+    void _get_closest_point(const PCLPointXYZI &pt,
                             size_t &idx_in_cloud) const;
 
     float resolution_;
     std::unordered_map<NNCoord, std::vector<size_t>, NNCoordHash>
         grid;   // coord -> index in point cloud storage
     std::vector<NNCoord> _nearby_grids;
-    CloudPtr cloud_;
+    PCLCloudXYZIPtr cloud_;
 };
 
 template <int dim, NeighborCount neighbor_count>
@@ -194,7 +221,7 @@ void NearestNeighborGrid<dim, neighbor_count>::_generate_grid() {
 template <int dim, NeighborCount neighbor_count>
 typename NearestNeighborGrid<dim, neighbor_count>::NNCoord
 NearestNeighborGrid<dim, neighbor_count>::_get_coord(
-    const PointType &pt) const {
+    const PCLPointXYZI &pt) const {
     NNCoord coord;
     if constexpr (dim == 2) {
         coord = NNCoord(pt.x / resolution_, pt.y / resolution_);
@@ -206,7 +233,7 @@ NearestNeighborGrid<dim, neighbor_count>::_get_coord(
 }
 
 template <int dim, NeighborCount neighbor_count>
-void NearestNeighborGrid<dim, neighbor_count>::set_pointcloud(CloudPtr cloud) {
+void NearestNeighborGrid<dim, neighbor_count>::set_pointcloud(PCLCloudXYZIPtr cloud) {
     size_t idx = 0;
     for (auto &pt : cloud->points) {
         auto coord =
@@ -220,12 +247,12 @@ void NearestNeighborGrid<dim, neighbor_count>::set_pointcloud(CloudPtr cloud) {
 
 template <int dim, NeighborCount neighbor_count>
 void NearestNeighborGrid<dim, neighbor_count>::_get_closest_point(
-    const PointType &pt, size_t &idx_in_cloud) const {
+    const PCLPointXYZI &pt, size_t &idx_in_cloud) const {
     auto coord = _get_coord(pt);
     std::vector<size_t> nearby_indices;
     nearby_indices.reserve(nearby_indices.size() * 5);
 
-    CloudPtr nearby_cloud(new PointCloudType);
+    PCLCloudXYZIPtr nearby_cloud(new PCLCloudXYZI);
     for (const auto &delta : _nearby_grids) {
         auto dcoord = coord + delta;
         auto iter   = grid.find(dcoord);
@@ -262,7 +289,7 @@ void NearestNeighborGrid<dim, neighbor_count>::_get_closest_point(
  */
 template <int dim, NeighborCount neighbor_count>
 std::vector<NNMatch>
-NearestNeighborGrid<dim, neighbor_count>::get_closest_point(CloudPtr query) {
+NearestNeighborGrid<dim, neighbor_count>::get_closest_point(PCLCloudXYZIPtr query) {
     std::vector<NNMatch> matches(query->size(), NNMatch{0, 0});
     for (auto idx : std::views::iota(0u, matches.size())) {
         matches[idx].idx_in_this_cloud = idx;

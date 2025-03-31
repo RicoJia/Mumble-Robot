@@ -111,25 +111,25 @@ inline Eigen::Vector4f FitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &clou
 }
 
 // Returning mean and principal component
-inline Eigen::Vector3f fit_line(const pcl::PointCloud<pcl::PointXY>::Ptr &cloud) {
-    // Line: ax + by + c = 0
-    // Construct matrix A (each row: [x, y, 1])
+template <typename CloudPtrType>
+inline Eigen::Vector3f fit_line_2d(const CloudPtrType &cloud) {
+    // Assumes cloud->points[i] has members x and y.
     int num_points = cloud->size();
     Eigen::MatrixXf X(num_points, 3);
     for (int i = 0; i < num_points; ++i) {
         X(i, 0) = cloud->points[i].x;
         X(i, 1) = cloud->points[i].y;
-        X(i, 2) = 1.0;
+        X(i, 2) = 1.0f;
     }
+    // compute_ATA_eigen should return a pair (eigen_values, eigen_vecs)
     auto [eigen_values, eigen_vecs] = compute_ATA_eigen(X);
     int min_coeff;
     eigen_values.minCoeff(&min_coeff);
-    Eigen::Vector3f least_principal_component = eigen_vecs.col(min_coeff);
-    return least_principal_component;
+    return eigen_vecs.col(min_coeff);
 }
 
 // returning mean and principal component
-inline std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
+inline std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line_3d(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     // Step 1: find the mean of all points
     // Step 2: normalize the points with mean, get their eigen values and eigen vectors.
     // Choose the vector with the largest eigen value
@@ -173,6 +173,55 @@ inline float get_bilinear_interpolated_pixel_value(const cv::Mat &img, float y, 
     float yy      = y - floor(y);
     return float((1 - xx) * (1 - yy) * data[0] + xx * (1 - yy) * data[1] + (1 - xx) * yy * data[img.step / sizeof(T)] +
                  xx * yy * data[img.step / sizeof(T) + 1]);
+}
+
+// Cubic interpolation using the Catmull–Rom spline
+inline float cubic_interpolate(float p0, float p1, float p2, float p3, float t) {
+    float a0 = -0.5f * p0 + 1.5f * p1 - 1.5f * p2 + 0.5f * p3;
+    float a1 = p0 - 2.5f * p1 + 2.0f * p2 - 0.5f * p3;
+    float a2 = -0.5f * p0 + 0.5f * p2;
+    float a3 = p1;
+    return ((a0 * t + a1) * t + a2) * t + a3;
+}
+
+template <typename T>
+inline float get_bicubic_interpolated_pixel_value(const cv::Mat &img, float y, float x) {
+    // Clamp coordinates to valid range.
+    if (x < 0)
+        x = 0;
+    if (y < 0)
+        y = 0;
+    if (x >= img.cols)
+        x = img.cols - 1;
+    if (y >= img.rows)
+        y = img.rows - 1;
+
+    // Get integer and fractional parts.
+    int x_int    = static_cast<int>(std::floor(x));
+    int y_int    = static_cast<int>(std::floor(y));
+    float x_frac = x - x_int;
+    float y_frac = y - y_int;
+
+    // Extract a 4x4 neighborhood; indices relative to floor(x) and floor(y) are: -1, 0, 1, 2.
+    float patch[4][4];
+    for (int m = -1; m <= 2; ++m) {
+        // Clamp y index.
+        int y_index = std::min(std::max(y_int + m, 0), img.rows - 1);
+        for (int n = -1; n <= 2; ++n) {
+            // Clamp x index.
+            int x_index         = std::min(std::max(x_int + n, 0), img.cols - 1);
+            patch[m + 1][n + 1] = static_cast<float>(img.at<T>(y_index, x_index));
+        }
+    }
+
+    // Interpolate in x-direction for each of the 4 rows.
+    float col[4];
+    for (int m = 0; m < 4; ++m) {
+        col[m] = cubic_interpolate(patch[m][0], patch[m][1], patch[m][2], patch[m][3], x_frac);
+    }
+
+    // Interpolate in y-direction using the x-interpolated values.
+    return cubic_interpolate(col[0], col[1], col[2], col[3], y_frac);
 }
 
 //////////////////////////////////////////////////////////////////////////////

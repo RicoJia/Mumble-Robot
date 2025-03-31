@@ -35,7 +35,8 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
             pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
             LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
             pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
-            _error[0] = math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0]);
+            // _error[0] = math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0]);
+            _error[0] = math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0]);
             // vec2i pose_map_int = pose_map.cast<float>();
             // _error[0] = grid_.at<float>(pose_map_int[1], pose_map_int[0]);   // to cast
         } else {
@@ -66,7 +67,7 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         SE2 pose         = v->estimate();
         float theta      = pose.so2().log();
         Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2d pose_map = pose_world * resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_) - Vec2d(0.5, 0.5);
+        Vec2d pose_map   = pose_world * resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_) - Vec2d(0.5, 0.5);
         if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
             pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
             LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
@@ -76,6 +77,9 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
             float dx = 0.5 * (math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] + 1) - math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] - 1));
             float dy = 0.5 * (math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1] + 1, pose_map[0]) -
                               math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1] - 1, pose_map[0]));
+            // float dx = 0.5 * (math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] + 1) - math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] - 1));
+            // float dy = 0.5 * (math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1] + 1, pose_map[0]) -
+            //                   math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1] - 1, pose_map[0]));
             _jacobianOplusXi << resolution_ * dx, resolution_ * dy,
                 -resolution_ * dx * range_ * std::sin(angle_ + theta) +
                     resolution_ * dy * range_ * std::cos(angle_ + theta);

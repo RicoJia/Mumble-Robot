@@ -26,8 +26,8 @@ void evaluate_matches(
     const std::vector<halo::NNMatch> &test_matches,
     const std::vector<halo::NNMatch> &ground_truth_matches,
     size_t k,
-    halo::CloudPtr first,
-    halo::CloudPtr second,
+    halo::PCLCloudXYZIPtr first,
+    halo::PCLCloudXYZIPtr second,
     const bool &debug_print = true) {
     if (test_matches.empty() || ground_truth_matches.empty()) {
         std::cerr << "Empty match vectors!" << std::endl;
@@ -116,16 +116,16 @@ void evaluate_matches(
     resolution = 2.0m, 30ms (NEARBY 18), recall: 99.0%, precision: 99.4%
  */
 TEST(TestKNN, test_grid_method) {
-    halo::CloudPtr first;
-    halo::CloudPtr second;
-    halo::CloudPtr cloud{new halo::PointCloudType};
+    halo::PCLCloudXYZIPtr first;
+    halo::PCLCloudXYZIPtr second;
+    halo::PCLCloudXYZIPtr cloud{new halo::PCLCloudXYZI};
 
-    first.reset(new halo::PointCloudType);
-    second.reset(new halo::PointCloudType);
+    first.reset(new halo::PCLCloudXYZI);
+    second.reset(new halo::PCLCloudXYZI);
     pcl::io::loadPCDFile(first_scan_path, *first);
     pcl::io::loadPCDFile(second_scan_path, *second);
 
-    halo::CloudPtr test_cloud = second;
+    halo::PCLCloudXYZIPtr test_cloud = second;
     std::vector<halo::NNMatch> ground_truth_matches =
         halo::brute_force_nn(first, test_cloud, true);
     std::vector<halo::NNMatch> matches;
@@ -148,18 +148,18 @@ TEST(TestKNN, test_grid_method) {
     - PCL: 0.18ms, k=5
  */
 TEST(TestKNN, test_kd_tree) {
-    halo::CloudPtr first;
-    halo::CloudPtr second;
-    halo::CloudPtr cloud{new halo::PointCloudType};
+    halo::PCLCloudXYZIPtr first;
+    halo::PCLCloudXYZIPtr second;
+    halo::PCLCloudXYZIPtr cloud{new halo::PCLCloudXYZI};
 
-    first.reset(new halo::PointCloudType);
-    second.reset(new halo::PointCloudType);
+    first.reset(new halo::PCLCloudXYZI);
+    second.reset(new halo::PCLCloudXYZI);
     pcl::io::loadPCDFile(first_scan_path, *first);
     pcl::io::loadPCDFile(second_scan_path, *second);
     // halo::downsample_point_cloud(first, 0.05f);
     // halo::downsample_point_cloud(second, 0.05f);
 
-    halo::CloudPtr test_cloud = second;
+    halo::PCLCloudXYZIPtr test_cloud = second;
     std::vector<halo::NNMatch> ground_truth_matches =
         halo::brute_force_nn(first, test_cloud, true);
 
@@ -189,7 +189,7 @@ TEST(TestKNN, test_kd_tree) {
     {
         std::cout << "=====================Case 3: k = 5, PCL=====================" << std::endl;
         std::vector<std::vector<int>> result_index;
-        pcl::search::KdTree<halo::PointType> kdtree_pcl;
+        pcl::search::KdTree<halo::PCLPointXYZI> kdtree_pcl;
 
         // 对比PCL: 0.18s
         halo::RAIITimer timer;
@@ -282,18 +282,18 @@ TEST(OctoTreeNodeTest, BoundingBox3D) {
  * - 20ms, pcl
  */
 TEST(TestKNN, test_octo_tree) {
-    halo::CloudPtr first;
-    halo::CloudPtr second;
-    halo::CloudPtr cloud{new halo::PointCloudType};
+    halo::PCLCloudXYZIPtr first;
+    halo::PCLCloudXYZIPtr second;
+    halo::PCLCloudXYZIPtr cloud{new halo::PCLCloudXYZI};
 
-    first.reset(new halo::PointCloudType);
-    second.reset(new halo::PointCloudType);
+    first.reset(new halo::PCLCloudXYZI);
+    second.reset(new halo::PCLCloudXYZI);
     pcl::io::loadPCDFile(first_scan_path, *first);
     pcl::io::loadPCDFile(second_scan_path, *second);
     // halo::downsample_point_cloud(first, 0.05f);
     // halo::downsample_point_cloud(second, 0.05f);
 
-    halo::CloudPtr test_cloud = second;
+    halo::PCLCloudXYZIPtr test_cloud = second;
     std::vector<halo::NNMatch> matches;
     std::vector<halo::NNMatch> ground_truth_matches =
         halo::brute_force_nn(first, test_cloud, true);
@@ -332,7 +332,7 @@ TEST(TestKNN, test_octo_tree) {
     {
         std::cout << "=====================Octo Tree Case 3: k = 5, PCL=====================" << std::endl;
         std::vector<std::vector<int>> result_index;
-        pcl::search::KdTree<halo::PointType> kdtree_pcl;
+        pcl::search::KdTree<halo::PCLPointXYZI> kdtree_pcl;
 
         // 对比PCL: 0.18s
         halo::RAIITimer timer;
@@ -361,14 +361,14 @@ TEST(TestKNN, test_octo_tree) {
  */
 TEST(TestKNN, test_nanoflann_kdtree) {
     // Load point clouds from files.
-    halo::CloudPtr first(new halo::PointCloudType);
-    halo::CloudPtr second(new halo::PointCloudType);
+    halo::PCLCloudXYZIPtr first(new halo::PCLCloudXYZI);
+    halo::PCLCloudXYZIPtr second(new halo::PCLCloudXYZI);
 
     pcl::io::loadPCDFile(first_scan_path, *first);
     pcl::io::loadPCDFile(second_scan_path, *second);
 
     // Use the second cloud as the query set.
-    halo::CloudPtr test_cloud = second;
+    halo::PCLCloudXYZIPtr test_cloud = second;
     std::vector<halo::NNMatch> matches;
     std::vector<halo::NNMatch> ground_truth_matches =
         halo::brute_force_nn(first, test_cloud, true);
@@ -377,9 +377,9 @@ TEST(TestKNN, test_nanoflann_kdtree) {
     {
         std::cout << "=====================NanoFlann Case0: k = 1 for Nanoflann KD Tree=====================" << std::endl;
         halo::RAIITimer timer;
-        halo::NanoflannPointCloudAdaptor<halo::PointType> adaptor(*first);
-        halo::NanoFlannKDTree<halo::PointType, 3> nano_tree(adaptor,
-                                                            nanoflann::KDTreeSingleIndexAdaptorParams(10));
+        halo::NanoflannPointCloudAdaptor<halo::PCLPointXYZI> adaptor(*first);
+        halo::NanoFlannKDTree<halo::PCLPointXYZI, 3> nano_tree(adaptor,
+                                                               nanoflann::KDTreeSingleIndexAdaptorParams(10));
         size_t k = 1;
         nano_tree.search_tree_multi_threaded(test_cloud, matches, k);
         EXPECT_EQ(matches.size(), second->points.size() * k);

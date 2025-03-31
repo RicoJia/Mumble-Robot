@@ -18,6 +18,7 @@ find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(g2o REQUIRED)
 find_package(fmt REQUIRED)
+find_package(gflags REQUIRED)
 
 # Ensure we have a release type
 if(NOT CMAKE_BUILD_TYPE)
@@ -87,6 +88,12 @@ if(BUILD_HALO_TESTS)
   target_link_libraries(test_2dslam halo GTest::GTest GTest::Main pthread
                         ${G2O_LIBS})
   add_test(NAME test_2dslam COMMAND test_2dslam)
+
+  add_executable(test_degradation_detection tests/test_2d_slam_degredation.cpp)
+  target_link_libraries(test_degradation_detection halo GTest::GTest
+                        GTest::Main pthread ${G2O_LIBS})
+  add_test(NAME test_degradation_detection COMMAND test_degradation_detection)
+
 endif()
 
 ament_package()

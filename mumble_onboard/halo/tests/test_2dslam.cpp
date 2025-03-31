@@ -30,62 +30,62 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //     ros2_bag_io.spin();
 // }
 
-TEST(Test2DSLAM, TestICPMethods) {
-    halo::ROS2BagIo ros2_bag_io("bags/straight");
-    std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
-    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
-        "/scan",
-        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-            if (last_scan_ptr == nullptr) {
-                last_scan_ptr = current_scan_ptr;
-                return;
-            }
-            halo::SE2 relative_pose{};
-            bool success                 = false;
-            [[maybe_unused]] double cost = -1;
-            // {
-            //     // source, target
-            //     halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
-            //     halo::RAIITimer timer;
-            //     success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
-            //     // success = icp_2d.mt_pl_gauss_newton(relative_pose);
-            // }
-            {
-                halo::ICP2DG2O icp_2d_g2o(current_scan_ptr, last_scan_ptr);
-                halo::RAIITimer timer;
-                // success = icp_2d_g2o.point_point_icp_g2o(relative_pose, cost);
-                success = icp_2d_g2o.point_line_icp_g2o(relative_pose, cost);
-            }
-            // {
-            //     halo::RAIITimer timer;
-            //     halo::LikelihoodField2D likelihood_field2d;
-            //     likelihood_field2d.set_target_scan(last_scan_ptr);
-            //     likelihood_field2d.set_source_scan(current_scan_ptr);
-            //     // success = likelihood_field2d.align_gauss_newton(relative_pose, cost);   //4ms per message
-            //     success = likelihood_field2d.mt_likelihood_match(relative_pose);   // 40ms per message
-            // }
-            cv::Mat output_img;
-            if (!success) {
-                // TODO
-                std::cout << "icp did not succeed because it doesn't have valid point matches" << std::endl;
-                return;
-            }
+// TEST(Test2DSLAM, TestICPMethods) {
+//     halo::ROS2BagIo ros2_bag_io("bags/straight");
+//     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
+//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+//         "/scan",
+//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+//             if (last_scan_ptr == nullptr) {
+//                 last_scan_ptr = current_scan_ptr;
+//                 return;
+//             }
+//             halo::SE2 relative_pose{};
+//             bool success                 = false;
+//             [[maybe_unused]] double cost = -1;
+//             // {
+//             //     // source, target
+//             //     halo::ICP2D icp_2d(current_scan_ptr, last_scan_ptr);
+//             //     halo::RAIITimer timer;
+//             //     success = icp_2d.align_pl_gauss_newton(relative_pose, cost);
+//             //     // success = icp_2d.mt_pl_gauss_newton(relative_pose);
+//             // }
+//             // {
+//             //     halo::ICP2DG2O icp_2d_g2o(current_scan_ptr, last_scan_ptr);
+//             //     halo::RAIITimer timer;
+//             //     // success = icp_2d_g2o.point_point_icp_g2o(relative_pose, cost);
+//             //     success = icp_2d_g2o.point_line_icp_g2o(relative_pose, cost);
+//             // }
+//             {
+//                 halo::RAIITimer timer;
+//                 halo::LikelihoodField2D likelihood_field2d;
+//                 likelihood_field2d.set_target_scan(last_scan_ptr);
+//                 likelihood_field2d.set_source_scan(current_scan_ptr);
+//                 // success = likelihood_field2d.align_gauss_newton(relative_pose, cost);   //4ms per message
+//                 success = likelihood_field2d.mt_likelihood_match(relative_pose);   // 40ms per message
+//             }
+//             cv::Mat output_img;
+//             if (!success) {
+//                 // TODO
+//                 std::cout << "icp did not succeed because it doesn't have valid point matches" << std::endl;
+//                 return;
+//             }
 
-            halo::visualize_2d_scan(
-                last_scan_ptr, output_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(255, 0, 0));
-            halo::visualize_2d_scan(
-                current_scan_ptr, output_img, halo::SE2(), relative_pose, 0.05, 1000, halo::Vec3b(0, 255, 0));
-            halo::visualize_2d_scan(
-                current_scan_ptr, output_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(0, 255, 255));
-            cv::imshow("2D Laser Scan", output_img);
-            cv::waitKey(0);
-            // TODO
-            if (update_last_scan) {
-                last_scan_ptr = current_scan_ptr;
-            }
-        });
-    ros2_bag_io.spin();
-}
+//             halo::visualize_2d_scan(
+//                 last_scan_ptr, output_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(255, 0, 0));
+//             halo::visualize_2d_scan(
+//                 current_scan_ptr, output_img, halo::SE2(), relative_pose, 0.05, 1000, halo::Vec3b(0, 255, 0));
+//             halo::visualize_2d_scan(
+//                 current_scan_ptr, output_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(0, 255, 255));
+//             cv::imshow("2D Laser Scan", output_img);
+//             cv::waitKey(0);
+//             // TODO
+//             if (update_last_scan) {
+//                 last_scan_ptr = current_scan_ptr;
+//             }
+//         });
+//     ros2_bag_io.spin();
+// }
 
 // TEST(Test2DSLAM, TestOccupancyMap) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
@@ -180,7 +180,13 @@ TEST(Test2DSLAM, TestICPMethods) {
 //     // halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
 //     halo::OccupancyMap2D omap(false);
-//     halo::MultiResolutionLikelihoodField mr_likelihood_field;
+//     float inlier_ratio_th       = 0.35;
+//     float rk_delta              = 0.4;
+//     int optimization_iterations = 10;
+//     halo::MultiResolutionLikelihoodField mr_likelihood_field{
+//         {20.0},
+//         inlier_ratio_th, rk_delta, optimization_iterations
+//     };
 //     size_t scan_id = 0;
 //     halo::SE2 relative_pose{};   // so it can be used to initialize next frame
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
@@ -207,10 +213,14 @@ TEST(Test2DSLAM, TestICPMethods) {
 //             last_scan_ptr = current_scan_ptr;
 
 //             auto output_img = omap.get_grid_for_viz();
+//             halo::visualize_2d_scan(
+//                 current_scan_ptr, output_img, halo::SE2(), relative_pose, 0.05, 1000, halo::Vec3b(0, 255, 255));
 //             cv::imshow("Submap", output_img);
 //             std::vector<cv::Mat> likelihood_images = mr_likelihood_field.get_field_images();
 //             for (int i = 0; i < likelihood_images.size(); ++i) {
-//                 const auto &image = likelihood_images.at(i);
+//                 auto image = likelihood_images.at(i);
+//                 halo::visualize_2d_scan(
+//                     current_scan_ptr, image, halo::SE2(), relative_pose, 0.05, 1000, halo::Vec3b(0, 255, 255));
 //                 cv::imshow("likelihood map " + std::to_string(i), image);
 //             }
 //             cv::waitKey(200);
@@ -219,20 +229,20 @@ TEST(Test2DSLAM, TestICPMethods) {
 //     halo::close_cv_window_on_esc();
 // }
 
-// TEST(Test2DSLAM, TestMapping) {
-//     halo::ROS2BagIo ros2_bag_io(bag_path);
-//     halo::Mapping2DLaser mapper_2d(yaml_path);
-//     int i = 0;
-//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
-//         "/scan",
-//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-//             // TODO
-//             std::cout << "===================" << i++ << std::endl;
-//             mapper_2d.process_scan(current_scan_ptr);
-//         });
-//     ros2_bag_io.spin();
-//     mapper_2d.visualize_global_map();
-// }
+TEST(Test2DSLAM, TestMapping) {
+    halo::ROS2BagIo ros2_bag_io(bag_path);
+    halo::Mapping2DLaser mapper_2d(yaml_path);
+    int i = 0;
+    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+        "/scan",
+        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+            // TODO
+            std::cout << "===================" << i++ << std::endl;
+            mapper_2d.process_scan(current_scan_ptr);
+        });
+    ros2_bag_io.spin();
+    mapper_2d.visualize_global_map();
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

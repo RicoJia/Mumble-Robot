@@ -28,7 +28,7 @@ class EdgeICP2D_PT2Line : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
         double range = source_scan_objs_ptr_->at(point_idx_).range;
         double angle = source_scan_objs_ptr_->at(point_idx_).angle;
 
-        Vec2d pw         = Vec2d(range * std::cos(angle), range * std::sin(angle));
+        Vec2d pw         = pose->estimate() * Vec2d(range * std::cos(angle), range * std::sin(angle));
         auto line_coeffs = point_line_data_vec_ptr_->at(point_idx_).params_;
         _error[0]        = line_coeffs[0] * pw[0] + line_coeffs[1] * pw[1] + line_coeffs[2];
     }
@@ -37,8 +37,6 @@ class EdgeICP2D_PT2Line : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
     void linearizeOplus() override {
         VertexSE2 *v = (VertexSE2 *)_vertices[0];
         SE2 pose     = v->estimate();
-        // TODO
-        // std::cout << "pose: " << pose << ", err: " << _error << std::endl;
         float pose_angle = pose.so2().log();
         double r         = source_scan_objs_ptr_->at(point_idx_).range;
         double angle     = source_scan_objs_ptr_->at(point_idx_).angle;
