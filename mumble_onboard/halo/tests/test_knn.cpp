@@ -138,7 +138,6 @@ TEST(TestKNN, test_grid_method) {
         matches = nn_grid.get_closest_point(test_cloud);
     }
     evaluate_matches(matches, ground_truth_matches, 1, first, second, false);
-    // reset matches TODO
 }
 
 /**
@@ -373,7 +372,6 @@ TEST(TestKNN, test_nanoflann_kdtree) {
     std::vector<halo::NNMatch> ground_truth_matches =
         halo::brute_force_nn(first, test_cloud, true);
 
-    // TODO
     {
         std::cout << "=====================NanoFlann Case0: k = 1 for Nanoflann KD Tree=====================" << std::endl;
         halo::RAIITimer timer;

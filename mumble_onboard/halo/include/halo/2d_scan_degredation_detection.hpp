@@ -90,7 +90,6 @@ bool detect_2d_degradation(std::shared_ptr<sensor_msgs::msg::LaserScan> current_
             }
         }
     }
-    // TODO
     std::cout << "same_dir_count" << same_dir_count << std::endl;
 
     float line_combo_num = (clusterNumber * (clusterNumber - 1)) / 2;

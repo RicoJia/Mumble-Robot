@@ -19,8 +19,6 @@ struct Submap2DParams {
 };
 
 class Submap2D {
-    static constexpr bool GEN_TEMPLATE_IN_OCCUPANCY_MAP = false;
-
   public:
     /************************************************************************* */
     // Initialization
@@ -28,7 +26,7 @@ class Submap2D {
 
     Submap2D(const SE2 &pose, const Submap2DParams &p) : mr_likelihood_field_(SCAN_MATCHING_MR_RESOLUTIONS, p.mr_likelihood_field_inlier_thre,
                                                                               p.mr_rk_delta, p.mr_optimization_iterations),
-                                                         occupancy_map_(GEN_TEMPLATE_IN_OCCUPANCY_MAP) {
+                                                         occupancy_map_() {
         set_pose(pose);
     }
 
@@ -55,7 +53,7 @@ class Submap2D {
         for (; i < frames_in_other.size(); ++i) {
             occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *(frames_in_other.at(i)));
         }
-        mr_likelihood_field_.set_field_from_occ_map(occupancy_map_.get_grid_reference());
+        mr_likelihood_field_.set_field_from_occ_map(&occupancy_map_);
     }
 
     /************************************************************************* */
@@ -68,12 +66,12 @@ class Submap2D {
      * 2. Update the frame to the new world pose
      *  - No updates on internal variables
      */
-    // TODO
     bool match_scan(Lidar2DFramePtr frame) {
         mr_likelihood_field_.set_source_scan(frame->scan_);
         bool success = mr_likelihood_field_.can_align_g2o(frame->pose_submap_);
         if (success) {
             frame->pose_ = T_ws_ * frame->pose_submap_;
+            std::cout << "Robot world pose" << frame->pose_ << std::endl;
         }
         return success;
     }
@@ -84,8 +82,8 @@ class Submap2D {
      *  2. add scan to occupancy map.
      */
     void add_scan_in_occupancy_map(Lidar2DFramePtr frame) {
-        occupancy_map_.add_frame(OccupancyMapMethod::BRESENHAM, *frame);
-        mr_likelihood_field_.set_field_from_occ_map(occupancy_map_.get_grid_reference());
+        occupancy_map_.add_frame(OccupancyMapMethod::TEMPLATE, *frame);
+        mr_likelihood_field_.set_field_from_occ_map(&occupancy_map_);
     }
 
     /**
@@ -117,9 +115,15 @@ class Submap2D {
         halo::visualize_2d_scan(
             frame->scan_, mr_likehood_img, halo::SE2(), frame->pose_submap_, 1.0 / resolution, 1000, halo::Vec3b(255, 0, 0));
         cv::imshow("scan on last mr field", mr_likehood_img);
+
         cv::Mat occ_grid_img = get_occ_map()->get_grid_for_viz();
+        float occ_map_res    = get_occ_map()->get_resolution();
+        int half_map_size_2d = get_occ_map()->get_half_map_size_2d();
         halo::visualize_2d_scan(frame->scan_, occ_grid_img, halo::SE2(), frame->pose_submap_,
-                                1.0 / resolution, 1000, halo::Vec3b(255, 0, 0));
+                                1.0 / occ_map_res, half_map_size_2d * 2, halo::Vec3b(255, 255, 0));
+        // // unadjusted map
+        // halo::visualize_2d_scan(frame->scan_, occ_grid_img, halo::SE2(), halo::SE2(),
+        //                         1.0 / occ_map_res, half_map_size_2d * 2, halo::Vec3b(0, 255, 255));
         cv::imshow("occ_grid_img: " + std::to_string(id_), occ_grid_img);
         halo::close_cv_window_on_esc();
     }
@@ -138,8 +142,6 @@ class Submap2D {
     }
 
   private:
-    // TODO
-    LikelihoodField2D likelihood_field_;
     MultiResolutionLikelihoodField mr_likelihood_field_;
     OccupancyMap2D occupancy_map_;
     SE2 T_ws_;   // T world->submap

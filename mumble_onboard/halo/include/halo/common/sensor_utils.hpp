@@ -1,6 +1,7 @@
 #pragma once
 #include <ranges>
 #include <halo/common/sensor_data_definitions.hpp>
+#include <halo/common/math_utils.hpp>
 #include <execution>
 #include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
@@ -26,10 +27,10 @@ inline std::vector<ScanObj> get_valid_scan_obj(LaserScanMsg::SharedPtr scan) {
  * @brief: Convert range and angle from a robot pose to map frame point
  */
 inline Vec2d scan_point_to_map_frame(
-    const double &range, const double &angle, const SE2 &robot_pose) {
+    const double &range, const double &angle, const SE2 &T_map_robot) {
     double x = range * std::cos(angle);
     double y = range * std::sin(angle);
-    return robot_pose * Vec2d(x, y);
+    return T_map_robot * Vec2d(x, y);
 }
 
 /**
@@ -91,8 +92,8 @@ PCLCloud3DPtr laser_scan_2_PointXYZ(std::shared_ptr<sensor_msgs::msg::LaserScan>
  * @brief: Visualization!
  */
 inline void visualize_2d_scan(
-    LaserScanMsg::SharedPtr scan, cv::Mat &image, const SE2 &submap_frame,
-    const SE2 &robot_pose, double resolution, int image_size, const Vec3b &color) {
+    LaserScanMsg::SharedPtr scan, cv::Mat &image, const SE2 &T_world_map,
+    const SE2 &T_map_robot, double resolution, int image_size, const Vec3b &color) {
     if (image.data == nullptr)
         image = cv::Mat::zeros(image_size, image_size, CV_8UC3);
     else {
@@ -102,32 +103,35 @@ inline void visualize_2d_scan(
     auto point_pose_2_image_coord = [&](const Vec2d &point_pose)
         -> cv::Point {
         int image_x = static_cast<int>(point_pose[0] / resolution + image_size / 2);
-        // TODO: technically, we want to negate this. But this is to be consistent with the production image coord.
+        // Technically, we want to negate this. But this is to be consistent with the production image coord.
         int image_y = static_cast<int>(point_pose[1] / resolution + image_size / 2);
         return cv::Point(image_x, image_y);
     };
     int i = 0;
     for (double angle = scan->angle_min; angle < scan->angle_max;
          angle += scan->angle_increment, ++i) {
-        Vec2d point_pose = scan_point_to_map_frame(scan->ranges[i], angle, submap_frame.inverse() * robot_pose);
+        Vec2d point_pose = scan_point_to_map_frame(scan->ranges[i], angle, T_world_map.inverse() * T_map_robot);
         // point pose to image coord
         cv::Point p = point_pose_2_image_coord(point_pose);
         if (0 <= p.x && p.x < image_size && 0 <= p.y && p.y < image_size) {
-            cv::circle(image, p, 2, cv::Scalar(color[0], color[1], color[2]), cv::FILLED);
+            cv::circle(image, p, 1, cv::Scalar(color[0], color[1], color[2]), cv::FILLED);
         }
     }
-    cv::circle(image, cv::Point(image_size / 2, image_size / 2), 2, cv::Scalar(0, 0, 255), cv::FILLED);
+    cv::Point map_robot_point = point_pose_2_image_coord(
+        (T_world_map.inverse() * T_map_robot).translation());
+    cv::circle(image, map_robot_point, 2, cv::Scalar(0, 0, 255), cv::FILLED);
 }
 
 /**
  * @brief: Convert from pose to image coord
  */
-Vec2i pose_2_img_coord(const Vec2d &world_pose, const Vec2i &image_center, double inv_res) {
-    return (world_pose * inv_res).cast<int>() + image_center;
+Vec2i pose_2_img_coord(const Vec2d &world_pose, const Vec2i &image_center, double res) {
+    return (world_pose * res).cast<int>() + image_center;
 }
 
 /**
  * @brief: from a discrete ROS2 scan message, find the interpolated range value in between angles
+ * @param angle: the angle should be in [-pi, pi)
  */
 float interpolate_range(double angle, const LaserScanMsg::SharedPtr &scan) {
     if (angle < scan->angle_min || angle > scan->angle_max)

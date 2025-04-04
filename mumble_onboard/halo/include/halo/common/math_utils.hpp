@@ -79,7 +79,6 @@ inline Eigen::Vector4f fit_plane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &clo
     auto [eigen_values, eigen_vecs] = compute_ATA_eigen(X);
     int min_coeff;
     eigen_values.minCoeff(&min_coeff);
-    // TODO: check Vec4f
     Eigen::Vector4f least_principal_component = eigen_vecs.col(min_coeff);
     return least_principal_component;
 }
@@ -240,9 +239,17 @@ inline double get_l2_distance(const EigenVectorType &p1,
     return std::sqrt((p1 - query).squaredNorm());
 }
 
-inline double wrap_to_2pi(double angle) {
-    angle = std::fmod(angle, TWO_PI);
-    return (angle < 0) ? angle + TWO_PI : angle;
+/**
+ * @brief: make angle [-pi, pi)
+ */
+inline double wrap_to_pi(double angle) {
+    while (angle < -M_PI) {
+        angle = angle + 2 * M_PI;
+    }
+    while (angle > M_PI) {
+        angle = angle - 2 * M_PI;
+    }
+    return angle;
 }
 
 }   // namespace math

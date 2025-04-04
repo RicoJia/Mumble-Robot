@@ -16,6 +16,10 @@ bool update_last_scan = false;                                         // Defaul
 std::string bag_path  = "bags/no_loop_room";                           // Global variable to store the bag path
 std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global variable to store the bag path
 
+////////////////////////////////////////////////////////////////////////////
+// Visualization
+////////////////////////////////////////////////////////////////////////////
+
 // TEST(Test2DSLAM, TestVisualization) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
@@ -29,6 +33,27 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //         });
 //     ros2_bag_io.spin();
 // }
+
+// TEST(Test2DSLAM, TestTxtLaserVisualization) {
+//     halo::TextIO text_io("bags/ros1_scan_data.txt");
+//     text_io.register_callback(
+//         "LIDAR",
+//         [&](std::stringstream &ss) {
+//             auto scan_msg = halo::TextIO::convert_lidar_2_scan_ptr(ss);
+//             std::shared_ptr<sensor_msgs::msg::LaserScan> current_scan_ptr =
+//                 std::make_shared<sensor_msgs::msg::LaserScan>(scan_msg);
+//             cv::Mat output_img;
+//             halo::visualize_2d_scan(
+//                 current_scan_ptr, output_img, halo::SE2(), halo::SE2(), 0.05, 1000, halo::Vec3b(255, 0, 0));
+//             cv::imshow("2D Laser Scan", output_img);
+//             cv::waitKey(100);
+//         });
+//     text_io.spin();
+// }
+
+////////////////////////////////////////////////////////////////////////////
+// ICP Tests
+////////////////////////////////////////////////////////////////////////////
 
 // TEST(Test2DSLAM, TestICPMethods) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
@@ -87,10 +112,14 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //     ros2_bag_io.spin();
 // }
 
+////////////////////////////////////////////////////////////////////////////
+// Occupancy Map and Submap Tests
+////////////////////////////////////////////////////////////////////////////
+
 // TEST(Test2DSLAM, TestOccupancyMap) {
 //     halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
-//     halo::OccupancyMap2D omap(true);
+//     halo::OccupancyMap2D omap();
 //     size_t scan_id = 0;
 //     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
 //         "/scan",
@@ -179,7 +208,7 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //     halo::ROS2BagIo ros2_bag_io(bag_path);
 //     // halo::ROS2BagIo ros2_bag_io("bags/straight");
 //     std::shared_ptr<sensor_msgs::msg::LaserScan> last_scan_ptr = nullptr;
-//     halo::OccupancyMap2D omap(false);
+//     halo::OccupancyMap2D omap();
 //     float inlier_ratio_th       = 0.35;
 //     float rk_delta              = 0.4;
 //     int optimization_iterations = 10;
@@ -201,7 +230,7 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //             }
 //             {
 //                 halo::RAIITimer timer;
-//                 mr_likelihood_field.set_field_from_occ_map(omap.get_grid_reference());
+//                 mr_likelihood_field.set_field_from_occ_map(&omap);
 //                 mr_likelihood_field.set_source_scan(current_scan_ptr);
 //                 bool success = mr_likelihood_field.can_align_g2o(relative_pose);
 //                 if (success) {
@@ -229,20 +258,46 @@ std::string yaml_path = "src/mumble_onboard/configs/test_halo.yaml";   // Global
 //     halo::close_cv_window_on_esc();
 // }
 
-TEST(Test2DSLAM, TestMapping) {
-    halo::ROS2BagIo ros2_bag_io(bag_path);
+////////////////////////////////////////////////////////////////////////////
+// Mapping
+////////////////////////////////////////////////////////////////////////////
+
+TEST(Test2DSLAM, TestMappingClean) {
+    halo::TextIO text_io("bags/ros1_scan_data.txt");
     halo::Mapping2DLaser mapper_2d(yaml_path);
-    int i = 0;
-    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
-        "/scan",
-        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-            // TODO
-            std::cout << "===================" << i++ << std::endl;
+    int i = -1;
+    text_io.register_callback(
+        "LIDAR",
+        [&](std::stringstream &ss) {
+            // TODO: test code
+            i++;
+            if (0 < i && i < 550) {
+                return;
+            }
+            auto scan_msg = halo::TextIO::convert_lidar_2_scan_ptr(ss);
+            std::shared_ptr<sensor_msgs::msg::LaserScan> current_scan_ptr =
+                std::make_shared<sensor_msgs::msg::LaserScan>(scan_msg);
+            std::cout << "===================" << i << std::endl;
             mapper_2d.process_scan(current_scan_ptr);
+            // mapper_2d.visualize_global_map();
         });
-    ros2_bag_io.spin();
-    mapper_2d.visualize_global_map();
+    text_io.spin();
 }
+
+// TEST(Test2DSLAM, TestMapping) {
+//     halo::ROS2BagIo ros2_bag_io(bag_path);
+//     halo::Mapping2DLaser mapper_2d(yaml_path);
+//     int i = 0;
+//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+//         "/scan",
+//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+//             // TODO
+//             std::cout << "===================" << i++ << std::endl;
+//             mapper_2d.process_scan(current_scan_ptr);
+//         });
+//     ros2_bag_io.spin();
+//     mapper_2d.visualize_global_map();
+// }
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

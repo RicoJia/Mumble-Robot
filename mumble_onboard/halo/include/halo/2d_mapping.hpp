@@ -16,13 +16,13 @@ class Mapping2DLaser {
             submap_params_.mr_optimization_iterations      = load_param<int>(yaml_path, "mr_optimization_iterations");
             submap_params_.print();
 
-            keyframe_angular_dist_thre_        = load_param<float>(yaml_path, "keyframe_angular_dist_thre");
-            keyframe_linear_dist_thre_squared_ = load_param<float>(yaml_path, "keyframe_linear_dist_thre_squared");
-            frame_2_submap_dist_thre_squared_  = load_param<float>(yaml_path, "frame_2_submap_dist_thre_squared");
-            keyframe_num_in_submap_            = load_param<float>(yaml_path, "keyframe_num_in_submap");
-            visualize_submap_                  = load_param<bool>(yaml_path, "visualize_submap");
-            submap_gap_                        = load_param<size_t>(yaml_path, "submap_gap");
-            loop_rk_delta_                     = load_param<float>(yaml_path, "loop_rk_delta");
+            keyframe_angular_dist_thre_       = load_param<float>(yaml_path, "keyframe_angular_dist_thre");
+            keyframe_linear_dist_thre_        = load_param<float>(yaml_path, "keyframe_linear_dist_thre");
+            frame_2_submap_dist_thre_squared_ = load_param<float>(yaml_path, "frame_2_submap_dist_thre_squared");
+            keyframe_num_in_submap_           = load_param<float>(yaml_path, "keyframe_num_in_submap");
+            visualize_submap_                 = load_param<bool>(yaml_path, "visualize_submap");
+            submap_gap_                       = load_param<size_t>(yaml_path, "submap_gap");
+            loop_rk_delta_                    = load_param<float>(yaml_path, "loop_rk_delta");
 
             std::cout << "===============================loop detection params===============================" << std::endl;
             loop_detection_params_.mr_likelihood_field_inlier_thre = load_param<float>(yaml_path,
@@ -96,6 +96,7 @@ class Mapping2DLaser {
 
         // At the end, update motion_guess
         if (last_frame_ != nullptr) {
+            // Ts'w Tws
             motion_guess_ = last_frame_->pose_.inverse() * frame->pose_;
         }
         last_frame_ = frame;
@@ -171,11 +172,9 @@ class Mapping2DLaser {
         }
 
         // For each point in the output map, query a submap
-        // The first submap will get to finally write to the output map TODO: better way to do this?
         std::for_each(std::execution::par_unseq, render_data.begin(), render_data.end(), [&](const Vec2i &xy) {
             int x = xy[0], y = xy[1];
-            Vec2f pw = (Vec2f(x, y) - center_image) / global_map_resolution + global_center;   // 世界坐标
-            // TODO: test code
+            Vec2f pw               = (Vec2f(x, y) - center_image) / global_map_resolution + global_center;   // 世界坐标
             int probablistic_value = UNKNOWN_CELL_VALUE;
 
             for (auto &m : submaps_) {
@@ -186,7 +185,6 @@ class Mapping2DLaser {
                     continue;
                 }
                 uchar value = m->get_occ_map()->get_grid_reference().at<uchar>(pt[1], pt[0]);
-                // TODO TEST CODE
                 if (value > UNKNOWN_CELL_VALUE && probablistic_value < OCCUPANCYMAP2D_FREE_THRE) {
                     probablistic_value += (value - UNKNOWN_CELL_VALUE);
                     probablistic_value = std::max(int(OCCUPANCYMAP2D_FREE_THRE), probablistic_value);
@@ -194,6 +192,7 @@ class Mapping2DLaser {
                     probablistic_value += (value - UNKNOWN_CELL_VALUE);
                     probablistic_value = std::min(int(OCCUPANCYMAP2D_OCCUPY_THRE), probablistic_value);
                 }
+                // // The first submap will get to finally write to the output map
                 // // Showing pixels of the current submap slightly differently
                 // if (value > UNKNOWN_CELL_VALUE) {
                 //     // Free
@@ -211,7 +210,6 @@ class Mapping2DLaser {
                 // }
                 // break;
             }
-            // TODO TEST CODE
             if (probablistic_value > UNKNOWN_CELL_VALUE) {
                 output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
             } else if (probablistic_value < UNKNOWN_CELL_VALUE) {
@@ -281,10 +279,12 @@ class Mapping2DLaser {
 
         SE2 delta_pose        = last_keyframe_->pose_.inverse() * current_frame->pose_;
         double relative_angle = fabs(delta_pose.so2().log());
+        std::cout << "Keyframe angular distance from the last: " << relative_angle << std::endl;
         if (relative_angle > keyframe_angular_dist_thre_)
             return true;
-        double relative_dist = delta_pose.translation().squaredNorm();
-        if (relative_dist > keyframe_linear_dist_thre_squared_)
+        double relative_dist = delta_pose.translation().norm();
+        std::cout << "Keyframe angular distance from the last: " << relative_dist << std::endl;
+        if (relative_dist > keyframe_linear_dist_thre_)
             return true;
         return false;
     }
@@ -328,13 +328,13 @@ class Mapping2DLaser {
     size_t keyframe_id__ = 0;
     bool loop_detection_ = false;
 
-    float keyframe_angular_dist_thre_        = 15 * M_PI / 180;
-    float keyframe_linear_dist_thre_squared_ = 0.01;   // 0.1m
-    float frame_2_submap_dist_thre_squared_  = 1.0;    // 1m
-    size_t submap_gap_                       = 1;      // 1m
-    float loop_rk_delta_                     = 1.0;
-    size_t keyframe_num_in_submap_           = 20;
-    bool visualize_submap_                   = false;
+    float keyframe_angular_dist_thre_       = 15 * M_PI / 180;
+    float keyframe_linear_dist_thre_        = 0.01;   // 0.1m
+    float frame_2_submap_dist_thre_squared_ = 1.0;    // 1m
+    size_t submap_gap_                      = 1;      // 1m
+    float loop_rk_delta_                    = 1.0;
+    size_t keyframe_num_in_submap_          = 20;
+    bool visualize_submap_                  = false;
 };
 
 }   // namespace halo

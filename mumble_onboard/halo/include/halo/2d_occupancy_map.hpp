@@ -8,7 +8,7 @@
 
 namespace halo {
 
-constexpr int OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE = 4.0 * RESOLUTION_2D;   // 1m each side
+constexpr int OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE = 20 * RESOLUTION_2D;   // 20m
 
 enum class OccupancyMapMethod {
     TEMPLATE  = 0,
@@ -32,11 +32,8 @@ class OccupancyMap2D {
             : dx_(dx), dy_(dy), range_(range), angle_(angle) {}
     };
 
-    explicit OccupancyMap2D(bool gen_template) {
+    explicit OccupancyMap2D() {
         grid_ = cv::Mat(2 * HALF_MAP_SIZE_2D, 2 * HALF_MAP_SIZE_2D, CV_8U, cv::Scalar(UNKNOWN_CELL_VALUE));
-        if (gen_template) {
-            generate_template();
-        }
     }
 
     ~OccupancyMap2D() = default;
@@ -44,12 +41,39 @@ class OccupancyMap2D {
     void set_pose(const SE2 &pose, const SE2 &pose_inv) {
         submap_pose_ = pose;
         T_sw_        = pose_inv;
-        // TODO
-        std::cout << "occ pose: " << submap_pose_ << std::endl;
+        std::cout << "Setting submap pose: " << submap_pose_ << std::endl;
+    }
+
+    float get_resolution() const {
+        return RESOLUTION_2D;
+    }
+
+    int get_half_map_size_2d() const {
+        return HALF_MAP_SIZE_2D;
+    }
+
+    cv::Mat get_grid_reference() const {
+        return grid_;
+    }
+
+    cv::Mat get_grid_for_viz() const {
+        cv::Mat ret(grid_.cols, grid_.rows, CV_8UC3);
+        for (int x = 0; x < grid_.cols; ++x) {
+            for (int y = 0; y < grid_.rows; ++y) {
+                uchar val = grid_.at<uchar>(y, x);
+                if (val < UNKNOWN_CELL_VALUE) {
+                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
+                } else if (val > UNKNOWN_CELL_VALUE) {
+                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
+                } else {
+                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(127, 127, 127);
+                }
+            }
+        }
+        return ret;
     }
 
     void add_frame(const OccupancyMapMethod &method, const Lidar2DFrame &frame) {
-        // TODO
         std::cout << "Inv occ pose in add_frame: " << T_sw_ << std::endl;
         SE2 T_map_pose          = T_sw_ * frame.pose_;
         Vec2i pose_submap_coord = pose_2_img_coord(
@@ -79,7 +103,7 @@ class OccupancyMap2D {
 
         switch (method) {
         case OccupancyMapMethod::TEMPLATE:
-            if (grid_.data == nullptr)
+            if (template_.empty())
                 generate_template();
 
             std::for_each(
@@ -87,7 +111,7 @@ class OccupancyMap2D {
                 template_.begin(), template_.end(),
                 [&](const TemplatePoint &pt) {
                     Vec2i p_map               = pose_submap_coord + Vec2i(pt.dx_, pt.dy_);
-                    float model_pt_scan_angle = math::wrap_to_2pi(pt.angle_ - theta);
+                    float model_pt_scan_angle = math::wrap_to_pi(pt.angle_ - theta);   // unwrapped "scan frame angle"
                     float model_pt_range      = interpolate_range(model_pt_scan_angle, frame.scan_);
 
                     if (model_pt_range < frame.scan_->range_min ||
@@ -118,27 +142,6 @@ class OccupancyMap2D {
             [this](const Vec2i &pt) {
                 set_point(pt[0], pt[1], true);
             });
-    }
-
-    cv::Mat get_grid_reference() const {
-        return grid_;
-    }
-
-    cv::Mat get_grid_for_viz() const {
-        cv::Mat ret(2 * HALF_MAP_SIZE_2D, 2 * HALF_MAP_SIZE_2D, CV_8UC3);
-        for (int x = 0; x < grid_.cols; ++x) {
-            for (int y = 0; y < grid_.rows; ++y) {
-                uchar val = grid_.at<uchar>(y, x);
-                if (val < UNKNOWN_CELL_VALUE) {
-                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
-                } else if (val > UNKNOWN_CELL_VALUE) {
-                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
-                } else {
-                    ret.at<cv::Vec3b>(y, x) = cv::Vec3b(127, 127, 127);
-                }
-            }
-        }
-        return ret;
     }
 
     bool has_outside_points() const {
@@ -205,7 +208,7 @@ class OccupancyMap2D {
     void generate_template() {
         for (int x = -OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; x < OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; ++x) {
             for (int y = -OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; y < OCCUPANCYMAP2D_HALF_TEMPLATE_SIDE; ++y) {
-                float angle = math::wrap_to_2pi(std::atan2(y, x));
+                float angle = std::atan2(y, x);
                 template_.emplace_back(x, y, std::sqrt(x * x + y * y) * INV_RES_2D, angle);
             }
         }

@@ -8,7 +8,6 @@
 
 namespace halo {
 
-// TODO: this is kind of useless, because due to the initial pose, this value could be large
 constexpr double PT_MAX_VALID_SQUARED_DIST = 400.0;   // 20m
 constexpr double LAST_COST_SCALAR          = 1.1;
 constexpr size_t GAUSS_NEWTON_ITERATIONS   = 10;
@@ -74,7 +73,6 @@ std::vector<PointLine2DICPData> knn_to_line_fitting_data(
                               point_coord,
                               Eigen::Vector3f{target_pt.x, target_pt.y, 1.0});
                           if (dist > PL_ICP_MAX_NEIGHBOR_DIST_SQUARED) {
-                              // TODO
                               std::cout << "pl-icp, distance too large: " << dist << std::endl;
                               continue;
                           }
@@ -216,15 +214,11 @@ class ICP2D {
                 return false;
             }
             Vec3d dx = H.ldlt().solve(-b_vec);
-            // TODO
-            std::cout << "dx: " << dx << std::endl;
             if (std::isnan(dx[0]))
                 break;   // Something degenerating might have happened
             cost /= effective_num;
-            // TODO test code, should resume
             if (iter > 0 && cost > LAST_COST_SCALAR * last_cost)
                 break;
-            // std::cout << "iter: " << iter << "cost: " << cost << std::endl;
 
             relative_pose.translation() += dx.head<2>();
             relative_pose.so2() = relative_pose.so2() * SO2::exp(dx[2]);
@@ -302,7 +296,6 @@ class ICP2D {
             cost /= effective_num;
             if (iter > 0 && cost > LAST_COST_SCALAR * last_cost)
                 break;
-            std::cout << "iter: " << iter << "cost: " << cost << std::endl;
 
             relative_pose.translation() += dx.head<2>();
             relative_pose.so2() = relative_pose.so2() * SO2::exp(dx[2]);

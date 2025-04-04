@@ -256,7 +256,7 @@ class LoopClosure2D {
                 loop_closure_params.mr_rk_delta,
                 loop_closure_params.mr_optimization_iterations));
         auto &mr_field = submap_2_mr_likelihood_fields_.at(submap_ptr->get_id());
-        mr_field.set_field_from_occ_map(submap_ptr->get_occ_map()->get_grid_reference());
+        mr_field.set_field_from_occ_map(submap_ptr->get_occ_map());
 
         // Change high level mr field params since we are done with them
         submap_ptr->get_likelihood_field_ptr()->set_rk_deltas(loop_closure_params.mr_rk_delta);

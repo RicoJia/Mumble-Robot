@@ -1,6 +1,7 @@
 #pragma once
 
 #include <halo/2d_likelihood_field.hpp>
+#include <halo/2d_occupancy_map.hpp>
 #include <array>
 
 namespace halo {
@@ -11,15 +12,15 @@ namespace halo {
  *  - Internally, each cell is the PIXEL distance to the nearest occupied cell.
  */
 class MultiResolutionLikelihoodField {
-    inline static constexpr int MIN_MATCHING_POINT_NUM = 10;
-
   public:
+    /**
+     * [step 1]
+     */
     explicit MultiResolutionLikelihoodField(
         const std::vector<float> &mr_resolutions,
         float inlier_ratio_th       = 0.35,
         float rk_delta              = 0.4,
         int optimization_iterations = 10) : INLIER_RATIO_TH_(inlier_ratio_th), RK_DELTA_(rk_delta), OPTIMIZATION_ITERATIONS(optimization_iterations),
-                                            // TODO: to make this a ptr
                                             MR_RESOLUTIONS_(mr_resolutions) {
         IMAGE_PYRAMID_LEVELS_ = MR_RESOLUTIONS_.size();
         grids_.resize(IMAGE_PYRAMID_LEVELS_);   // default initialized
@@ -30,33 +31,43 @@ class MultiResolutionLikelihoodField {
                 template_.emplace_back(x, y, std::sqrt(x * x + y * y));
             }
         }
+
+        for (size_t i = 0; i < MR_RESOLUTIONS_.size(); ++i) {
+            const float &resolution = MR_RESOLUTIONS_.at(i);
+            int half_map_size       = int(HALF_MAP_SIZE_2D_METERS * resolution);
+            grids_.at(i)            = cv::Mat(half_map_size * 2, half_map_size * 2, CV_32F, cv::Scalar(FAR_VALUE_PIXELS_FLOAT));
+        }
+
         _set_rk_deltas();
     }
 
     /**
-     * @brief: Set the likelihood field from an occupancy map. Called once when initializing the likelihood field.
+     * @brief: [step 1] Set the likelihood field from an occupancy map. Called once when initializing the likelihood field.
      */
-    void set_field_from_occ_map(const cv::Mat &occ_grid) {
+    void set_field_from_occ_map(const OccupancyMap2D *occ_map) {
+        cv::Mat occ_grid     = occ_map->get_grid_reference();
+        float occ_resolution = occ_map->get_resolution();
         // for each level, create a likelihood field;
         for (size_t i = 0; i < MR_RESOLUTIONS_.size(); ++i) {
             const float &resolution = MR_RESOLUTIONS_.at(i);
+            float res_factor        = occ_resolution / resolution;
             int half_map_size       = int(HALF_MAP_SIZE_2D_METERS * resolution);
-            float res_factor        = RESOLUTION_2D / resolution;
             grids_.at(i)            = cv::Mat(half_map_size * 2, half_map_size * 2, CV_32F, cv::Scalar(FAR_VALUE_PIXELS_FLOAT));
             auto &grid              = grids_.at(i);
             for (int x = LIKELIHOOD_2D_IMAGE_BOARDER; x < occ_grid.cols - LIKELIHOOD_2D_IMAGE_BOARDER; ++x) {
                 for (int y = LIKELIHOOD_2D_IMAGE_BOARDER; y < occ_grid.rows - LIKELIHOOD_2D_IMAGE_BOARDER; ++y) {
                     uchar occ = occ_grid.at<uchar>(y, x);
                     if (occ < UNKNOWN_CELL_VALUE) {
+                        int x_lf = int(x * res_factor), y_lf = int(y * res_factor);
+                        // get the likelihood field coord, then add t.d_x to it
                         for (const auto &t : template_) {
-                            int xx = int((x + t.dx_) / res_factor);
-                            int yy = int((y + t.dy_) / res_factor);
+                            int xx = x_lf + t.dx_;
+                            int yy = y_lf + t.dy_;
                             if (0 <= xx && xx < grid.cols && 0 <= yy && yy < grid.rows) {
                                 if (t.dist_to_point_ < grid.at<float>(yy, xx))
                                     grid.at<float>(yy, xx) = t.dist_to_point_;
-                            } else {
-                                std::cout << "MR Likelihood field is smaller than occupancy map, which shouldn't happen. Got: " << yy << " | " << xx << std::endl;
                             }
+                            // No need to complain. It's perfectly possible that a template point is out of the grid
                         }
                     }
                 }
@@ -94,10 +105,10 @@ class MultiResolutionLikelihoodField {
      *  1. Create a new optimizer for each resolution level. g2o does not like having repeating ids
      */
     bool can_align_g2o(SE2 &relative_pose) {
-        int num_inliers    = 0;
-        float inlier_ratio = 0.0;
+        int num_inliers       = 0;
+        float inlier_ratio    = 0.0;
+        const double range_th = 15.0;   // 不考虑太远的scan，不准
         for (size_t level = 0; level < MR_RESOLUTIONS_.size(); ++level) {
-            has_outside_points_    = false;
             using BlockSolverType  = g2o::BlockSolver<g2o::BlockSolverTraits<3, 1>>;
             using LinearSolverType = g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
             auto *solver           = new g2o::OptimizationAlgorithmLevenberg(
@@ -119,24 +130,32 @@ class MultiResolutionLikelihoodField {
             // Pre-allocate vector for edges (some entries may remain nullptr).
             std::vector<Edge2DLikelihoodField *> edges(source_scan_objs_.size(), nullptr);
             // Parallel edge creation using the standard parallel algorithm.
-            std::for_each(std::execution::par, indices.begin(), indices.end(), [&](size_t i) {
-                const auto &scan_obj = source_scan_objs_.at(i);
-                auto *e              = new Edge2DLikelihoodField(grid,
-                                                                 scan_obj.range, scan_obj.angle,
-                                                                 resolution, half_map_size);
-                e->setVertex(0, v);
-                if (e->is_outside()) {
-                    delete e;
-                    e                   = nullptr;
-                    has_outside_points_ = false;
-                } else {
+            std::for_each(
+                std::execution::par,
+                indices.begin(), indices.end(), [&](size_t i) {
+                    const auto &scan_obj = source_scan_objs_.at(i);
+                    // THESE TWO LINES ARE INCREDIBLE - THEY MADE A HUGE DIFFERENCE!! WHYYYYYYYYYYYYYYYYYYY
+                    if (scan_obj.range > range_th)
+                        return;
+                    if (scan_obj.angle < -2.35619 + 30 * M_PI / 180.0 || scan_obj.angle > 2.35619 - 30 * M_PI / 180.0) {
+                        return;
+                    }
+
+                    auto *e = new Edge2DLikelihoodField(grid,
+                                                        scan_obj.range, scan_obj.angle,
+                                                        resolution, half_map_size);
+                    e->setVertex(0, v);
+                    if (e->is_outside()) {
+                        delete e;
+                        e = nullptr;
+                        return;
+                    }
                     e->setInformation(Eigen::Matrix<double, 1, 1>::Identity());
                     auto *rk = new g2o::RobustKernelHuber;
                     rk->setDelta(rk_deltas_[level]);
                     e->setRobustKernel(rk);
-                }
-                edges.at(i) = e;
-            });
+                    edges.at(i) = e;
+                });
             // Sequentially add valid edges to the optimizer.
             for (auto *e : edges) {
                 if (e != nullptr)
@@ -145,7 +164,6 @@ class MultiResolutionLikelihoodField {
 
             optimizer.setVerbose(false);
             optimizer.initializeOptimization();
-            // TODO test code
             optimizer.optimize(OPTIMIZATION_ITERATIONS);
 
             // Parallel accumulation for inlier count using transform_reduce.
@@ -161,22 +179,15 @@ class MultiResolutionLikelihoodField {
 
             // Revisit if inliers are enough
             inlier_ratio = float(num_inliers) / float(source_scan_objs_.size());
-            std::cerr << "Level: " << level << "inlier_ratio: " << inlier_ratio << ", num_inliers: " << num_inliers
+            std::cerr << "Level: " << level << "inlier_ratio: " << inlier_ratio << ", rk_delta: " << rk_deltas_[level]
                       << ", total scan: " << source_scan_objs_.size() << std::endl;
 
-            if (num_inliers > MIN_MATCHING_POINT_NUM && inlier_ratio > INLIER_RATIO_TH_) {
+            if (inlier_ratio > INLIER_RATIO_TH_) {
                 relative_pose = v->estimate();
             }
-
-            // TODO: for visualizing scans on multiple resolutions, we can store poses in a vector
-            // and then visualize them outside of this function.
         }
-        if (num_inliers > MIN_MATCHING_POINT_NUM && inlier_ratio > INLIER_RATIO_TH_) {
-        } else {
-            if (num_inliers <= MIN_MATCHING_POINT_NUM)
-                std::cerr << "===========Rejected because inlier count is too low" << std::endl;
-            else
-                std::cerr << "===========Rejected because inlier ratio is too low" << std::endl;
+        if (inlier_ratio < INLIER_RATIO_TH_) {
+            std::cerr << "===========Rejected because inlier ratio is too low" << std::endl;
             return false;
         }
         return true;
@@ -200,7 +211,6 @@ class MultiResolutionLikelihoodField {
     std::vector<float> rk_deltas_;
     std::vector<Likelihood2DTemplatePoint> template_;
     std::vector<ScanObj> source_scan_objs_;
-    bool has_outside_points_ = false;
     std::vector<float> MR_RESOLUTIONS_;
     size_t IMAGE_PYRAMID_LEVELS_ = 0;
 
@@ -208,9 +218,9 @@ class MultiResolutionLikelihoodField {
         rk_deltas_.resize(IMAGE_PYRAMID_LEVELS_);
         for (size_t i = 0; i < IMAGE_PYRAMID_LEVELS_; ++i) {
             // This is the error threshold in (minimum_pixel_distance)^2
-            // By setting a minimum value, the optimizer has an easier time getting to some optimal point on
+            // by setting a minimum value, the optimizer has an easier time getting to some optimal point on
             // low resolution images
-            rk_deltas_[i] = std::max(RK_DELTA_ * RK_DELTA_ * (MR_RESOLUTIONS_[i] * MR_RESOLUTIONS_[i]), 2.0f);
+            rk_deltas_[i] = RK_DELTA_ * RK_DELTA_ * (MR_RESOLUTIONS_[i] * MR_RESOLUTIONS_[i]);
         }
     }
 };

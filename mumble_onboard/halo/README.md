@@ -4,13 +4,30 @@ This is a ROS2 static library for Lidar-Inertial-Odometry SLAM. It supports both
 
 ## Features
 
-`halo` provides high-performance spatial search structures optimized for 2D and 3D data using template metaprogramming for compile-time memory efficiency. It includes infrastructure for:
+`halo` provides simple 2D and 3D LiDAR-Odometry SLAM Frameworks with high-performance spatial search structures optimized using template metaprogramming. It includes infrastructure for:
+
+High level: 
+- 2D LiDAR-only pose graph SLAM
+- 2D LiDAR-IMU SLAM
+
+Lower level:
 
 - K-Nearest Neighbor Search
 - Scan Matching using ICP
 - Submap Generation
 - Loop Detection
 - Global Map Generation From Submaps
+
+## 2D SLAM Frameworks
+
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/39393023/429205259-bca0d8c6-85c3-455b-aa4b-3233ba2e2f86.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250401%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250401T201003Z&X-Amz-Expires=300&X-Amz-Signature=8f1dbd61ea95fa69a43817c1d38de1bd6ffc92dfd2c9b590ad95b92a6fac808a&X-Amz-SignedHeaders=host" height="500" alt=""/>
+        <figcaption><a href=""> 2D LiDAR-only pose graph SLAM </a></figcaption>
+    </figure>
+</p>
+</div>
 
 ### K-Nearest Neighbor Search
 
@@ -43,3 +60,7 @@ target_link_libraries(my_executable
     halo 
 )
 ```
+
+## Conventions:
+
+- angles are wrapped to `[-pi, pi]`. Please adjust the lidar `angle_min` and `angle_max` accordingly

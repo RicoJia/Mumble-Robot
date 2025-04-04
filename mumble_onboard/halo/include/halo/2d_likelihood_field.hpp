@@ -9,95 +9,6 @@
 #include <halo/common/g2o_definitions.hpp>
 
 namespace halo {
-// Binary edges connect with two vertices
-// The cost of the likelihood is provided by the likelihood field
-// The template parameters are: <dimension of the error term, measurement type, Vertex Type>
-class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
-  public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    Edge2DLikelihoodField(const cv::Mat &grid, float range, float angle,
-                          float resolution = RESOLUTION_2D, int half_map_size_2d = HALF_MAP_SIZE_2D) : grid_(grid),
-                                                                                                       range_(range),
-                                                                                                       angle_(angle),
-                                                                                                       resolution_(resolution),
-                                                                                                       half_map_size_2d_(half_map_size_2d) {}
-    // Given a pose estimate, how do we update _error
-    // In this case, our cost is 1D
-    void computeError() override {
-        // 1. get vertex, then get pose
-        VertexSE2 *v     = (VertexSE2 *)_vertices[0];
-        SE2 pose         = v->estimate();
-        Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2d pose_map   = pose_world * resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_) - Vec2d(0.5, 0.5);
-
-        if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
-            pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
-            LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
-            pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
-            // _error[0] = math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0]);
-            _error[0] = math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0]);
-            // vec2i pose_map_int = pose_map.cast<float>();
-            // _error[0] = grid_.at<float>(pose_map_int[1], pose_map_int[0]);   // to cast
-        } else {
-            _error[0] = 0.0;
-            setLevel(1);   // marks the edge out of bound, so it will be ignored during optimization
-            std::cout << "out of bound, which shouldn't happen: " << pose_map[0] << ", " << pose_map[0] << std::endl;
-        }
-    }
-
-    bool is_outside() const {
-        VertexSE2 *v     = (VertexSE2 *)_vertices[0];
-        SE2 pose         = v->estimate();
-        Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        // TODO: to make it vec2d
-        Vec2i pose_map = (pose_world * resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_)).cast<int>();
-        if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
-            pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
-            LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
-            pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    void linearizeOplus() override {
-        VertexSE2 *v     = (VertexSE2 *)_vertices[0];
-        SE2 pose         = v->estimate();
-        float theta      = pose.so2().log();
-        Vec2d pose_world = pose * Vec2d(range_ * std::cos(angle_), range_ * std::sin(angle_));
-        Vec2d pose_map   = pose_world * resolution_ + Vec2d(half_map_size_2d_, half_map_size_2d_) - Vec2d(0.5, 0.5);
-        if (LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[0] &&
-            pose_map[0] < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER &&
-            LIKELIHOOD_2D_IMAGE_BOARDER <= pose_map[1] &&
-            pose_map[1] < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
-            // float dx = (grid_.at<float>(pose_map[1], pose_map[0] + 1) - grid_.at<float>(pose_map[1], pose_map[0] - 1)) / 2.0;
-            // float dy = (grid_.at<float>(pose_map[1] + 1, pose_map[0]) - grid_.at<float>(pose_map[1] - 1, pose_map[0])) / 2.0;
-            float dx = 0.5 * (math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] + 1) - math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] - 1));
-            float dy = 0.5 * (math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1] + 1, pose_map[0]) -
-                              math::get_bilinear_interpolated_pixel_value<float>(grid_, pose_map[1] - 1, pose_map[0]));
-            // float dx = 0.5 * (math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] + 1) - math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1], pose_map[0] - 1));
-            // float dy = 0.5 * (math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1] + 1, pose_map[0]) -
-            //                   math::get_bicubic_interpolated_pixel_value<float>(grid_, pose_map[1] - 1, pose_map[0]));
-            _jacobianOplusXi << resolution_ * dx, resolution_ * dy,
-                -resolution_ * dx * range_ * std::sin(angle_ + theta) +
-                    resolution_ * dy * range_ * std::cos(angle_ + theta);
-        } else {
-            _jacobianOplusXi.setZero();
-            setLevel(1);
-        }
-    }
-    bool read([[maybe_unused]] std::istream &is) override { return true; }
-    bool write([[maybe_unused]] std::ostream &os) const override { return true; }
-
-  private:
-    const cv::Mat &grid_;
-    float range_;
-    float angle_;
-    float resolution_;
-    int half_map_size_2d_;
-};
 
 struct Likelihood2DTemplatePoint {
     int dx_              = 0;
@@ -158,7 +69,6 @@ class LikelihoodField2D {
         for (int x = 0; x < occ_grid.cols; ++x) {
             for (int y = 0; y < occ_grid.rows; ++y) {
                 uchar occ = occ_grid.at<uchar>(y, x);
-                // This COULD BE a grid point TODO
                 // Of course, it treats all "occupied" points equally, which is not ideal
                 if (occ < UNKNOWN_CELL_VALUE) {
                     for (const auto &t : template_) {
@@ -183,7 +93,6 @@ class LikelihoodField2D {
         source_scan_objs_ = get_valid_scan_obj(source);
     }
 
-    // TODO: to make it a universal function
     /**
      * @brief : a wrapper for running scan matching in a multithreaded fashion
      * This method is slower than the raw likelihood field
@@ -245,7 +154,6 @@ class LikelihoodField2D {
 
         // Update the final relative_pose with the best one.
         relative_pose = best_pose;
-        // TODO
         std::cout << "pose: " << relative_pose.translation() << ", theta: " << relative_pose.so2().log() << std::endl;
         return true;
     }
@@ -278,7 +186,6 @@ class LikelihoodField2D {
             for (const auto &pt : source_map_cloud->points) {
                 if (LIKELIHOOD_2D_IMAGE_BOARDER <= pt.x && pt.x < grid_.cols - LIKELIHOOD_2D_IMAGE_BOARDER && LIKELIHOOD_2D_IMAGE_BOARDER <= pt.y && pt.y < grid_.rows - LIKELIHOOD_2D_IMAGE_BOARDER) {
                     // NOT USING CV sobel is because it has an additional blurring effect
-                    // TODO: this could be done once at the ctor, if necessary.
                     float dx = (grid_.at<float>(pt.y, pt.x + 1) - grid_.at<float>(pt.y, pt.x - 1)) / 2.0;
                     float dy = (grid_.at<float>(pt.y + 1, pt.x) - grid_.at<float>(pt.y - 1, pt.x)) / 2.0;
                     Vec3d J;
@@ -304,12 +211,9 @@ class LikelihoodField2D {
             cost /= effective_num;
             if (iter > 0 && cost > LAST_COST_SCALAR * last_cost)
                 break;
-            // std::cout << "iter: " << iter << "cost: " << cost << std::endl;
             relative_pose.translation() += dx.head<2>();
             relative_pose.so2() = relative_pose.so2() * SO2::exp(dx[2]);
-            // TODO
-            //  std::cout<<"pose: "<<relative_pose.translation()<<", theta: "<< relative_pose.so2().log()<<std::endl;
-            last_cost = cost;
+            last_cost           = cost;
         }
         cost = last_cost;
         return true;
