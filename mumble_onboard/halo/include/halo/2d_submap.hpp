@@ -11,6 +11,8 @@ struct Submap2DParams {
     float mr_likelihood_field_inlier_thre = 0.3;
     float mr_rk_delta                     = 0.1;
     int mr_optimization_iterations        = 10;
+    float mr_max_range_optimization       = 15.0;
+    float mr_optimization_half_angle_fov  = 2.094;   // 120deg
     void print() const {
         std::cout << "mr_likelihood_field_inlier_thre: " << mr_likelihood_field_inlier_thre << std::endl;
         std::cout << "rk_delta: " << mr_rk_delta << std::endl;
@@ -25,7 +27,7 @@ class Submap2D {
     /************************************************************************* */
 
     Submap2D(const SE2 &pose, const Submap2DParams &p) : mr_likelihood_field_(SCAN_MATCHING_MR_RESOLUTIONS, p.mr_likelihood_field_inlier_thre,
-                                                                              p.mr_rk_delta, p.mr_optimization_iterations),
+                                                                              p.mr_rk_delta, p.mr_max_range_optimization, p.mr_optimization_iterations, p.mr_optimization_half_angle_fov),
                                                          occupancy_map_() {
         set_pose(pose);
     }

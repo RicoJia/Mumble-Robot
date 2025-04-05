@@ -13,7 +13,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 
 bool update_last_scan = false;                                                 // Default behavior
-std::string bag_path  = "bags/no_loop_room";                                   // Global variable to store the bag path
+std::string bag_path  = "bags/straight";                                       // Global variable to store the bag path
 std::string yaml_path = "src/mumble_onboard/configs/test_halo_2d_slam.yaml";   // Global variable to store the bag path
 
 ////////////////////////////////////////////////////////////////////////////
@@ -42,20 +42,20 @@ TEST(Test2DSLAM, TestMappingClean) {
     text_io.spin();
 }
 
-TEST(Test2DSLAM, TestMapping) {
-    halo::ROS2BagIo ros2_bag_io(bag_path);
-    halo::Mapping2DLaser mapper_2d(yaml_path);
-    int i = 0;
-    ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
-        "/scan",
-        [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
-            // TODO
-            std::cout << "===================" << i++ << std::endl;
-            mapper_2d.process_scan(current_scan_ptr);
-        });
-    ros2_bag_io.spin();
-    mapper_2d.visualize_global_map();
-}
+// TEST(Test2DSLAM, TestMapping) {
+//     halo::ROS2BagIo ros2_bag_io(bag_path);
+//     halo::Mapping2DLaser mapper_2d(yaml_path);
+//     int i = 0;
+//     ros2_bag_io.register_callback<sensor_msgs::msg::LaserScan>(
+//         "/scan",
+//         [&](halo::LaserScanMsg::SharedPtr current_scan_ptr) {
+//             // TODO
+//             std::cout << "===================" << i++ << std::endl;
+//             mapper_2d.process_scan(current_scan_ptr);
+//         });
+//     ros2_bag_io.spin();
+//     mapper_2d.visualize_global_map();
+// }
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

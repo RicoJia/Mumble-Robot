@@ -14,6 +14,8 @@ class Mapping2DLaser {
                                                                                "mr_likelihood_field_inlier_thre");
             submap_params_.mr_rk_delta                     = load_param<float>(yaml_path, "mr_rk_delta");
             submap_params_.mr_optimization_iterations      = load_param<int>(yaml_path, "mr_optimization_iterations");
+            submap_params_.mr_max_range_optimization       = load_param<float>(yaml_path, "mr_max_range_optimization");
+            submap_params_.mr_optimization_half_angle_fov  = load_param<float>(yaml_path, "mr_optimization_half_angle_fov");
             submap_params_.print();
 
             keyframe_angular_dist_thre_       = load_param<float>(yaml_path, "keyframe_angular_dist_thre");

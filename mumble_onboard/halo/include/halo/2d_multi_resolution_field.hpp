@@ -18,10 +18,14 @@ class MultiResolutionLikelihoodField {
      */
     explicit MultiResolutionLikelihoodField(
         const std::vector<float> &mr_resolutions,
-        float inlier_ratio_th       = 0.35,
-        float rk_delta              = 0.4,
-        int optimization_iterations = 10) : INLIER_RATIO_TH_(inlier_ratio_th), RK_DELTA_(rk_delta), OPTIMIZATION_ITERATIONS(optimization_iterations),
-                                            MR_RESOLUTIONS_(mr_resolutions) {
+        float inlier_ratio_th                = 0.35,
+        float rk_delta                       = 0.4,
+        int optimization_iterations          = 10,
+        float mr_max_range_optimization      = 15.0,
+        float mr_optimization_half_angle_fov = 2.094) : INLIER_RATIO_TH_(inlier_ratio_th), RK_DELTA_(rk_delta), OPTIMIZATION_ITERATIONS(optimization_iterations),
+                                                        MR_RESOLUTIONS_(mr_resolutions),
+                                                        MAX_RANGE_OPTIMIZATION(mr_max_range_optimization),
+                                                        OPTIMIZATION_HALF_ANGLE_FOV(mr_optimization_half_angle_fov) {
         IMAGE_PYRAMID_LEVELS_ = MR_RESOLUTIONS_.size();
         grids_.resize(IMAGE_PYRAMID_LEVELS_);   // default initialized
 
@@ -135,9 +139,10 @@ class MultiResolutionLikelihoodField {
                 indices.begin(), indices.end(), [&](size_t i) {
                     const auto &scan_obj = source_scan_objs_.at(i);
                     // THESE TWO LINES ARE INCREDIBLE - THEY MADE A HUGE DIFFERENCE!! WHYYYYYYYYYYYYYYYYYYY
-                    if (scan_obj.range > range_th)
+                    if (scan_obj.range > MAX_RANGE_OPTIMIZATION)
                         return;
-                    if (scan_obj.angle < -2.35619 + 30 * M_PI / 180.0 || scan_obj.angle > 2.35619 - 30 * M_PI / 180.0) {
+                    if (scan_obj.angle < -OPTIMIZATION_HALF_ANGLE_FOV ||
+                        scan_obj.angle > OPTIMIZATION_HALF_ANGLE_FOV) {
                         return;
                     }
 
@@ -207,6 +212,8 @@ class MultiResolutionLikelihoodField {
     float INLIER_RATIO_TH_;
     float RK_DELTA_;   // it's in meters for error threshold
     int OPTIMIZATION_ITERATIONS;
+    float MAX_RANGE_OPTIMIZATION;
+    float OPTIMIZATION_HALF_ANGLE_FOV;
     std::vector<cv::Mat> grids_;   // default initialized
     std::vector<float> rk_deltas_;
     std::vector<Likelihood2DTemplatePoint> template_;
