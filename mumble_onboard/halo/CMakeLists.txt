@@ -84,15 +84,24 @@ if(BUILD_HALO_TESTS)
                         pthread)
   add_test(NAME test_linear_fitting COMMAND test_linear_fitting)
 
-  add_executable(test_2dslam tests/test_2dslam.cpp)
-  target_link_libraries(test_2dslam halo GTest::GTest GTest::Main pthread
-                        ${G2O_LIBS})
-  add_test(NAME test_2dslam COMMAND test_2dslam)
+  # ############################################################################
+  # 2D SLAM Test
+  # ############################################################################
 
-  add_executable(test_degradation_detection tests/test_2d_slam_degredation.cpp)
-  target_link_libraries(test_degradation_detection halo GTest::GTest
-                        GTest::Main pthread ${G2O_LIBS})
-  add_test(NAME test_degradation_detection COMMAND test_degradation_detection)
+  function(add_2d_slam_gtest name)
+    add_executable(${name} tests/${name}.cpp)
+    target_link_libraries(${name} halo GTest::GTest GTest::Main pthread
+                          ${G2O_LIBS})
+    add_test(NAME ${name} COMMAND ${name})
+  endfunction()
+
+  add_2d_slam_gtest(test_2d_slam_visualization)
+  add_2d_slam_gtest(test_2d_slam_degredation)
+  add_2d_slam_gtest(test_2d_slam_mapping)
+  add_2d_slam_gtest(test_2d_slam_icp_methods)
+  add_2d_slam_gtest(test_2d_slam_submaps)
+  add_2d_slam_gtest(test_2d_slam_likelihood_fields)
+  add_2d_slam_gtest(test_2d_slam_occ_map)
 
 endif()
 
