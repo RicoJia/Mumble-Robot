@@ -59,7 +59,7 @@ TEST(Test2DSLAM, TestMultiResolutionLikelihoodField) {
                 current_scan_ptr, output_img, halo::SE2(), relative_pose, 0.05, 1000, halo::Vec3b(0, 255, 255));
             cv::imshow("Submap", output_img);
             std::vector<cv::Mat> likelihood_images = mr_likelihood_field.get_field_images();
-            for (int i = 0; i < likelihood_images.size(); ++i) {
+            for (size_t i = 0; i < likelihood_images.size(); ++i) {
                 auto image = likelihood_images.at(i);
                 halo::visualize_2d_scan(
                     current_scan_ptr, image, halo::SE2(), relative_pose, 0.05, 1000, halo::Vec3b(0, 255, 255));

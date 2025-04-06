@@ -49,7 +49,7 @@ constexpr float FAR_VALUE_PIXELS_FLOAT     = 30.0;
 constexpr int NUM_KEYFRAMES_TO_INIT_OCC    = 10;
 
 const std::vector<float> SCAN_MATCHING_MR_RESOLUTIONS{RESOLUTION_2D};
-const std::vector<float> LOOP_DETECTION_MR_RESOLUTIONS{RESOLUTION_2D / 4.0, RESOLUTION_2D / 2.0};
+const std::vector<float> LOOP_DETECTION_MR_RESOLUTIONS{RESOLUTION_2D / 8.0, RESOLUTION_2D / 4.0, RESOLUTION_2D / 2.0};
 
 struct ScanObj {
     double range = 0.0;

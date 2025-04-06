@@ -68,9 +68,12 @@ class LoopClosure2D {
      */
     void detect_loop_closure_candidates(Lidar2DFramePtr frame, float candidate_distance_th, size_t submap_gap) {
         has_new_loops_ = false;
+        if (current_submap_id_ < submap_gap)
+            return;
+
         for (auto &submap_itr : submaps_) {
             auto &submap_ptr = submap_itr.second;
-            if (current_submap_id_ - submap_ptr->get_id() < submap_gap)
+            if (current_submap_id_ - submap_ptr->get_id() <= submap_gap)
                 continue;
             auto loop_constraint_hash = LoopConstraint::compute_hash(
                 current_submap_id_, submap_ptr->get_id());
@@ -95,14 +98,15 @@ class LoopClosure2D {
      * 2. Perform scan matching using the mr field with a point matching threshold.
      * 3. If there's a loop closure, we add a loop-closing constraint between the past submap and the current submap to a vector
      */
-    void match_in_history_submaps(Lidar2DFramePtr frame) {
+    void match_in_history_submaps(Lidar2DFramePtr frame, bool visualize_this_match = false) {
         for (const auto &candidate : loop_closure_candidates_) {
-            auto &submap_ptr = submaps_.at(candidate);
-            auto &mr_field   = submap_2_mr_likelihood_fields_.at(candidate);
+            auto submap_ptr = submaps_.at(candidate);
+            auto &mr_field  = submap_2_mr_likelihood_fields_.at(candidate);
             mr_field.set_source_scan(frame->scan_);
 
             // T_m1_scan
             SE2 pose_in_target_submap = submap_ptr->get_pose_inv() * frame->pose_;
+
             if (mr_field.can_align_g2o(pose_in_target_submap)) {
                 auto &top_level_mr_field = *(submap_ptr->get_likelihood_field_ptr());
                 top_level_mr_field.set_source_scan(frame->scan_);
@@ -119,6 +123,22 @@ class LoopClosure2D {
                         LoopConstraint{submap_ptr->get_id(), current_submap_id_, T_m1_m2_loop_detection, true});
                 }
             }
+
+            if (visualize_this_match) {
+                auto *occ_map    = submap_ptr->get_occ_map();
+                auto occ_map_img = occ_map->get_grid_for_viz();
+                cv::imshow("Loop Matching occ map: " + std::to_string(candidate), occ_map_img);
+
+                auto mr_field_images = mr_field.get_field_images();
+                for (size_t level = 0; level < mr_field_images.size(); ++level) {
+                    auto &img = mr_field_images.at(level);
+                    halo::visualize_2d_scan(
+                        frame->scan_, img, SE2(), pose_in_target_submap, 1.0 / mr_field.get_mr_resolutions().at(level),
+                        img.cols, halo::Vec3b(255, 0, 0));
+                    cv::imshow("Loop Matching mr field: " + std::to_string(candidate), img);
+                }
+                cv::waitKey(0);
+            }
         }
     }
 
@@ -133,7 +153,7 @@ class LoopClosure2D {
      * 6. If the edge is invalid, set level to 1. Typically, only level=0 edges are used for optimization
      * 7. Run optimizer again
      */
-    void optimize(float loop_rk_delta) {
+    void optimize(float loop_rk_delta, float consecutive_edge_weight) {
         // Pose graph optimization
         using BlockSolverType  = g2o::BlockSolver<g2o::BlockSolverTraits<3, 1>>;
         using LinearSolverType = g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
@@ -152,6 +172,7 @@ class LoopClosure2D {
             optimizer.addVertex(v);
         }
 
+        // consecutive edges
         for (size_t i = 0; i < current_submap_id_; ++i) {
             auto first_submap  = submaps_.at(i);
             auto second_submap = submaps_.at(i + 1);
@@ -160,7 +181,7 @@ class LoopClosure2D {
             e->setVertex(1, optimizer.vertex(i + 1));
             // Measurement is in general flexible. We choose it to be T_01
             e->setMeasurement(first_submap->get_pose().inverse() * second_submap->get_pose());
-            e->setInformation(Mat3d::Identity() * 1e1);
+            e->setInformation(Mat3d::Identity() * consecutive_edge_weight);
             optimizer.addEdge(e);
         }
 
@@ -234,13 +255,14 @@ class LoopClosure2D {
     /**
      * @brief: perform loop closure detection on the frame Update its pose and submap_pose
      */
-    void add_new_frame(Lidar2DFramePtr frame, float candidate_distance_th, size_t submap_gap, float loop_rk_delta) {
+    void add_new_frame(Lidar2DFramePtr frame, float candidate_distance_th, size_t submap_gap, float loop_rk_delta,
+                       bool visualize_this_match, float consecutive_edge_weight) {
         detect_loop_closure_candidates(frame, candidate_distance_th, submap_gap);
         if (loop_closure_candidates_.empty())
             return;
-        match_in_history_submaps(frame);
+        match_in_history_submaps(frame, visualize_this_match);
         if (has_new_loops_) {
-            optimize(loop_rk_delta);
+            optimize(loop_rk_delta, consecutive_edge_weight);
         }
     }
 

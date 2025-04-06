@@ -24,7 +24,6 @@ class Mapping2DLaser {
             keyframe_num_in_submap_           = load_param<float>(yaml_path, "keyframe_num_in_submap");
             visualize_submap_                 = load_param<bool>(yaml_path, "visualize_submap");
             submap_gap_                       = load_param<size_t>(yaml_path, "submap_gap");
-            loop_rk_delta_                    = load_param<float>(yaml_path, "loop_rk_delta");
 
             std::cout << "===============================loop detection params===============================" << std::endl;
             loop_detection_params_.mr_likelihood_field_inlier_thre = load_param<float>(yaml_path,
@@ -33,6 +32,9 @@ class Mapping2DLaser {
             loop_detection_params_.mr_optimization_iterations      = load_param<int>(yaml_path, "loop_detection_mr_optimization_iterations");
             loop_detection_params_.print();
             loop_detection_ = load_param<bool>(yaml_path, "loop_detection");
+
+            loop_submap_pose_optimize_rk_delta_ = load_param<float>(yaml_path, "loop_submap_pose_optimize_rk_delta");
+            consecutive_edge_weight_            = load_param<float>(yaml_path, "consecutive_edge_weight");
         }
 
         if (submap_gap_ < 1)
@@ -58,7 +60,7 @@ class Mapping2DLaser {
      *  - If there's no frame, yes.
      *  - If the angular or linear displacement is above a threshold, yes
      */
-    void process_scan(LaserScanMsg::SharedPtr scan) {
+    void process_scan(LaserScanMsg::SharedPtr scan, bool visualize_this_scan = true) {
         frame_id_++;
         auto frame = std::make_shared<Lidar2DFrame>(
             scan, frame_id_, frame_id_, SE2{}, SE2{});
@@ -83,7 +85,9 @@ class Mapping2DLaser {
             std::cout << "current_submap->frames_num(): " << current_submap->frames_num() << std::endl;
 
             if (loop_detection_) {
-                loop_closure_detector_.add_new_frame(frame, frame_2_submap_dist_thre_squared_, submap_gap_, loop_rk_delta_);
+                loop_closure_detector_.add_new_frame(
+                    frame, frame_2_submap_dist_thre_squared_, submap_gap_, loop_submap_pose_optimize_rk_delta_,
+                    visualize_this_scan, consecutive_edge_weight_);
             }
 
             if (current_submap->has_outside_points() ||
@@ -103,8 +107,15 @@ class Mapping2DLaser {
         }
         last_frame_ = frame;
 
-        if (visualize_submap_) {
-            current_submap->visualize_submap(frame);
+        if (visualize_submap_ && visualize_this_scan) {
+            constexpr int GLOBAL_MAP_SIZE = 1000;
+            current_submap->visualize_submap(frame, false);
+            cv::Mat global_map = get_global_map_and_calculate_res(GLOBAL_MAP_SIZE);
+            cv::imshow("global map", global_map);
+
+            halo::visualize_2d_scan(frame->scan_, global_map, current_submap->get_pose(), frame->pose_submap_,
+                                    1.0 / global_map_resolution_, GLOBAL_MAP_SIZE, halo::Vec3b(255, 255, 0));
+            halo::close_cv_window_on_esc();
         }
     }
 
@@ -115,7 +126,7 @@ class Mapping2DLaser {
     /**
      * @brief: given max_size, the size of the global map, visualize the global map
      */
-    cv::Mat get_global_map(int max_size) const {
+    cv::Mat get_global_map_and_calculate_res(int max_size) {
         // Find the map width and height in meters.
         Vec2f top_left     = Vec2f(999999, 999999);
         Vec2f bottom_right = Vec2f(-999999, -999999);
@@ -146,19 +157,19 @@ class Mapping2DLaser {
         }
 
         /// 全局地图物理中心
-        Vec2f global_center = Vec2f((top_left[0] + bottom_right[0]) / 2.0, (top_left[1] + bottom_right[1]) / 2.0);
+        Vec2f global_center    = Vec2f((top_left[0] + bottom_right[0]) / 2.0, (top_left[1] + bottom_right[1]) / 2.0);
+        global_map_resolution_ = 0.0;
         // Find the global resolution, and their map width and height
-        float phy_width             = bottom_right[0] - top_left[0];   // 物理尺寸
-        float phy_height            = bottom_right[1] - top_left[1];   // 物理尺寸
-        float global_map_resolution = 0.0;
+        float phy_width  = bottom_right[0] - top_left[0];   // 物理尺寸
+        float phy_height = bottom_right[1] - top_left[1];   // 物理尺寸
         if (phy_width > phy_height) {
-            global_map_resolution = max_size / phy_width;
+            global_map_resolution_ = max_size / phy_width;
         } else {
-            global_map_resolution = max_size / phy_height;
+            global_map_resolution_ = max_size / phy_height;
         }
 
-        int width  = int((bottom_right[0] - top_left[0]) * global_map_resolution + 0.5);
-        int height = int((bottom_right[1] - top_left[1]) * global_map_resolution + 0.5);
+        int width  = int((bottom_right[0] - top_left[0]) * global_map_resolution_ + 0.5);
+        int height = int((bottom_right[1] - top_left[1]) * global_map_resolution_ + 0.5);
 
         Vec2f center_image = Vec2f(width / 2, height / 2);
         cv::Mat output_image(height, width, CV_8UC3, cv::Scalar(127, 127, 127));
@@ -174,50 +185,53 @@ class Mapping2DLaser {
         }
 
         // For each point in the output map, query a submap
-        std::for_each(std::execution::par_unseq, render_data.begin(), render_data.end(), [&](const Vec2i &xy) {
-            int x = xy[0], y = xy[1];
-            Vec2f pw               = (Vec2f(x, y) - center_image) / global_map_resolution + global_center;   // 世界坐标
-            int probablistic_value = UNKNOWN_CELL_VALUE;
+        std::for_each(
+            std::execution::par_unseq,
+            render_data.begin(), render_data.end(), [&](const Vec2i &xy) {
+                int x = xy[0], y = xy[1];
+                Vec2f pw = (Vec2f(x, y) - center_image) / global_map_resolution_ + global_center;   // 世界坐标
+                // int probablistic_value = UNKNOWN_CELL_VALUE;
 
-            for (auto &m : submaps_) {
-                Vec2f ps = m->get_pose().inverse().cast<float>() * pw;   // in submap
-                Vec2i pt = (ps * submap_resolution).cast<int>() + Vec2i(HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D);
+                for (auto &m : submaps_) {
+                    Vec2f ps = m->get_pose().inverse().cast<float>() * pw;   // in submap
+                    Vec2i pt = (ps * submap_resolution).cast<int>() + Vec2i(HALF_MAP_SIZE_2D, HALF_MAP_SIZE_2D);
 
-                if (pt[0] < 0 || pt[0] >= HALF_MAP_SIZE_2D * 2 || pt[1] < 0 || pt[1] >= HALF_MAP_SIZE_2D * 2) {
-                    continue;
+                    if (pt[0] < 0 || pt[0] >= HALF_MAP_SIZE_2D * 2 || pt[1] < 0 || pt[1] >= HALF_MAP_SIZE_2D * 2) {
+                        continue;
+                    }
+                    uchar value = m->get_occ_map()->get_grid_reference().at<uchar>(pt[1], pt[0]);
+                    // if (value > UNKNOWN_CELL_VALUE && probablistic_value < OCCUPANCYMAP2D_FREE_THRE) {
+                    //     probablistic_value += (value - UNKNOWN_CELL_VALUE);
+                    //     probablistic_value = std::max(int(OCCUPANCYMAP2D_FREE_THRE), probablistic_value);
+                    // } else if (value < UNKNOWN_CELL_VALUE && probablistic_value > OCCUPANCYMAP2D_OCCUPY_THRE) {
+                    //     probablistic_value += (value - UNKNOWN_CELL_VALUE);
+                    //     probablistic_value = std::min(int(OCCUPANCYMAP2D_OCCUPY_THRE), probablistic_value);
+                    // }
+                    // The first submap will get to finally write to the output map
+                    // Showing pixels of the current submap slightly differently
+                    if (value > UNKNOWN_CELL_VALUE) {
+                        // Free
+                        if (m == submaps_.back()) {
+                            output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(235, 250, 230);
+                        } else {
+                            output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
+                        }
+                        break;
+                    } else if (value < UNKNOWN_CELL_VALUE) {
+                        if (m == submaps_.back()) {
+                            output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(230, 20, 30);
+                        } else {
+                            output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
+                        }
+                        break;
+                    }
                 }
-                uchar value = m->get_occ_map()->get_grid_reference().at<uchar>(pt[1], pt[0]);
-                if (value > UNKNOWN_CELL_VALUE && probablistic_value < OCCUPANCYMAP2D_FREE_THRE) {
-                    probablistic_value += (value - UNKNOWN_CELL_VALUE);
-                    probablistic_value = std::max(int(OCCUPANCYMAP2D_FREE_THRE), probablistic_value);
-                } else if (value < UNKNOWN_CELL_VALUE && probablistic_value > OCCUPANCYMAP2D_OCCUPY_THRE) {
-                    probablistic_value += (value - UNKNOWN_CELL_VALUE);
-                    probablistic_value = std::min(int(OCCUPANCYMAP2D_OCCUPY_THRE), probablistic_value);
-                }
-                // // The first submap will get to finally write to the output map
-                // // Showing pixels of the current submap slightly differently
-                // if (value > UNKNOWN_CELL_VALUE) {
-                //     // Free
-                //     if (m == submaps_.back()) {
-                //         output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(235, 250, 230);
-                //     } else {
-                //         output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
-                //     }
-                // } else if (value < UNKNOWN_CELL_VALUE) {
-                //     if (m == submaps_.back()) {
-                //         output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(230, 20, 30);
-                //     } else {
-                //         output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
-                //     }
+                // if (probablistic_value > UNKNOWN_CELL_VALUE) {
+                //     output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
+                // } else if (probablistic_value < UNKNOWN_CELL_VALUE) {
+                //     output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
                 // }
-                // break;
-            }
-            if (probablistic_value > UNKNOWN_CELL_VALUE) {
-                output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(255, 255, 255);
-            } else if (probablistic_value < UNKNOWN_CELL_VALUE) {
-                output_image.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 0);
-            }
-        });
+            });
 
         /// submap pose 在全局地图中的投影
         for (auto &m : submaps_) {
@@ -226,9 +240,9 @@ class Mapping2DLaser {
             Vec2f submap_xw     = submap_pose * Vec2f(1.0, 0);
             Vec2f submap_yw     = submap_pose * Vec2f(0, 1.0);
 
-            Vec2f center_map = (submap_center - global_center) * global_map_resolution + center_image;
-            Vec2f x_map      = (submap_xw - global_center) * global_map_resolution + center_image;
-            Vec2f y_map      = (submap_yw - global_center) * global_map_resolution + center_image;
+            Vec2f center_map = (submap_center - global_center) * global_map_resolution_ + center_image;
+            Vec2f x_map      = (submap_xw - global_center) * global_map_resolution_ + center_image;
+            Vec2f y_map      = (submap_yw - global_center) * global_map_resolution_ + center_image;
 
             // drawing x轴和y轴 of the submap
             cv::line(output_image, cv::Point2f(center_map.x(), center_map.y()), cv::Point2f(x_map.x(), x_map.y()),
@@ -237,11 +251,10 @@ class Mapping2DLaser {
                      cv::Scalar(0, 255, 0), 2);
             cv::putText(output_image, std::to_string(m->get_id()), cv::Point2f(center_map.x() + 10, center_map.y() - 10),
                         cv::FONT_HERSHEY_COMPLEX, 0.5, cv::Scalar(255, 0, 0));
-
             // 轨迹: keyframes are dots
             for (const auto &frame : m->get_keyframes()) {
                 Vec2f p_map =
-                    (frame->pose_.translation().cast<float>() - global_center) * global_map_resolution + center_image;
+                    (frame->pose_.translation().cast<float>() - global_center) * global_map_resolution_ + center_image;
                 cv::circle(output_image, cv::Point2f(p_map.x(), p_map.y()), 1, cv::Scalar(0, 0, 255), 1);
             }
         }
@@ -256,20 +269,14 @@ class Mapping2DLaser {
                 Vec2f c1 = submaps_.at(first_id)->get_pose().translation().cast<float>();
                 Vec2f c2 = submaps_.at(second_id)->get_pose().translation().cast<float>();
 
-                Vec2f c1_map = (c1 - global_center) * global_map_resolution + center_image;
-                Vec2f c2_map = (c2 - global_center) * global_map_resolution + center_image;
+                Vec2f c1_map = (c1 - global_center) * global_map_resolution_ + center_image;
+                Vec2f c2_map = (c2 - global_center) * global_map_resolution_ + center_image;
 
                 cv::line(output_image, cv::Point2f(c1_map.x(), c1_map.y()), cv::Point2f(c2_map.x(), c2_map.y()),
                          cv::Scalar(255, 0, 0), 2);
             }
         }
         return output_image;
-    }
-
-    void visualize_global_map() const {
-        cv::Mat global_map = get_global_map(1000);
-        cv::imshow("global map", global_map);
-        halo::close_cv_window_on_esc();
     }
 
   private:
@@ -281,11 +288,9 @@ class Mapping2DLaser {
 
         SE2 delta_pose        = last_keyframe_->pose_.inverse() * current_frame->pose_;
         double relative_angle = fabs(delta_pose.so2().log());
-        std::cout << "Keyframe angular distance from the last: " << relative_angle << std::endl;
         if (relative_angle > keyframe_angular_dist_thre_)
             return true;
         double relative_dist = delta_pose.translation().norm();
-        std::cout << "Keyframe angular distance from the last: " << relative_dist << std::endl;
         if (relative_dist > keyframe_linear_dist_thre_)
             return true;
         return false;
@@ -334,9 +339,12 @@ class Mapping2DLaser {
     float keyframe_linear_dist_thre_        = 0.01;   // 0.1m
     float frame_2_submap_dist_thre_squared_ = 1.0;    // 1m
     size_t submap_gap_                      = 1;      // 1m
-    float loop_rk_delta_                    = 1.0;
     size_t keyframe_num_in_submap_          = 20;
     bool visualize_submap_                  = false;
+
+    float global_map_resolution_              = 0.0;
+    float loop_submap_pose_optimize_rk_delta_ = 1.0;
+    float consecutive_edge_weight_            = 100.0;
 };
 
 }   // namespace halo

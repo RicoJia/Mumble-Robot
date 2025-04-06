@@ -1,23 +1,25 @@
-mr_likelihood_field_inlier_thre: 0.2
+mr_likelihood_field_inlier_thre: 0.0
 # mr_rk_delta controls the large error of robust huber kernel threshold;
 # and is used to filter outliers in the likelihood field
-mr_rk_delta: 0.05
+mr_rk_delta: 0.045
 mr_optimization_iterations: 10
-mr_max_range_optimization: 15.0  # in meters
+mr_max_range_optimization: 25.0  # in meters
 # As a developer, we expect the user to check the field of view of the 2D LIDAR
 # and set the effective field of view for optimization. (Assuming values on the sides might be bad) 
 mr_optimization_half_angle_fov: 1.83 # [-105, 105) deg in radians.
 
 keyframe_angular_dist_thre: 0.26 #15 deg
 keyframe_linear_dist_thre:  0.3  #0.3m
-keyframe_num_in_submap: 10  # the min of (keyframe_num_in_submap, submap_frame_num) will be actually used
+keyframe_num_in_submap: 50  # the min of (keyframe_num_in_submap, submap_frame_num) will be actually used
 
-frame_2_submap_dist_thre_squared: 9.0  # This values controls the largest distance threshold for frame to submap association
+# This values controls the largest distance threshold for frame to submap association
+frame_2_submap_dist_thre_squared: 400.0  # 15m
 submap_gap: 1
-loop_rk_delta: 1.0
 loop_detection: true
 loop_detection_mr_likelihood_field_inlier_thre: 0.4
-loop_detection_mr_rk_delta: 0.3
-loop_detection_mr_optimization_iterations: 20
+loop_detection_mr_rk_delta: 0.15
+loop_detection_mr_optimization_iterations: 10
 
+loop_submap_pose_optimize_rk_delta: 3.0
+consecutive_edge_weight: 1000.0
 visualize_submap: true

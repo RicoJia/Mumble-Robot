@@ -24,8 +24,8 @@ class MultiResolutionLikelihoodField {
         float mr_max_range_optimization      = 15.0,
         float mr_optimization_half_angle_fov = 2.094) : INLIER_RATIO_TH_(inlier_ratio_th), RK_DELTA_(rk_delta), OPTIMIZATION_ITERATIONS(optimization_iterations),
                                                         MR_RESOLUTIONS_(mr_resolutions),
-                                                        MAX_RANGE_OPTIMIZATION(mr_max_range_optimization),
-                                                        OPTIMIZATION_HALF_ANGLE_FOV(mr_optimization_half_angle_fov) {
+                                                        MAX_RANGE_OPTIMIZATION_(mr_max_range_optimization),
+                                                        OPTIMIZATION_HALF_ANGLE_FOV_(mr_optimization_half_angle_fov) {
         IMAGE_PYRAMID_LEVELS_ = MR_RESOLUTIONS_.size();
         grids_.resize(IMAGE_PYRAMID_LEVELS_);   // default initialized
 
@@ -54,7 +54,7 @@ class MultiResolutionLikelihoodField {
         // for each level, create a likelihood field;
         for (size_t i = 0; i < MR_RESOLUTIONS_.size(); ++i) {
             const float &resolution = MR_RESOLUTIONS_.at(i);
-            float res_factor        = occ_resolution / resolution;
+            float res_factor        = resolution / occ_resolution;
             int half_map_size       = int(HALF_MAP_SIZE_2D_METERS * resolution);
             grids_.at(i)            = cv::Mat(half_map_size * 2, half_map_size * 2, CV_32F, cv::Scalar(FAR_VALUE_PIXELS_FLOAT));
             auto &grid              = grids_.at(i);
@@ -109,9 +109,8 @@ class MultiResolutionLikelihoodField {
      *  1. Create a new optimizer for each resolution level. g2o does not like having repeating ids
      */
     bool can_align_g2o(SE2 &relative_pose) {
-        int num_inliers       = 0;
-        float inlier_ratio    = 0.0;
-        const double range_th = 15.0;   // 不考虑太远的scan，不准
+        int num_inliers    = 0;
+        float inlier_ratio = 0.0;
         for (size_t level = 0; level < MR_RESOLUTIONS_.size(); ++level) {
             using BlockSolverType  = g2o::BlockSolver<g2o::BlockSolverTraits<3, 1>>;
             using LinearSolverType = g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
@@ -131,7 +130,6 @@ class MultiResolutionLikelihoodField {
             // Prepare an index array so we can process the source_scan_objs_ in parallel.
             std::vector<size_t> indices(source_scan_objs_.size());
             std::iota(indices.begin(), indices.end(), 0);
-            // Pre-allocate vector for edges (some entries may remain nullptr).
             std::vector<Edge2DLikelihoodField *> edges(source_scan_objs_.size(), nullptr);
             // Parallel edge creation using the standard parallel algorithm.
             std::for_each(
@@ -139,10 +137,11 @@ class MultiResolutionLikelihoodField {
                 indices.begin(), indices.end(), [&](size_t i) {
                     const auto &scan_obj = source_scan_objs_.at(i);
                     // THESE TWO LINES ARE INCREDIBLE - THEY MADE A HUGE DIFFERENCE!! WHYYYYYYYYYYYYYYYYYYY
-                    if (scan_obj.range > MAX_RANGE_OPTIMIZATION)
+
+                    if (scan_obj.range > MAX_RANGE_OPTIMIZATION_)
                         return;
-                    if (scan_obj.angle < -OPTIMIZATION_HALF_ANGLE_FOV ||
-                        scan_obj.angle > OPTIMIZATION_HALF_ANGLE_FOV) {
+                    if (scan_obj.angle < -OPTIMIZATION_HALF_ANGLE_FOV_ ||
+                        scan_obj.angle > OPTIMIZATION_HALF_ANGLE_FOV_) {
                         return;
                     }
 
@@ -182,18 +181,16 @@ class MultiResolutionLikelihoodField {
                     return (e != nullptr && e->chi2() < rk_deltas_[level]) ? 1 : 0;
                 });
 
-            // Revisit if inliers are enough
             inlier_ratio = float(num_inliers) / float(source_scan_objs_.size());
-            std::cerr << "Level: " << level << "inlier_ratio: " << inlier_ratio << ", rk_delta: " << rk_deltas_[level]
-                      << ", total scan: " << source_scan_objs_.size() << std::endl;
 
             if (inlier_ratio > INLIER_RATIO_TH_) {
                 relative_pose = v->estimate();
+            } else {
+                // std::cerr << "===========MR Rejected because inlier ratio is too low" << std::endl;
+                // std::cerr << "Level: " << level << "inlier_ratio: " << inlier_ratio << ", rk_delta: " << rk_deltas_[level]
+                //           << ", total scan: " << source_scan_objs_.size() << std::endl;
+                return false;
             }
-        }
-        if (inlier_ratio < INLIER_RATIO_TH_) {
-            std::cerr << "===========Rejected because inlier ratio is too low" << std::endl;
-            return false;
         }
         return true;
     }
@@ -212,14 +209,14 @@ class MultiResolutionLikelihoodField {
     float INLIER_RATIO_TH_;
     float RK_DELTA_;   // it's in meters for error threshold
     int OPTIMIZATION_ITERATIONS;
-    float MAX_RANGE_OPTIMIZATION;
-    float OPTIMIZATION_HALF_ANGLE_FOV;
     std::vector<cv::Mat> grids_;   // default initialized
     std::vector<float> rk_deltas_;
     std::vector<Likelihood2DTemplatePoint> template_;
     std::vector<ScanObj> source_scan_objs_;
     std::vector<float> MR_RESOLUTIONS_;
     size_t IMAGE_PYRAMID_LEVELS_ = 0;
+    float MAX_RANGE_OPTIMIZATION_;
+    float OPTIMIZATION_HALF_ANGLE_FOV_;
 
     void _set_rk_deltas() {
         rk_deltas_.resize(IMAGE_PYRAMID_LEVELS_);

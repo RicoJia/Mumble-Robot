@@ -26,8 +26,11 @@ class Submap2D {
     // Initialization
     /************************************************************************* */
 
-    Submap2D(const SE2 &pose, const Submap2DParams &p) : mr_likelihood_field_(SCAN_MATCHING_MR_RESOLUTIONS, p.mr_likelihood_field_inlier_thre,
-                                                                              p.mr_rk_delta, p.mr_max_range_optimization, p.mr_optimization_iterations, p.mr_optimization_half_angle_fov),
+    Submap2D(const SE2 &pose, const Submap2DParams &p) : mr_likelihood_field_(SCAN_MATCHING_MR_RESOLUTIONS,
+                                                                              p.mr_likelihood_field_inlier_thre,
+                                                                              p.mr_rk_delta, p.mr_optimization_iterations,
+                                                                              p.mr_max_range_optimization,
+                                                                              p.mr_optimization_half_angle_fov),
                                                          occupancy_map_() {
         set_pose(pose);
     }
@@ -110,7 +113,7 @@ class Submap2D {
     bool has_outside_points() const { return occupancy_map_.has_outside_points(); }
 
     // We show the lidar scan on top of the likelihood field and occupancy map
-    void visualize_submap(Lidar2DFramePtr frame) const {
+    void visualize_submap(Lidar2DFramePtr frame, bool call_cv_window = true) const {
         // Find the last likelihood field image
         cv::Mat mr_likehood_img = mr_likelihood_field_.get_field_images().back();
         const auto resolution   = mr_likelihood_field_.get_mr_resolutions().back();
@@ -123,11 +126,14 @@ class Submap2D {
         int half_map_size_2d = get_occ_map()->get_half_map_size_2d();
         halo::visualize_2d_scan(frame->scan_, occ_grid_img, halo::SE2(), frame->pose_submap_,
                                 1.0 / occ_map_res, half_map_size_2d * 2, halo::Vec3b(255, 255, 0));
-        // // unadjusted map
-        // halo::visualize_2d_scan(frame->scan_, occ_grid_img, halo::SE2(), halo::SE2(),
-        //                         1.0 / occ_map_res, half_map_size_2d * 2, halo::Vec3b(0, 255, 255));
-        cv::imshow("occ_grid_img: " + std::to_string(id_), occ_grid_img);
-        halo::close_cv_window_on_esc();
+        cv::putText(occ_grid_img, "submap " + std::to_string(get_id()), cv::Point2f(20, 20),
+                    cv::FONT_HERSHEY_COMPLEX, 0.5, cv::Scalar(0, 255, 0));
+        cv::putText(occ_grid_img, "keyframes " + std::to_string(frames_num()), cv::Point2f(20, 50),
+                    cv::FONT_HERSHEY_COMPLEX, 0.5, cv::Scalar(0, 255, 0));
+        cv::imshow("occ_grid_img", occ_grid_img);
+        if (call_cv_window) {
+            halo::close_cv_window_on_esc();
+        }
     }
 
     /**
