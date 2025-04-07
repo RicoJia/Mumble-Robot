@@ -32,11 +32,13 @@ services:
     stdin_open: true
     tty: true
     environment:
-      - DISPLAY=${DISPLAY}
+      - DISPLAY
+      - XAUTHORITY=/tmp/.host_Xauthority  # avoid name clashing with a directory with the same name??
     profiles:
       - amd
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
+      # - /tmp/.X11-unix:/tmp/.X11-unix
+      - /home/ricojia/.Xauthority:/tmp/.host_Xauthority:ro
       - ${CURRENT_DIR}:/home/mumble_robot/src/mumble_onboard # Mount current directory
       - ${CURRENT_DIR}/../mumble_interfaces:/home/mumble_robot/src/mumble_interfaces # Mount current directory
       - /dev/shm:/dev/shm # when net=host, sharedmemory is used for communication
