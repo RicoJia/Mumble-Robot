@@ -10,6 +10,22 @@
 #include <thread>
 
 namespace halo {
+
+// ======================== Conversions ========================
+inline Vec3f to_vec_3f(const PCLPointXYZI &pt) { return pt.getVector3fMap(); }
+inline Vec2d to_eigen(const PCLPoint2D &pt) { return Vec2d(pt.x, pt.y); }
+
+template <typename S>
+inline PCLPointXYZI to_pcl_point_xyzi(const Eigen::Matrix<S, 3, 1> &pt) {
+    PCLPointXYZI pt_pcl;
+    pt_pcl.x = pt.x();
+    pt_pcl.y = pt.y();
+    pt_pcl.z = pt.z();
+    return pt_pcl;
+}
+
+// ======================== PCL Simple Processing ========================
+
 /**
  * @brief A leaf node is a voxel in the 3D space. This is to perserve remove
  * redundant points in the same pixel
@@ -26,6 +42,26 @@ inline void downsample_point_cloud(PCLCloudXYZIPtr &cloud, float voxel_size) {
     voxel.filter(*output);
 
     cloud->swap(*output);
+}
+
+inline Vec3d get_point_cloud_center(PCLCloudXYZIPtr &point_cloud) {
+    return std::accumulate(point_cloud->points.begin(), point_cloud->points.end(), Vec3d::Zero().eval(),
+                           [](const Vec3d &sum, const PCLPointXYZI &point) -> Vec3d {
+                               Vec3d new_sum = sum + Vec3d(point.x, point.y, point.z);
+                               return new_sum;
+                           }) /
+           static_cast<double>(point_cloud->points.size());
+}
+
+// ======================== PCL IO ========================
+
+template <typename CloudType>
+void save_pcd_file(const std::string &file_path, CloudType &cloud) {
+    cloud.height = 1;
+    cloud.width  = cloud.size();
+    pcl::io::savePCDFileASCII(file_path, cloud);
+    // TODO
+    std::cout << "Saved point cloud to" << file_path << std::endl;
 }
 
 /**
@@ -70,7 +106,7 @@ class CloudViewer {
     pcl::visualization::PCLVisualizer::Ptr viewer;
 };
 
-inline Vec3f to_vec_3f(const PCLPointXYZI &pt) { return pt.getVector3fMap(); }
+// ======================== Nearest Neighbor ========================
 
 /**
  * @brief Return the index of the closest point in the cloud

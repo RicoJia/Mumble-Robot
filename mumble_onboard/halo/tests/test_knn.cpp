@@ -7,7 +7,7 @@
 #include <halo/common/sensor_data_definitions.hpp>   // because this is added in cmake
 #include <halo/kd_tree.hpp>
 #include <halo/nanoflann_kdtree.hpp>
-#include <halo/point_cloud_processing.hpp>
+#include <halo/common/point_cloud_processing.hpp>
 #include <halo/octo_tree.hpp>
 #include <unordered_set>
 

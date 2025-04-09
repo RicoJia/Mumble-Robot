@@ -21,12 +21,11 @@ Lower level:
 ## 2D SLAM Frameworks
 
 <div style="text-align: center;">
-<p align="center">
-    <figure>
-        <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/39393023/429205259-bca0d8c6-85c3-455b-aa4b-3233ba2e2f86.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250401%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250401T201003Z&X-Amz-Expires=300&X-Amz-Signature=8f1dbd61ea95fa69a43817c1d38de1bd6ffc92dfd2c9b590ad95b92a6fac808a&X-Amz-SignedHeaders=host" height="500" alt=""/>
-        <figcaption><a href=""> 2D LiDAR-only pose graph SLAM </a></figcaption>
-    </figure>
-</p>
+    <p align="center">
+       <figure>
+            <img src="https://i.postimg.cc/43kNnkJg/2025-04-02-09-47-58.png" height="300" alt=""/>
+       </figure>
+    </p>
 </div>
 
 ### K-Nearest Neighbor Search
@@ -61,6 +60,25 @@ target_link_libraries(my_executable
 )
 ```
 
+## 3D SLAM Frameworks
+
+### Scan Matching
+
+- [Point-Point ICP](./include/halo/lo3d/icp_3d_methods.hpp)
+
+<p align="center">
+  <img src="https://i.postimg.cc/nhF3MYCN/pcl-source.png" height="200"/>
+  <img src="https://i.postimg.cc/65LH915d/pcl-target.png" height="200"/>
+  <img src="https://i.postimg.cc/MK8PJ8x6/pcl-Merged.png" height="200"/>
+    <figcaption style="text-align: center; margin-top: 8px;">
+        From Left to Right: Source, Target, Merged Point Clouds
+    </figcaption>
+</p>
+
+
 ## Conventions:
 
 - angles are wrapped to `[-pi, pi]`. Please adjust the lidar `angle_min` and `angle_max` accordingly
+
+## Generic Tools
+- `visualize_pcd.py`: visualize a 3D point cloud in pcd 

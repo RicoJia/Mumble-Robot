@@ -85,23 +85,28 @@ if(BUILD_HALO_TESTS)
   add_test(NAME test_linear_fitting COMMAND test_linear_fitting)
 
   # ############################################################################
-  # 2D SLAM Test
+  # 2D SLAM Tests
   # ############################################################################
 
-  function(add_2d_slam_gtest name)
+  function(add_slam_gtest name)
     add_executable(${name} tests/${name}.cpp)
     target_link_libraries(${name} halo GTest::GTest GTest::Main pthread
                           ${G2O_LIBS})
     add_test(NAME ${name} COMMAND ${name})
   endfunction()
 
-  add_2d_slam_gtest(test_2d_slam_visualization)
-  add_2d_slam_gtest(test_2d_slam_degredation)
-  add_2d_slam_gtest(test_2d_slam_mapping)
-  add_2d_slam_gtest(test_2d_slam_icp_methods)
-  add_2d_slam_gtest(test_2d_slam_submaps)
-  add_2d_slam_gtest(test_2d_slam_likelihood_fields)
-  add_2d_slam_gtest(test_2d_slam_occ_map)
+  add_slam_gtest(test_2d_slam_visualization)
+  add_slam_gtest(test_2d_slam_degredation)
+  add_slam_gtest(test_2d_slam_mapping)
+  add_slam_gtest(test_2d_slam_icp_methods)
+  add_slam_gtest(test_2d_slam_submaps)
+  add_slam_gtest(test_2d_slam_likelihood_fields)
+  add_slam_gtest(test_2d_slam_occ_map)
+
+  # ############################################################################
+  # 3D SLAM Tests
+  # ############################################################################
+  add_slam_gtest(test_3d_icp)
 
 endif()
 

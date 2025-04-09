@@ -67,6 +67,32 @@ class NanoFlannKDTree {
     // - k: the number of nearest neighbors to find for each query point.
     //
     // Returns true on success, false otherwise.
+    /**
+     * @brief Search for the k nearest neighbors of each point in the query cloud.
+     * @param local_ret_index: Vector to store the indices of the nearest neighbors.
+     *  This is to assume typename KDTreeType::IndexType = unsigned int
+     */
+    void search_tree_single_point(const PointT &pt,
+                                  std::vector<unsigned int> &local_ret_index,
+                                  std::vector<float> &local_out_dist_sqr,
+                                  size_t num_results) const {
+        std::array<float, dim> query_pt;
+        if constexpr (dim == 3)
+            query_pt = {pt.x, pt.y, pt.z};
+        else if constexpr (dim == 2)
+            query_pt = {pt.x, pt.y};
+        else
+            // Cannot be static_assert(false)
+            static_assert(dim != 2 && dim != 3, "dimension can only be 2 or 3");
+
+        // TODO
+        local_ret_index = std::vector<unsigned int>(num_results);   // Can I use size_t? It's external facing;
+        // Also I don't like copy construction. Is there a better way?
+        local_out_dist_sqr = std::vector<float>(num_results);
+
+        kd_tree_.knnSearch(query_pt.data(), num_results, local_ret_index.data(), local_out_dist_sqr.data());
+    }
+
     bool search_tree_multi_threaded(const CloudPtr &query_cloud,
                                     std::vector<NNMatch> &matches, size_t k) const {
         if (!query_cloud || query_cloud->points.empty()) {
@@ -84,20 +110,23 @@ class NanoFlannKDTree {
         std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
                       [&](size_t i) {
                           const auto &pt = query_cloud->points[i];
-                          std::array<float, dim> query_pt;
-                          if constexpr (dim == 3)
-                              query_pt = {pt.x, pt.y, pt.z};
-                          else if constexpr (dim == 2)
-                              query_pt = {pt.x, pt.y};
-                          else
-                              // Cannot be static_assert(false)
-                              static_assert(dim != 2 && dim != 3, "dimension can only be 2 or 3");
+                          // TODO
+                          //   std::array<float, dim> query_pt;
+                          //   if constexpr (dim == 3)
+                          //       query_pt = {pt.x, pt.y, pt.z};
+                          //   else if constexpr (dim == 2)
+                          //       query_pt = {pt.x, pt.y};
+                          //   else
+                          //       // Cannot be static_assert(false)
+                          //       static_assert(dim != 2 && dim != 3, "dimension can only be 2 or 3");
 
-                          // Allocate temporary storage for this iteration.
-                          std::vector<typename KDTreeType::IndexType> local_ret_index(num_results);
-                          std::vector<float> local_out_dist_sqr(num_results);
-
-                          kd_tree_.knnSearch(query_pt.data(), num_results, local_ret_index.data(), local_out_dist_sqr.data());
+                          //   // Allocate temporary storage for this iteration.
+                          //   std::vector<unsigned int> local_ret_index(num_results);
+                          //   std::vector<float> local_out_dist_sqr(num_results);
+                          //   kd_tree_.knnSearch(query_pt.data(), num_results, local_ret_index.data(), local_out_dist_sqr.data());
+                          std::vector<unsigned int> local_ret_index;
+                          std::vector<float> local_out_dist_sqr;
+                          search_tree_single_point(pt, local_ret_index, local_out_dist_sqr, num_results);
                           for (size_t j = 0; j < k; ++j) {
                               matches[i * k + j].idx_in_this_cloud             = i;
                               matches[i * k + j].closest_pt_idx_in_other_cloud = local_ret_index[j];
