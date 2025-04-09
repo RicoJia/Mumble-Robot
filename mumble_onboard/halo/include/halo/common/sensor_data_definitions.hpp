@@ -2,6 +2,12 @@
 
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sophus/se2.hpp"
+
+#pragma GCC diagnostic push   // to ignore sophus
+#pragma GCC diagnostic ignored "-Wpedantic"
+#include "sophus/se3.hpp"
+#pragma GCC diagnostic pop   // recover diagnostic directive
+
 #include <opencv2/opencv.hpp>
 
 namespace halo {
@@ -21,6 +27,8 @@ using LaserScanMsg = sensor_msgs::msg::LaserScan;
 using SE2  = Sophus::SE2d;
 using SE2f = Sophus::SE2f;
 using SO2  = Sophus::SO2d;
+using SE3  = Sophus::SE3d;
+using SO3  = Sophus::SO3d;   // has hat()
 
 using Vec2d = Eigen::Vector2d;
 using Vec2f = Eigen::Vector2f;
@@ -30,6 +38,8 @@ using Vec3b = Eigen::Vector3i;
 using Vec3d = Eigen::Vector3d;
 using Vec3f = Eigen::Vector3f;
 using Vec4f = Eigen::Vector4f;
+
+using Vec6d = Eigen::Matrix<double, 6, 1>;
 
 using Mat3d = Eigen::Matrix3d;
 
@@ -87,9 +97,5 @@ struct _get_pointcloud_dimensions {
         (pcl::traits::has_field<PointT, pcl::fields::y>::value ? 1 : 0) +
         (pcl::traits::has_field<PointT, pcl::fields::z>::value ? 1 : 0);
 };
-
-Vec2d to_eigen(const PCLPoint2D &pt) {
-    return Vec2d(pt.x, pt.y);
-}
 
 }   // namespace halo

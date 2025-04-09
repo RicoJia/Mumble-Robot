@@ -13,6 +13,7 @@
 
 #include <halo/common/sensor_data_definitions.hpp>
 #include <halo/common/math_utils.hpp>
+#include <halo/common/point_cloud_processing.hpp>
 
 namespace halo {
 

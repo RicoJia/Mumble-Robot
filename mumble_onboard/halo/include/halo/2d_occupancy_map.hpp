@@ -106,6 +106,8 @@ class OccupancyMap2D {
             if (template_.empty())
                 generate_template();
 
+            std::cout << "frame.scan_->range_min: " << frame.scan_->range_min
+                      << " frame.scan_->range_max: " << frame.scan_->range_max << std::endl;
             std::for_each(
                 std::execution::par_unseq,
                 template_.begin(), template_.end(),

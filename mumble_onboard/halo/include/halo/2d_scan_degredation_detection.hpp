@@ -22,7 +22,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/cloud_viewer.h>
 
-#include <halo/point_cloud_processing.hpp>
+#include <halo/common/point_cloud_processing.hpp>
 #include <halo/common/sensor_utils.hpp>
 #include <halo/common/math_utils.hpp>
 #include "sensor_msgs/msg/laser_scan.hpp"
