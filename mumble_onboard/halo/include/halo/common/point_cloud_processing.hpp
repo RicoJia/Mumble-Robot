@@ -53,6 +53,17 @@ inline Vec3d get_point_cloud_center(PCLCloudXYZIPtr &point_cloud) {
            static_cast<double>(point_cloud->points.size());
 }
 
+void add_cloud_with_distance_filtering(const float &max_distance, PCLCloudXYZIPtr in_cloud, PCLCloudXYZIPtr out_cloud) {
+    out_cloud->points.reserve(in_cloud->points.size());
+    // TODO: profile, and see if it needs to be moved
+    for (const auto &point : in_cloud->points) {
+        float distance = std::sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
+        if (distance <= max_distance) {
+            out_cloud->points.emplace_back(point);
+        }
+    }
+}
+
 // ======================== PCL IO ========================
 
 template <typename CloudType>

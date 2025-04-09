@@ -81,8 +81,8 @@ TEST_F(ICP3DTest, Test3DICP) {
             bool success = icp_3d.pt_pt_icp3d(relative_pose);
             if (success) {
                 std::cout << "Alignment success!" << std::endl;
-                // save_pcl(relative_pose);
-                save_pcl(ground_truth_pose);
+                save_pcl(relative_pose);
+                // save_pcl(ground_truth_pose);
             } else {
                 std::cout << "Alignment failed!" << std::endl;
             }

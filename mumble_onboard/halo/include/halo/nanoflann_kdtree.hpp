@@ -59,14 +59,6 @@ class NanoFlannKDTree {
                     const nanoflann::KDTreeSingleIndexAdaptorParams &params)
         : adaptor_(adaptor), kd_tree_(dim, adaptor_, params) { kd_tree_.buildIndex(); }
 
-    // This function performs a multi-threaded nearest neighbor search.
-    // It expects:
-    // - query_cloud: the point cloud whose points will be searched against the kd-tree.
-    // - matches: vector where each query point will yield k matches
-    //            (i.e. matches.size() should equal query_cloud->points.size() * k).
-    // - k: the number of nearest neighbors to find for each query point.
-    //
-    // Returns true on success, false otherwise.
     /**
      * @brief Search for the k nearest neighbors of each point in the query cloud.
      * @param local_ret_index: Vector to store the indices of the nearest neighbors.
@@ -93,6 +85,14 @@ class NanoFlannKDTree {
         kd_tree_.knnSearch(query_pt.data(), num_results, local_ret_index.data(), local_out_dist_sqr.data());
     }
 
+    /**
+     * @brief: This function performs a multi-threaded nearest neighbor search. It expects:
+     * - query_cloud: the point cloud whose points will be searched against the kd-tree.
+       - matches: vector where each query point will yield k matches
+               (i.e. matches.size() should equal query_cloud->points.size() * k).
+       - k: the number of nearest neighbors to find for each query point.
+    Returns true on success, false otherwise.
+     */
     bool search_tree_multi_threaded(const CloudPtr &query_cloud,
                                     std::vector<NNMatch> &matches, size_t k) const {
         if (!query_cloud || query_cloud->points.empty()) {
@@ -110,20 +110,6 @@ class NanoFlannKDTree {
         std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
                       [&](size_t i) {
                           const auto &pt = query_cloud->points[i];
-                          // TODO
-                          //   std::array<float, dim> query_pt;
-                          //   if constexpr (dim == 3)
-                          //       query_pt = {pt.x, pt.y, pt.z};
-                          //   else if constexpr (dim == 2)
-                          //       query_pt = {pt.x, pt.y};
-                          //   else
-                          //       // Cannot be static_assert(false)
-                          //       static_assert(dim != 2 && dim != 3, "dimension can only be 2 or 3");
-
-                          //   // Allocate temporary storage for this iteration.
-                          //   std::vector<unsigned int> local_ret_index(num_results);
-                          //   std::vector<float> local_out_dist_sqr(num_results);
-                          //   kd_tree_.knnSearch(query_pt.data(), num_results, local_ret_index.data(), local_out_dist_sqr.data());
                           std::vector<unsigned int> local_ret_index;
                           std::vector<float> local_out_dist_sqr;
                           search_tree_single_point(pt, local_ret_index, local_out_dist_sqr, num_results);
