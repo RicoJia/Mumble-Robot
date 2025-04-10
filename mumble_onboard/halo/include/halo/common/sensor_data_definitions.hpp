@@ -38,6 +38,7 @@ using Vec3b = Eigen::Vector3i;
 using Vec3d = Eigen::Vector3d;
 using Vec3f = Eigen::Vector3f;
 using Vec4f = Eigen::Vector4f;
+using Vec4d = Eigen::Vector4d;
 
 using Vec6d = Eigen::Matrix<double, 6, 1>;
 

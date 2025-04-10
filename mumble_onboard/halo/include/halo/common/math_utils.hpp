@@ -64,7 +64,7 @@ inline Eigen::VectorXf normalize_point_cloud(Eigen::MatrixXf &A) {
 // Pass into compute ATA eigen.
 // Get the largest lambda, and its eigen vector. That's the principal component.
 
-inline Eigen::Vector4f fit_plane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
+inline bool fit_plane(Eigen::Vector4f &least_principal_component, const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud, const double &eps = 0.01) {
     int num_points = cloud->size();
     if (num_points == 0)
         throw std::runtime_error("Empty point cloud passed into fit_plane");
@@ -79,8 +79,14 @@ inline Eigen::Vector4f fit_plane(const pcl::PointCloud<pcl::PointXYZI>::Ptr &clo
     auto [eigen_values, eigen_vecs] = compute_ATA_eigen(X);
     int min_coeff;
     eigen_values.minCoeff(&min_coeff);
-    Eigen::Vector4f least_principal_component = eigen_vecs.col(min_coeff);
-    return least_principal_component;
+    least_principal_component = eigen_vecs.col(min_coeff);
+    for (int i = 0; i < num_points; ++i) {
+        float err = least_principal_component.dot(X.row(i));
+        if (err * err > eps) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // This is slower than fit_plane, because it operates on a larger matrix mxn, instead of ATA (nxn)
@@ -127,7 +133,7 @@ inline Eigen::Vector3f fit_line_2d(const CloudPtrType &cloud) {
     return eigen_vecs.col(min_coeff);
 }
 
-// returning mean and principal component
+// returning mean and principal component. line = mean + x * principal_component
 inline std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line_3d(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud) {
     // Step 1: find the mean of all points
     // Step 2: normalize the points with mean, get their eigen values and eigen vectors.
@@ -146,6 +152,19 @@ inline std::pair<Eigen::Vector3f, Eigen::Vector3f> fit_line_3d(const pcl::PointC
     eigen_values.maxCoeff(&max_coeff);
     Eigen::Vector3f principal_component = eigen_vecs.col(max_coeff);
     return {mean, principal_component};
+}
+
+/**
+ * @brief: point to line distance
+ * @param point: point in 3D space
+ * @param t_0: point on the line
+ * @param line_normal: line normal vector
+ */
+template <typename S>
+inline Eigen::Matrix<S, 3, 1> point_to_line_distance(const Eigen::Matrix<S, 3, 1> &point,
+                                                     const Eigen::Matrix<S, 3, 1> &t_0,
+                                                     const Eigen::Matrix<S, 3, 1> &line_normal) {
+    return (point - t_0).cross(line_normal) / line_normal.norm();   // in case line_normal is not normalized
 }
 
 //////////////////////////////////////////////////////////////////////////////

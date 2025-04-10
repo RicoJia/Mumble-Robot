@@ -80,7 +80,8 @@
         "variant": "cpp",
         "regex": "cpp",
         "core": "cpp",
-        "numericaldiff": "cpp"
+        "numericaldiff": "cpp",
+        "*.txx": "cpp"
     },
     "cmake.sourceDirectory": "/home/mumble_robot/src/mumble_onboard"
 }
