@@ -271,10 +271,10 @@ NearestNeighborGrid<dim, neighbor_count>::_get_coord(
     const PCLPointXYZI &pt) const {
     NNCoord coord;
     if constexpr (dim == 2) {
-        coord = NNCoord(pt.x / resolution_, pt.y / resolution_);
+        coord = NNCoord(pt.x * resolution_, pt.y * resolution_);
     } else if constexpr (dim == 3) {
         coord =
-            NNCoord(pt.x / resolution_, pt.y / resolution_, pt.z / resolution_);
+            NNCoord(pt.x * resolution_, pt.y * resolution_, pt.z * resolution_);
     }
     return coord;
 }

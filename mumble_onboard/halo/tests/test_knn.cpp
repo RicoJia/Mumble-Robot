@@ -131,7 +131,7 @@ TEST(TestKNN, test_grid_method) {
     std::vector<halo::NNMatch> matches;
     {
         std::cout << "=====================Case 0: Grid Method k = 1=====================" << std::endl;
-        float resolution = 0.2;
+        float resolution = 5.0;   // 5 pixels per meter
         halo::RAIITimer timer;
         halo::NearestNeighborGrid<3, halo::NeighborCount::NEARBY18> nn_grid(resolution);
         nn_grid.set_pointcloud(first);

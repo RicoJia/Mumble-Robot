@@ -12,7 +12,6 @@ inline std::ostream &operator<<(std::ostream &os, const Sophus::SE2d &pose) {
 }
 
 inline std::ostream &operator<<(std::ostream &os, const Sophus::SE3d &pose) {
-    os << "SE3:";
     os << "  [SO3] " << pose.so3().log().transpose();
     os << "  [Translation] " << pose.translation().transpose() << "\n";
     return os;

@@ -64,10 +64,10 @@ class NanoFlannKDTree {
      * @param local_ret_index: Vector to store the indices of the nearest neighbors.
      *  This is to assume typename KDTreeType::IndexType = unsigned int
      */
-    void search_tree_single_point(const PointT &pt,
-                                  std::vector<unsigned int> &local_ret_index,
-                                  std::vector<float> &local_out_dist_sqr,
-                                  size_t num_results) const {
+    size_t search_tree_single_point(const PointT &pt,
+                                    std::vector<unsigned int> &local_ret_index,
+                                    std::vector<float> &local_out_dist_sqr,
+                                    size_t num_results) const {
         std::array<float, dim> query_pt;
         if constexpr (dim == 3)
             query_pt = {pt.x, pt.y, pt.z};
@@ -77,12 +77,12 @@ class NanoFlannKDTree {
             // Cannot be static_assert(false)
             static_assert(dim != 2 && dim != 3, "dimension can only be 2 or 3");
 
-        // TODO
-        local_ret_index = std::vector<unsigned int>(num_results);   // Can I use size_t? It's external facing;
-        // Also I don't like copy construction. Is there a better way?
+        local_ret_index    = std::vector<unsigned int>(num_results);   // Can I use size_t? It's external facing;
         local_out_dist_sqr = std::vector<float>(num_results);
 
-        kd_tree_.knnSearch(query_pt.data(), num_results, local_ret_index.data(), local_out_dist_sqr.data());
+        // Return is less than `num_closest` only if the number of elements in the tree is less than `num_closest`
+        size_t valid_num = kd_tree_.knnSearch(query_pt.data(), num_results, local_ret_index.data(), local_out_dist_sqr.data());
+        return valid_num;
     }
 
     /**

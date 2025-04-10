@@ -24,10 +24,11 @@ void parse_args(int argc, char **argv) {
             target_path = argv[i + 1];   // Store the next argument as source_path
             ++i;                         // Skip the next argument since it's the value
         } else if ((arg == "--ground_truth_path" || arg == "-g") && i + 1 < argc) {
-            ground_truth_path = std::stoi(argv[i + 1]);   // Store the next argument as source_path
-            ++i;                                          // Skip the next argument since it's the value
+            ground_truth_path = argv[i + 1];   // Store the next argument as source_path
+            ++i;                               // Skip the next argument since it's the value
         }
     }
+    std::cout << "source_path: " << source_path << ", target_path: " << target_path << std::endl;
 }
 
 class ICP3DTest : public ::testing::Test {
@@ -35,6 +36,8 @@ class ICP3DTest : public ::testing::Test {
     halo::PCLCloudXYZIPtr source;
     halo::PCLCloudXYZIPtr target;
     halo::SE3 ground_truth_pose;
+    halo::SE3 relative_pose;
+    bool success = false;
 
     void SetUp() override {
         source.reset(new halo::PCLCloudXYZI);
@@ -53,36 +56,80 @@ class ICP3DTest : public ::testing::Test {
     }
 
     void TearDown() override {
+        if (success) {
+            std::cout << "Alignment success!" << std::endl;
+            save_pcl(relative_pose, "icp_pt_pt");
+        } else {
+            std::cout << "Alignment failed!" << std::endl;
+        }
+        std::cout << "relative_pose: " << relative_pose << std::endl;
+        std::cout << "ground truth: " << ground_truth_pose << std::endl;
         source.reset();
         target.reset();
     }
 
-    void save_pcl(halo::SE3 relative_pose) {
+    void save_pcl(halo::SE3 relative_pose, const std::string &test_name) {
+        halo::PCLCloudXYZIPtr merged_aligned_cloud(new halo::PCLCloudXYZI);
+        *merged_aligned_cloud = *source + *target;   // Merge clouds
+        halo::save_pcd_file("/tmp/" + test_name + "_pcl_merged_unaligned.pcd", *merged_aligned_cloud);
+
         halo::PCLCloudXYZIPtr aligned_cloud(new halo::PCLCloudXYZI);
         pcl::transformPointCloud(*source, *aligned_cloud, relative_pose.matrix().cast<float>());
-        halo::save_pcd_file("/tmp/pcl_merged.pcd", *aligned_cloud);
 
         // Merge aligned with target
         halo::PCLCloudXYZIPtr merged_cloud(new halo::PCLCloudXYZI);
         *merged_cloud = *aligned_cloud + *target;   // Merge clouds
         // Save merged point cloud
-        halo::save_pcd_file("/tmp/pcl_merged.pcd", *merged_cloud);
+        halo::save_pcd_file("/tmp/" + test_name + "_pcl_merged.pcd", *merged_cloud);
     }
 };
 
-TEST_F(ICP3DTest, Test3DICP) {
+TEST_F(ICP3DTest, Test3DICP_Ptpt) {
     halo::profile_and_call(
         [&]() {
+            std::cout << "====================== Test3DICP_Ptpt ======================" << std::endl;
+            halo::ICP3D::Options options;
+            halo::ICP3D icp_3d(options);
+            icp_3d.set_source(source);
+            icp_3d.set_target(target);
+            success = icp_3d.pt_pt_icp3d(relative_pose);
+        });
+}
+
+TEST_F(ICP3DTest, Test3DICP_PtLine) {
+    halo::profile_and_call(
+        [&]() {
+            std::cout << "====================== Test3DICP_PtLine ======================" << std::endl;
             halo::ICP3D::Options options;
             halo::ICP3D icp_3d(options);
             icp_3d.set_source(source);
             icp_3d.set_target(target);
             halo::SE3 relative_pose;
-            bool success = icp_3d.pt_pt_icp3d(relative_pose);
+            bool success = icp_3d.pt_line_icp3d(relative_pose);
             if (success) {
                 std::cout << "Alignment success!" << std::endl;
-                save_pcl(relative_pose);
-                // save_pcl(ground_truth_pose);
+                save_pcl(relative_pose, "icp_pt_line");
+            } else {
+                std::cout << "Alignment failed!" << std::endl;
+            }
+            std::cout << "relative_pose: " << relative_pose << std::endl;
+            std::cout << "ground truth: " << ground_truth_pose << std::endl;
+        });
+}
+
+TEST_F(ICP3DTest, Test3DICP_Ptplane) {
+    halo::profile_and_call(
+        [&]() {
+            std::cout << "====================== Test3DICP_PtPlane ======================" << std::endl;
+            halo::ICP3D::Options options;
+            halo::ICP3D icp_3d(options);
+            icp_3d.set_source(source);
+            icp_3d.set_target(target);
+            halo::SE3 relative_pose;
+            bool success = icp_3d.pt_plane_icp3d(relative_pose);
+            if (success) {
+                std::cout << "Alignment success!" << std::endl;
+                save_pcl(relative_pose, "icp_pt_plane");
             } else {
                 std::cout << "Alignment failed!" << std::endl;
             }

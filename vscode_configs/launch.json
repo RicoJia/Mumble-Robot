@@ -6,7 +6,11 @@
    "type": "cppdbg",
    "request": "launch",
    "program": "${workspaceFolder}/build/mumble_onboard/halo/test_3d_icp",  // change me for your tests
-   "args": [],
+   "args": [
+        "-s", "data/ch7/EPFL/aquarius_source.pcd",
+        "-t", "./data/ch7/EPFL/aquarius_target.pcd",
+        "-g", "./data/ch7/EPFL/aquarius_pose.txt"
+   ],
    "stopAtEntry": false,
    "cwd": "/home/mumble_robot", // explicitly set your working directory here
    "environment": [],
