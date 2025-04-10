@@ -28,7 +28,6 @@ void parse_args(int argc, char **argv) {
             ++i;                               // Skip the next argument since it's the value
         }
     }
-    // TODO
     std::cout << "source_path: " << source_path << ", target_path: " << target_path << std::endl;
 }
 
