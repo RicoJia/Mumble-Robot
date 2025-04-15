@@ -53,11 +53,12 @@ class ICP3DTest : public ::testing::Test {
             in_stream >> x >> y >> z >> qw >> qx >> qy >> qz;
             ground_truth_pose.translation() = halo::Vec3d(x, y, z);
             ground_truth_pose.so3()         = halo::SO3(Eigen::Quaterniond(qw, qx, qy, qz));
-            // ground_truth_pose = halo::SE3(Eigen::Quaterniond(qw, qx, qy, qz), halo::Vec3d(x, y, z));
         }
     }
 
     void TearDown() override {
+        // TODO
+        std::cout << "2" << std::endl;
         if (success) {
             std::cout << "Alignment success!" << std::endl;
             double pose_error = (ground_truth_pose.inverse() * relative_pose).log().norm();
@@ -88,50 +89,50 @@ class ICP3DTest : public ::testing::Test {
     }
 };
 
-// TEST_F(ICP3DTest, Test3DICP_Ptpt) {
-//     halo::profile_and_call(
-//         [&]() {
-//             std::cout << "====================== Test3DICP_Ptpt ======================" << std::endl;
-//             halo::ICP3D::Options options;
-//             halo::ICP3D icp_3d(options);
-//             icp_3d.set_source(source);
-//             icp_3d.set_target(target);
-//             success   = icp_3d.pt_pt_icp3d(relative_pose);
-//             test_name = "icp_pt_pt_pcl";
-//         });
-// }
+TEST_F(ICP3DTest, Test3DICP_Ptpt) {
+    halo::profile_and_call(
+        [&]() {
+            std::cout << "====================== Test3DICP_Ptpt ======================" << std::endl;
+            halo::ICP3D::Options options;
+            halo::ICP3D icp_3d(options);
+            icp_3d.set_source(source);
+            icp_3d.set_target(target);
+            success   = icp_3d.pt_pt_icp3d(relative_pose);
+            test_name = "icp_pt_pt_pcl";
+        });
+}
 
-// TEST_F(ICP3DTest, Test3DICP_PtLine) {
-//     halo::profile_and_call(
-//         [&]() {
-//             std::cout << "====================== Test3DICP_PtLine ======================" << std::endl;
-//             halo::ICP3D::Options options;
-//             halo::ICP3D icp_3d(options);
-//             icp_3d.set_source(source);
-//             icp_3d.set_target(target);            double pose_error = (gt_pose_.inverse() * pose).log().norm();
-//             test_name = "icp_pt_line_pcl";
-//         });
-// }
+TEST_F(ICP3DTest, Test3DICP_PtLine) {
+    halo::profile_and_call(
+        [&]() {
+            std::cout << "====================== Test3DICP_PtLine ======================" << std::endl;
+            halo::ICP3D::Options options;
+            halo::ICP3D icp_3d(options);
+            icp_3d.set_source(source);
+            icp_3d.set_target(target);
+            success   = icp_3d.pt_plane_icp3d(relative_pose);
+            test_name = "icp_pt_line_pcl";
+        });
+}
 
-// TEST_F(ICP3DTest, Test3DICP_Ptplane) {
-//     halo::profile_and_call(
-//         [&]() {
-//             std::cout << "====================== Test3DICP_PtPlane ======================" << std::endl;
-//             halo::ICP3D::Options options;
-//             halo::ICP3D icp_3d(options);
-//             icp_3d.set_source(source);
-//             icp_3d.set_target(target);
-//             success   = icp_3d.pt_plane_icp3d(relative_pose);
-//             test_name = "icp_pt_plane_pcl";
-//         });
-// }
+TEST_F(ICP3DTest, Test3DICP_Ptplane) {
+    halo::profile_and_call(
+        [&]() {
+            std::cout << "====================== Test3DICP_PtPlane ======================" << std::endl;
+            halo::ICP3D::Options options;
+            halo::ICP3D icp_3d(options);
+            icp_3d.set_source(source);
+            icp_3d.set_target(target);
+            success   = icp_3d.pt_plane_icp3d(relative_pose);
+            test_name = "icp_pt_plane_pcl";
+        });
+}
 
 TEST_F(ICP3DTest, Test3DNDT) {
     halo::profile_and_call(
         [&]() {
             std::cout << "====================== Test3D NDT ======================" << std::endl;
             halo::NDT3DOptions options;
-            // TODO
             // halo::NDT3D<halo::NeighborCount::NEARBY6> ndt_3d(options);
             halo::NDT3D<halo::NeighborCount::CENTER> ndt_3d(options);
             ndt_3d.set_source(source);
@@ -140,6 +141,69 @@ TEST_F(ICP3DTest, Test3DNDT) {
             test_name = "ndt_pcl";
         });
 }
+
+// DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
+// TEST_F(ICP3DTest, Test3DPCL_ICP) {
+//     halo::profile_and_call(
+//         [&]() {
+//             std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+//             pcl::IterativeClosestPoint<halo::PCLPointXYZI, halo::PCLPointXYZI> icp_pcl;
+//             icp_pcl.setInputSource(source);
+//             icp_pcl.setInputTarget(target);
+//             halo::PCLCloudXYZIPtr output_pcl(new halo::PCLCloudXYZI);
+//             icp_pcl.align(*output_pcl);
+
+//             // Due to numerical error, R might not be orthogonal.
+//             Eigen::Matrix4d T = icp_pcl.getFinalTransformation().cast<double>();
+//             // Extract the top-left 3x3 rotation block
+//             Eigen::Matrix3d R = T.block<3, 3>(0, 0);
+//             // Re-orthogonalize R using SVD
+//             Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
+//             Eigen::Matrix3d R_orthogonal = svd.matrixU() * svd.matrixV().transpose();
+//             T.block<3, 3>(0, 0) = R_orthogonal;
+
+//             relative_pose = halo::SE3(T);
+//             std::cout<<"pose error: "<<(ground_truth_pose.inverse() * relative_pose).log().norm()<<std::endl;
+//             success   = true;
+//             test_name = "pcl_icp_pcl";
+//             std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+//             std::chrono::duration<double, std::milli> duration = end - start;
+//             std::cout << test_name << " took " << duration.count() << " ms" << std::endl;
+//         });
+// }
+
+// DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
+// the Lambda is done
+// TEST_F(ICP3DTest, Test3DPCL_NDT) {
+//     halo::profile_and_call(
+//         [&]() {
+//             std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+//             pcl::NormalDistributionsTransform<halo::PCLPointXYZI, halo::PCLPointXYZI> ndt_pcl;
+//             ndt_pcl.setInputSource(source);
+
+//             assert(target && "target point cloud is null!");
+//             std::cout << "Target cloud has " << target->points.size() << " points." << std::endl;
+//             ndt_pcl.setInputTarget(this->target); // with this line, the test crashes
+//             halo::PCLCloudXYZIPtr output_pcl(new halo::PCLCloudXYZI);
+//             ndt_pcl.align(*output_pcl);
+//             // Due to numerical error, R might not be orthogonal.
+//             Eigen::Matrix4d T = ndt_pcl.getFinalTransformation().cast<double>();
+//             // Extract the top-left 3x3 rotation block
+//             Eigen::Matrix3d R = T.block<3, 3>(0, 0);
+//             // Re-orthogonalize R using SVD
+//             Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
+//             Eigen::Matrix3d R_orthogonal = svd.matrixU() * svd.matrixV().transpose();
+//             T.block<3, 3>(0, 0) = R_orthogonal;
+
+//             relative_pose = halo::SE3(T);
+//             std::cout<<"pose error: "<<(ground_truth_pose.inverse() * relative_pose).log().norm()<<std::endl;
+//             success   = true;
+//             test_name = "pcl_ndt_pcl";
+//             std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+//             std::chrono::duration<double, std::milli> duration = end - start;
+//             std::cout << test_name << " took " << duration.count() << " ms" << std::endl;
+//         });
+// }
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

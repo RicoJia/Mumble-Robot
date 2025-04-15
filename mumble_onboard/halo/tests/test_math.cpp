@@ -10,25 +10,6 @@
 using namespace math;
 using namespace halo;
 
-// TEST(TestMath, TestMeanCov) {
-//     std::vector<Vec3d> data = {
-//         Vec3d(1.0, 2.0, 3.0),
-//         Vec3d(2.0, 3.0, 4.0),
-//         Vec3d(3.0, 4.0, 5.0)};
-
-//     Vec3d mean, cov;
-//     compute_cov_and_mean(data, mean, cov, [](const Vec3d &item) {
-//         return item;
-//     });
-//     Vec3d expected_mean(2.0, 3.0, 4.0);
-//     Vec3d expected_cov(1.0, 1.0, 1.0);   // Variance along each dimension
-
-//     for (int i = 0; i < 3; ++i) {
-//         EXPECT_NEAR(mean[i], expected_mean[i], 1e-6);
-//         EXPECT_NEAR(cov[i], expected_cov[i], 1e-6);
-//     }
-// }
-
 TEST(ComputeCovarianceTest, MeanAndCovariance3D) {
     using Vec3d = Eigen::Vector3d;
     using Mat3d = Eigen::Matrix3d;

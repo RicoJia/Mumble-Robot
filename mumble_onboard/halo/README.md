@@ -94,13 +94,17 @@ We can tell that there are no visual matching anomalies between the algorithms. 
 | Dataset          | Method     | Time (ms) | Iterations | Error   |
 |----------------|------------|-----------|------------|---------|
 | Kneeling Lady  | pt-pt      | 87       | 12         | 0.079   |
-| Kneeling Lady  | pt-line    | 80       | 7          | 0.036   |
-| Kneeling Lady  | pt-plane   | 55       | 3          | 0.002   |
+| Kneeling Lady  | pt-line    | 80       | 7          | 0.00002   |
+| Kneeling Lady  | pt-plane   | 55       | 3          | 0.00002   |
 | Kneeling Lady  | NDT        | 17       | 3          | 0.029   |
-| Aquarius       | pt-pt      | 252       | 23         | 0.874   |
-| Aquarius       | pt-line    | 211       | 10         | 0.388   |
-| Aquarius       | pt-plane   | 122       | 4          | 0.017   |
+| Kneeling Lady  | PCL-ICP        | 764 | N/A          | 0.04   |
+| Kneeling Lady  | PCL-NDT        | 119       | N/A          | 0.16   |
+| Aquarius       | pt-pt      | 252       | 23         | 0.001   |
+| Aquarius       | pt-line    | 138       | 10         | 0.0005   |
+| Aquarius       | pt-plane   | 122       | 4          | 0.0005   |
 | Aquarius       | NDT        | 52        | 8          | 0.27   |
+| Aquarius       | PCL-ICP        | 2453 | 8          | 0.07   |
+| Aquarius  | PCL-NDT        | 213       | N/A          | 0.118   |
 
 
 ## Conventions
