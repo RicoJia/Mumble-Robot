@@ -7,6 +7,9 @@ project(halo LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} -march=native -funroll-loops -ftree-vectorize"
+)# for SIMD optimizations
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -28,7 +31,14 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 ${CMAKE_CXX_FLAGS}")
 
-# add_subdirectory(thirdparty/g2o)
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+  message(STATUS "CCACHE found, using ccache")
+else()
+  message(STATUS "CCACHE not found, not using ccache")
+endif()
 
 # Add library
 add_library(
@@ -95,6 +105,7 @@ if(BUILD_HALO_TESTS)
     add_test(NAME ${name} COMMAND ${name})
   endfunction()
 
+  add_slam_gtest(test_math)
   add_slam_gtest(test_2d_slam_visualization)
   add_slam_gtest(test_2d_slam_degredation)
   add_slam_gtest(test_2d_slam_mapping)

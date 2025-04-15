@@ -71,8 +71,9 @@ We are using [2 datasets from EPFL](https://lgg.epfl.ch/statues.php) as benchmar
   <img src="https://i.postimg.cc/mg21r1wd/kneeling-lady-pt-pt.png" height="200"/>
   <img src="https://i.postimg.cc/ydSZHqPs/kneeling-lady-pt-line-png.png" height="200"/>
   <img src="https://i.postimg.cc/VLFb1Wjr/kneeling-lady-pt-plane.png" height="200"/>
+  <img src="https://i.postimg.cc/V6mZsw9p/kneeling-lady-ndt.png" height="200"/>
     <figcaption style="text-align: center; margin-top: 8px;">
-    From Left to Right: Original Unaligned, Pt-Pt ICP, Pt-Line ICP of The Kneeling Lady Dataset
+    From Left to Right: Original Unaligned, Pt-Pt ICP, Pt-Line ICP, NDT of The Kneeling Lady Dataset
     </figcaption>
 </p>
 
@@ -82,8 +83,9 @@ We are using [2 datasets from EPFL](https://lgg.epfl.ch/statues.php) as benchmar
   <img src="https://i.postimg.cc/B6kj9Wv5/aquarius-pt-pt.png" height="200"/>
   <img src="https://i.postimg.cc/cHrvb1d4/aquarius-pt-line.png" height="200"/>
   <img src="https://i.postimg.cc/jSCHWTFz/aquarius-pt-plane-merged.png" height="200"/>
+  <img src="https://i.postimg.cc/k5xhdGSW/aquarius-NDT.png" height="200"/>
     <figcaption style="text-align: center; margin-top: 8px;">
-        From Left to Right: Original Unaligned, Pt-Pt ICP, Pt-Line ICP of The Aquarius Dataset
+        From Left to Right: Original Unaligned, Pt-Pt ICP, Pt-Line ICP, NDT of The Aquarius Dataset
     </figcaption>
 </p>
 
@@ -91,12 +93,14 @@ We can tell that there are no visual matching anomalies between the algorithms. 
 
 | Dataset          | Method     | Time (ms) | Iterations | Error   |
 |----------------|------------|-----------|------------|---------|
-| Kneeling Lady  | pt-pt      | 92       | 12         | 0.079   |
-| Kneeling Lady  | pt-line    | 393       | 7          | 0.036   |
-| Kneeling Lady  | pt-plane   | 356       | 3          | 0.002   |
+| Kneeling Lady  | pt-pt      | 87       | 12         | 0.079   |
+| Kneeling Lady  | pt-line    | 80       | 7          | 0.036   |
+| Kneeling Lady  | pt-plane   | 55       | 3          | 0.002   |
+| Kneeling Lady  | NDT        | 17       | 3          | 0.029   |
 | Aquarius       | pt-pt      | 252       | 23         | 0.874   |
-| Aquarius       | pt-line    | 764       | 10         | 0.388   |
-| Aquarius       | pt-plane   | 681       | 4          | 0.017   |
+| Aquarius       | pt-line    | 211       | 10         | 0.388   |
+| Aquarius       | pt-plane   | 122       | 4          | 0.017   |
+| Aquarius       | NDT        | 52        | 8          | 0.27   |
 
 
 ## Conventions

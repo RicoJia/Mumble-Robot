@@ -99,4 +99,8 @@ struct _get_pointcloud_dimensions {
         (pcl::traits::has_field<PointT, pcl::fields::z>::value ? 1 : 0);
 };
 
+// TODO
+template <typename T>
+inline constexpr bool static_false = false;
+
 }   // namespace halo

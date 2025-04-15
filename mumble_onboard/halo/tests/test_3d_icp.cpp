@@ -5,6 +5,7 @@
 #include <halo/common/sensor_utils.hpp>
 #include <halo/common/debug_utils.hpp>
 #include <halo/lo3d/icp_3d_methods.hpp>
+#include <halo/lo3d/ndt_3d.hpp>
 
 // EPFL 雕像数据集：./ch7/EPFL/aquarius_{sourcd.pcd, target.pcd}，真值在对应目录的_pose.txt中
 // EPFL 模型比较精细，配准时应该采用较小的栅格
@@ -37,7 +38,8 @@ class ICP3DTest : public ::testing::Test {
     halo::PCLCloudXYZIPtr target;
     halo::SE3 ground_truth_pose;
     halo::SE3 relative_pose;
-    bool success = false;
+    bool success          = false;
+    std::string test_name = "";
 
     void SetUp() override {
         source.reset(new halo::PCLCloudXYZI);
@@ -58,7 +60,9 @@ class ICP3DTest : public ::testing::Test {
     void TearDown() override {
         if (success) {
             std::cout << "Alignment success!" << std::endl;
-            save_pcl(relative_pose, "icp_pt_pt");
+            double pose_error = (ground_truth_pose.inverse() * relative_pose).log().norm();
+            std::cout << " pose error: " << pose_error << std::endl;
+            save_pcl(relative_pose, test_name);
         } else {
             std::cout << "Alignment failed!" << std::endl;
         }
@@ -84,57 +88,56 @@ class ICP3DTest : public ::testing::Test {
     }
 };
 
-TEST_F(ICP3DTest, Test3DICP_Ptpt) {
-    halo::profile_and_call(
-        [&]() {
-            std::cout << "====================== Test3DICP_Ptpt ======================" << std::endl;
-            halo::ICP3D::Options options;
-            halo::ICP3D icp_3d(options);
-            icp_3d.set_source(source);
-            icp_3d.set_target(target);
-            success = icp_3d.pt_pt_icp3d(relative_pose);
-        });
-}
+// TEST_F(ICP3DTest, Test3DICP_Ptpt) {
+//     halo::profile_and_call(
+//         [&]() {
+//             std::cout << "====================== Test3DICP_Ptpt ======================" << std::endl;
+//             halo::ICP3D::Options options;
+//             halo::ICP3D icp_3d(options);
+//             icp_3d.set_source(source);
+//             icp_3d.set_target(target);
+//             success   = icp_3d.pt_pt_icp3d(relative_pose);
+//             test_name = "icp_pt_pt_pcl";
+//         });
+// }
 
-TEST_F(ICP3DTest, Test3DICP_PtLine) {
-    halo::profile_and_call(
-        [&]() {
-            std::cout << "====================== Test3DICP_PtLine ======================" << std::endl;
-            halo::ICP3D::Options options;
-            halo::ICP3D icp_3d(options);
-            icp_3d.set_source(source);
-            icp_3d.set_target(target);
-            halo::SE3 relative_pose;
-            bool success = icp_3d.pt_line_icp3d(relative_pose);
-            if (success) {
-                std::cout << "Alignment success!" << std::endl;
-                save_pcl(relative_pose, "icp_pt_line");
-            } else {
-                std::cout << "Alignment failed!" << std::endl;
-            }
-            std::cout << "relative_pose: " << relative_pose << std::endl;
-            std::cout << "ground truth: " << ground_truth_pose << std::endl;
-        });
-}
+// TEST_F(ICP3DTest, Test3DICP_PtLine) {
+//     halo::profile_and_call(
+//         [&]() {
+//             std::cout << "====================== Test3DICP_PtLine ======================" << std::endl;
+//             halo::ICP3D::Options options;
+//             halo::ICP3D icp_3d(options);
+//             icp_3d.set_source(source);
+//             icp_3d.set_target(target);            double pose_error = (gt_pose_.inverse() * pose).log().norm();
+//             test_name = "icp_pt_line_pcl";
+//         });
+// }
 
-TEST_F(ICP3DTest, Test3DICP_Ptplane) {
+// TEST_F(ICP3DTest, Test3DICP_Ptplane) {
+//     halo::profile_and_call(
+//         [&]() {
+//             std::cout << "====================== Test3DICP_PtPlane ======================" << std::endl;
+//             halo::ICP3D::Options options;
+//             halo::ICP3D icp_3d(options);
+//             icp_3d.set_source(source);
+//             icp_3d.set_target(target);
+//             success   = icp_3d.pt_plane_icp3d(relative_pose);
+//             test_name = "icp_pt_plane_pcl";
+//         });
+// }
+
+TEST_F(ICP3DTest, Test3DNDT) {
     halo::profile_and_call(
         [&]() {
-            std::cout << "====================== Test3DICP_PtPlane ======================" << std::endl;
-            halo::ICP3D::Options options;
-            halo::ICP3D icp_3d(options);
-            icp_3d.set_source(source);
-            icp_3d.set_target(target);
-            halo::SE3 relative_pose;
-            bool success = icp_3d.pt_plane_icp3d(relative_pose);
-            if (success) {
-                std::cout << "Alignment success!" << std::endl;
-                save_pcl(relative_pose, "icp_pt_plane");
-            } else {
-                std::cout << "Alignment failed!" << std::endl;
-            }
-            std::cout << "relative_pose: " << relative_pose << std::endl;
-            std::cout << "ground truth: " << ground_truth_pose << std::endl;
+            std::cout << "====================== Test3D NDT ======================" << std::endl;
+            halo::NDT3DOptions options;
+            // TODO
+            // halo::NDT3D<halo::NeighborCount::NEARBY6> ndt_3d(options);
+            halo::NDT3D<halo::NeighborCount::CENTER> ndt_3d(options);
+            ndt_3d.set_source(source);
+            ndt_3d.set_target(target);
+            success   = ndt_3d.align_gauss_newton(relative_pose);
+            test_name = "ndt_pcl";
         });
 }
 

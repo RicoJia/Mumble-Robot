@@ -6,13 +6,16 @@
 #include <chrono>
 #include <execution>
 #include <halo/common/sensor_data_definitions.hpp>
+#include <halo/common/math_utils.hpp>
 #include <ranges>
 #include <thread>
+#include <deque>
 
 namespace halo {
 
 // ======================== Conversions ========================
 inline Vec3f to_vec_3f(const PCLPointXYZI &pt) { return pt.getVector3fMap(); }
+inline Vec3d to_vec_3d(const PCLPointXYZI &pt) { return pt.getVector3fMap().cast<double>(); }
 inline Vec2d to_eigen(const PCLPoint2D &pt) { return Vec2d(pt.x, pt.y); }
 
 template <typename S>
@@ -117,6 +120,33 @@ class CloudViewer {
     pcl::visualization::PCLVisualizer::Ptr viewer;
 };
 
+// ======================== Hashing ========================
+
+// TODO: to move, and replace below
+Vec3i get_grid_point_coord(const PCLPointXYZI &pt, const float &resolution) {
+    return Vec3i(int(pt.x * resolution), int(pt.y * resolution), int(pt.z * resolution));
+}
+
+Vec3i get_grid_point_coord(const Vec3d &pt, const float &resolution) {
+    return Vec3i(int(pt(0) * resolution), int(pt(1) * resolution), int(pt(2) * resolution));
+}
+
+/**
+ * @brief: Take in a cloud, based on the resolution, calculate the spatial hash of each point,
+ and put them into "point matrices" in an unordered_map.
+ a "point matrix" (each row is x,y,z).
+ */
+std::unordered_map<size_t, std::deque<Vec3d>> split_point_cloud_by_hash(const PCLCloudXYZIPtr &cloud, const float &resolution) {
+    std::unordered_map<size_t, std::deque<Vec3d>> hash_buckets;
+    for (const auto &pt : cloud->points) {
+        Vec3d coord           = to_vec_3d(pt);
+        Vec3i voxelized_coord = (coord * resolution).cast<int>();
+        size_t hash           = math::point_hash_func(voxelized_coord[0], voxelized_coord[1], voxelized_coord[2]);
+        hash_buckets[hash].emplace_back(coord);
+    }
+    return hash_buckets;
+}
+
 // ======================== Nearest Neighbor ========================
 
 /**
@@ -175,6 +205,44 @@ enum class NeighborCount {
     NEARBY18
 };
 
+template <NeighborCount neighbor_count>
+std::vector<Eigen::Vector3i> generate_neighbor_window_3d() {
+    using NNCoord = Eigen::Vector3i;
+
+    if constexpr (neighbor_count == NeighborCount::CENTER) {
+        return {NNCoord::Zero()};
+    } else if constexpr (neighbor_count == NeighborCount::NEARBY6) {
+        return {NNCoord(0, 0, 0), NNCoord(-1, 0, 0), NNCoord(1, 0, 0),
+                NNCoord(0, 1, 0), NNCoord(0, -1, 0), NNCoord(0, 0, -1), NNCoord(0, 0, 1)};
+    } else if constexpr (neighbor_count == NeighborCount::NEARBY18) {
+        return {NNCoord(0, 0, 0), NNCoord(-1, 0, 0), NNCoord(1, 0, 0),
+                NNCoord(0, 1, 0), NNCoord(0, -1, 0), NNCoord(0, 0, -1),
+                NNCoord(1, 1, 0), NNCoord(1, -1, 0), NNCoord(-1, 1, 0), NNCoord(-1, -1, 0),
+                NNCoord(0, 1, 1), NNCoord(0, 1, -1), NNCoord(0, -1, 1), NNCoord(0, -1, -1),
+                NNCoord(1, 0, 1), NNCoord(1, 0, -1), NNCoord(-1, 0, 1), NNCoord(-1, 0, -1)};
+    } else {
+        static_assert(static_false<neighbor_count>, "Unsupported configuration for a 3D Nearby Grid");
+    }
+};
+
+template <NeighborCount neighbor_count>
+std::vector<Eigen::Vector2i> generate_neighbor_window_2d() {
+    using NNCoord = Eigen::Vector2i;
+    std::vector<NNCoord> neighbors;
+    if constexpr (neighbor_count == NeighborCount::CENTER) {
+        return {NNCoord(0, 0)};
+    } else if constexpr (neighbor_count == NeighborCount::NEARBY4) {
+        return {NNCoord(0, 0), NNCoord(-1, 0), NNCoord(1, 0),
+                NNCoord(0, 1), NNCoord(0, -1)};
+    } else if constexpr (neighbor_count == NeighborCount::NEARBY8) {
+        return {NNCoord(0, 0), NNCoord(-1, 0), NNCoord(1, 0),
+                NNCoord(0, 1), NNCoord(0, -1), NNCoord(-1, -1),
+                NNCoord(-1, 1), NNCoord(1, -1), NNCoord(1, 1)};
+    } else {
+        static_assert(static_false<neighbor_count>, "Unsupported configuration for a 2D Nearby Grid");
+    }
+}
+
 /**
  * @brief Workflow: add point cloud: hash (x,y,z) into size_t; -> add to
  * std::unordered_map<size_t, std::vector<PCLPointXYZI>>
@@ -207,16 +275,13 @@ requires(dim == 2 || dim == 3) class NearestNeighborGrid {
 
     std::vector<NNMatch> get_closest_point(PCLCloudXYZIPtr query);
 
-  private:
+  protected:
     struct NNCoordHash {
         size_t operator()(const NNCoord &coord) const {
             if constexpr (dim == 2) {
-                return size_t(((coord[0] * 73856093) ^ (coord[1] * 471943)) %
-                              10000000);
+                return math::point_hash_func(coord[0], coord[1]);
             } else {   // dim == 3
-                return size_t(((coord[0] * 73856093) ^ (coord[1] * 471943) ^
-                               (coord[2] * 83492791)) %
-                              10000000);
+                return math::point_hash_func(coord[0], coord[1], coord[2]);
             }
         }
     };
@@ -239,29 +304,12 @@ requires(dim == 2 || dim == 3) class NearestNeighborGrid {
 
 template <int dim, NeighborCount neighbor_count>
 void NearestNeighborGrid<dim, neighbor_count>::_generate_grid() {
-    if constexpr (neighbor_count == NeighborCount::CENTER) {
-        _nearby_grids = {NNCoord(0, 0)};
-    } else if constexpr (neighbor_count == NeighborCount::NEARBY4) {
-        _nearby_grids = {NNCoord(0, 0), NNCoord(-1, 0), NNCoord(1, 0),
-                         NNCoord(0, 1), NNCoord(0, -1)};
-    } else if constexpr (neighbor_count == NeighborCount::NEARBY8) {
-        _nearby_grids = {NNCoord(0, 0), NNCoord(-1, 0), NNCoord(1, 0),
-                         NNCoord(0, 1), NNCoord(0, -1), NNCoord(-1, -1),
-                         NNCoord(-1, 1), NNCoord(1, -1), NNCoord(1, 1)};
-    } else if constexpr (neighbor_count == NeighborCount::NEARBY6) {
-        _nearby_grids = {NNCoord(0, 0, 0), NNCoord(-1, 0, 0),
-                         NNCoord(1, 0, 0), NNCoord(0, 1, 0),
-                         NNCoord(0, -1, 0), NNCoord(0, 0, -1)};
-    } else if constexpr (neighbor_count == NeighborCount::NEARBY18) {
-        _nearby_grids = {NNCoord(0, 0, 0), NNCoord(-1, 0, 0),
-                         NNCoord(1, 0, 0), NNCoord(0, 1, 0),
-                         NNCoord(0, -1, 0), NNCoord(0, 0, -1),
-                         NNCoord(1, 1, 0), NNCoord(1, -1, 0),
-                         NNCoord(-1, 1, 0), NNCoord(-1, -1, 0),
-                         NNCoord(0, 1, 1), NNCoord(0, 1, -1),
-                         NNCoord(0, -1, 1), NNCoord(0, -1, -1),
-                         NNCoord(1, 0, 1), NNCoord(1, 0, -1),
-                         NNCoord(-1, 0, 1), NNCoord(-1, 0, -1)};
+    if constexpr (dim == 2) {
+        _nearby_grids = generate_neighbor_window_2d<neighbor_count>();
+    } else if constexpr (dim == 3) {
+        _nearby_grids = generate_neighbor_window_3d<neighbor_count>();
+    } else {
+        static_assert(static_false<dim>, "Unsupported dimension for NearestNeighborGrid");
     }
 }
 

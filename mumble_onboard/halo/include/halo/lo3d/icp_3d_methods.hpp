@@ -303,24 +303,6 @@ class ICP3D {
         return false;
     }
 
-    /**
-     * 1. Voxelization. For each voxel, calculate the mean and variance of its points: $\mu$, $\Sigma$
-       2. For each point in the source scan:
-            1. Calculate its map pose $pt$
-            2. Calculate the voxel of $pt$. Grab all points in the same voxel
-            3. We believe that if the source is well-aligned to the target, the distribution of the points in the same voxel is the same as that of the target. So:
-                1. $e_i = Rp_t + t - \mu$
-                2. $(R,t) = \text{argmin}_{R,t} [\sum e_i^t \Sigma^{-1} e_i]$
-                    - This is equivalent to Maximum Likelihood Estimate (MLE)
-                    - $\text{argmax}_{R,t} [\sum log(P(R q_i + t))]$
-                3. Jacobians:
-                    - $\frac{\partial e_i}{\partial R} = -Rp_t^\land$
-                    - $\frac{\partial e_i}{\partial t} = I$
-            4. We also consider neighbor cells as well, because the point might actually belong to one of them. So we repeat step 3 for those voxels.
-     */
-    bool ndt_icp3d(SE3 &relative_pose) {
-    }
-
   private:
     Options options_;
     PCLCloudXYZIPtr source_;

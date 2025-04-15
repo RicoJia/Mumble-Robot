@@ -5,9 +5,51 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <opencv2/core.hpp>
+#include <deque>
 
 namespace math {
 inline constexpr double TWO_PI = 2.0 * M_PI;
+
+//////////////////////////////////////////////////////////////////////////////
+// General Adaptors
+//////////////////////////////////////////////////////////////////////////////
+
+Eigen::Matrix<double, Eigen::Dynamic, 3> deque_2_matrix(const std::deque<Eigen::Vector3d> &points) {
+    // Allocate a matrix with number of rows equal to the number of points and 3 columns.
+    Eigen::Matrix<double, Eigen::Dynamic, 3> mat(points.size(), 3);
+
+    // Fill each row of the matrix with the corresponding point from the deque.
+    // Each row is a point: [x, y, z]
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        // Transpose the vector to set it as a row vector.
+        mat.row(i) = points[i].transpose();
+    }
+    return mat;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Real Mathy Stuff
+//////////////////////////////////////////////////////////////////////////////
+
+template <typename Container, typename VectorType, typename MatrixType>
+inline void compute_full_cov_and_mean(const Container &data, VectorType &mean,
+                                      MatrixType &cov) {
+    const size_t len = data.size();
+    assert(len > 1);
+    mean = std::accumulate(data.begin(), data.end(), VectorType::Zero().eval(),
+                           [](const VectorType &sum, const auto &item)
+                               -> VectorType { return sum + item; }) /
+           static_cast<double>(len);
+    // Compute covariance diagonal
+    cov = std::accumulate(data.begin(), data.end(), MatrixType::Zero().eval(),
+                          [&mean](const MatrixType &sum,
+                                  const auto &item) -> MatrixType {
+                              // eigen uses lazy evaluation. That could be wrong
+                              auto diff = (item - mean);
+                              return sum + diff * diff.transpose();
+                          }) /
+          static_cast<double>(len - 1);
+}
 
 template <typename Container, typename VectorType, typename Getter>
 inline void compute_cov_and_mean(const Container &data, VectorType &mean,
@@ -54,6 +96,18 @@ inline Eigen::VectorXf normalize_point_cloud(Eigen::MatrixXf &A) {
     // Subtract the mean from each point
     A.rowwise() -= mean;
     return mean;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Hashing Functions
+//////////////////////////////////////////////////////////////////////////////
+
+inline size_t point_hash_func(const int &x, const int &y) {
+    return size_t(((x * 73856093) ^ (y * 471943)) % 10000000);
+}
+
+inline size_t point_hash_func(const int &x, const int &y, const int &z) {
+    return size_t(((x * 73856093) ^ (y * 471943) ^ (z * 83492791)) % 10000000);
 }
 
 //////////////////////////////////////////////////////////////////////////////
