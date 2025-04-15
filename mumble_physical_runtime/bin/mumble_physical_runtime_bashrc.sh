@@ -1,5 +1,5 @@
 colcon_build_source(){
-    colcon build --symlink-install
+    colcon build --symlink-install "$@"
     source install/setup.bash
 }
 print_opening_msg_mumble_physical_runtime(){
