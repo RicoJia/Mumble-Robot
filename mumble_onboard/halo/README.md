@@ -60,7 +60,7 @@ target_link_libraries(my_executable
 )
 ```
 
-## 3D SLAM Frameworks
+## 3D SLAM Components & Frameworks
 
 ### Scan Matching
 
@@ -106,6 +106,9 @@ We can tell that there are no visual matching anomalies between the algorithms. 
 | Aquarius       | PCL-ICP        | 2453 | 8          | 0.07   |
 | Aquarius  | PCL-NDT        | 213       | N/A          | 0.118   |
 
+### Direct NDT Lidar-Odometry
+
+This implementation is a proof of concept with SIMD and multi-threaded optimzations on sub-components. However, in this implementation, front end scan matching and back end optimization are done in the same thread.
 
 ## Conventions
 

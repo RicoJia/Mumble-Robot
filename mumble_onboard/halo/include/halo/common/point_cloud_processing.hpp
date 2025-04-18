@@ -2,6 +2,7 @@
 
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl_conversions/pcl_conversions.h>   // for pcl::fromROSMsg
 #include <type_traits>
 #include <chrono>
 #include <execution>
@@ -27,6 +28,14 @@ inline PCLPointXYZI to_pcl_point_xyzi(const Eigen::Matrix<S, 3, 1> &pt) {
     return pt_pcl;
 }
 
+inline static PCLCloudXYZIPtr convert_2_pclcloud_xyz_i(const sensor_msgs::msg::PointCloud2 &msg) {
+    // then convert into a PCL point-cloud
+    PCLCloudXYZIPtr cloud(new pcl::PointCloud<pcl::PointXYZI>());
+    pcl::fromROSMsg(msg, *cloud);
+
+    return cloud;
+}
+
 // ======================== PCL Simple Processing ========================
 
 /**
@@ -36,7 +45,7 @@ inline PCLPointXYZI to_pcl_point_xyzi(const Eigen::Matrix<S, 3, 1> &pt) {
  * @note: THIS MIGHT CAUSE A SEGFAULT in GTest. Maybe in other frameworks, too.
  * specifically, it's the line `voxel.filter(*output);`
  */
-inline void downsample_point_cloud(PCLCloudXYZIPtr &cloud, float voxel_size) {
+inline void downsample_point_cloud(PCLCloudXYZIPtr &cloud, float voxel_size = 0.1) {
     pcl::VoxelGrid<PCLPointXYZI> voxel;
     voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
     voxel.setInputCloud(cloud);
@@ -56,12 +65,18 @@ inline Vec3d get_point_cloud_center(PCLCloudXYZIPtr &point_cloud) {
            static_cast<double>(point_cloud->points.size());
 }
 
-void add_cloud_with_distance_filtering(const float &max_distance, PCLCloudXYZIPtr in_cloud, PCLCloudXYZIPtr out_cloud) {
+template <bool FilterEnabled = true>
+void add_cloud_with_distance_filtering(
+    const float &max_distance,
+    PCLCloudXYZIPtr in_cloud, PCLCloudXYZIPtr out_cloud) {
     out_cloud->points.reserve(in_cloud->points.size());
-    // TODO: profile, and see if it needs to be moved
     for (const auto &point : in_cloud->points) {
-        float distance = std::sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
-        if (distance <= max_distance) {
+        if constexpr (FilterEnabled) {
+            float distance = std::sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
+            if (distance <= max_distance) {
+                out_cloud->points.emplace_back(point);
+            }
+        } else {
             out_cloud->points.emplace_back(point);
         }
     }

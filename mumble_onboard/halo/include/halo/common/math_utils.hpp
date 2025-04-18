@@ -44,8 +44,8 @@ inline void compute_full_cov_and_mean(const Container &data, VectorType &mean,
     cov = std::accumulate(data.begin(), data.end(), MatrixType::Zero().eval(),
                           [&mean](const MatrixType &sum,
                                   const auto &item) -> MatrixType {
-                              // eigen uses lazy evaluation. That could be wrong
-                              auto diff = (item - mean);
+                              // eigen uses lazy evaluation. That could be wrong. TODO: instability issue?
+                              auto diff = (item - mean).eval();
                               return sum + diff * diff.transpose();
                           }) /
           static_cast<double>(len - 1);

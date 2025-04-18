@@ -16,6 +16,7 @@
 #include "rosbag2_transport/reader_writer_factory.hpp"
 #include "rosbag2_cpp/reader.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace halo {
 
@@ -50,6 +51,7 @@ class TextIO {
 
     void spin() {
         std::string line;
+        size_t msg_num = 0;
         while (std::getline(fin, line)) {
             if (line.empty())
                 continue;
@@ -57,12 +59,13 @@ class TextIO {
             std::stringstream ss(line);
             // Read the first token which should be the header.
             std::string header;
-            ss >> header;
-
+            if (!std::getline(ss, header, ','))
+                continue;   // malformed line
             // Find the callback for this header.
             auto it = callbacks_.find(header);
             if (it != callbacks_.end()) {
                 // Call the callback passing the stream (which now contains the rest of the line).
+                std::cout << "spin: " << msg_num++ << std::endl;
                 it->second(ss);
             }
         }
@@ -112,6 +115,75 @@ class TextIO {
         scan.intensities.resize(num_points, 0.0f);
 
         return scan;
+    }
+
+    inline static sensor_msgs::msg::PointCloud2 convert_2_pointcloud2(std::stringstream &ss) {
+        using Msg   = sensor_msgs::msg::PointCloud2;
+        using Field = sensor_msgs::msg::PointField;
+
+        Msg msg;
+        std::string tok;
+
+        // 1) discard the literal “it is ulhk_3d”
+        // std::getline(ss, tok, ',');
+
+        // 1) seq
+        std::getline(ss, tok, ',');
+
+        // 3) stamp “sec.nanosec”
+        std::getline(ss, tok, ',');
+        {
+            auto dot                 = tok.find('.');
+            msg.header.stamp.sec     = std::stoll(tok.substr(0, dot));
+            msg.header.stamp.nanosec = std::stoul(tok.substr(dot + 1));
+        }
+
+        // 4) frame_id
+        std::getline(ss, msg.header.frame_id, ',');
+
+        // 5) height, width
+        std::getline(ss, tok, ',');
+        msg.height = std::stoul(tok);
+        std::getline(ss, tok, ',');
+        msg.width = std::stoul(tok);
+
+        // 6) number of fields
+        std::getline(ss, tok, ',');
+        size_t n_fields = std::stoul(tok);
+        msg.fields.resize(n_fields);
+
+        // 7) each field: name, offset, datatype, count
+        for (size_t i = 0; i < n_fields; ++i) {
+            std::getline(ss, msg.fields[i].name, ',');
+            std::getline(ss, tok, ',');
+            msg.fields[i].offset = std::stoul(tok);
+            std::getline(ss, tok, ',');
+            msg.fields[i].datatype = static_cast<uint8_t>(std::stoi(tok));
+            std::getline(ss, tok, ',');
+            msg.fields[i].count = std::stoul(tok);
+        }
+
+        // 8) metadata flags/strides
+        std::getline(ss, tok, ',');
+        msg.is_bigendian = (tok == "1");
+        std::getline(ss, tok, ',');
+        msg.point_step = std::stoul(tok);
+        std::getline(ss, tok, ',');
+        msg.row_step = std::stoul(tok);
+        std::getline(ss, tok, ',');
+        msg.is_dense = (tok == "1");
+
+        // 9) now parse all remaining tokens as hex data bytes
+        msg.data.clear();
+        while (std::getline(ss, tok, ',')) {
+            if (tok.empty())
+                continue;
+            // each tok is two‐digit hex, e.g. "0f", "a3"
+            uint8_t byte = static_cast<uint8_t>(std::stoul(tok, nullptr, 16));
+            msg.data.push_back(byte);
+        }
+
+        return msg;
     }
 
   private:
