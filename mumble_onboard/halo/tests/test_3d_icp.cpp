@@ -133,6 +133,7 @@ TEST_F(ICP3DTest, Test3DNDT) {
         [&]() {
             std::cout << "====================== Test3D NDT ======================" << std::endl;
             halo::NDT3DOptions options;
+            options.remove_centroid_ = true;
             // halo::NDT3D<halo::NeighborCount::NEARBY6> ndt_3d(options);
             halo::NDT3D<halo::NeighborCount::CENTER> ndt_3d(options);
             ndt_3d.set_source(source);
