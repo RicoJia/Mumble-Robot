@@ -23,8 +23,6 @@ struct NDT3DOptions {
     double resolution                        = 1.0;     // 1m
 };
 
-// TODO: code under testing
-// TODO: to figure out why
 Eigen::Matrix3d robustInfo(const Eigen::Matrix3d &cov,
                            double rel_floor = 1e-2,   // floor as % of σ_max
                            double abs_floor = 1e-4)   // or absolute floor
@@ -69,26 +67,6 @@ class NDT3D {
                 std::cout << "Covariance matrix used:\n"
                           << cov << std::endl;
             }
-
-            // Vec3d singular_values = svd.singularValues();   // eigen values of A^TA, where A = sigma_
-            // Vec3d inv_singular_values;
-            // for (size_t i = 0; i < 3; ++i) {
-            //     inv_singular_values(i) = 1.0 / std::max(1e-3 * singular_values(0), singular_values(i));
-            // }
-            // info_ = svd.matrixV() * inv_singular_values.asDiagonal() * svd.matrixU().transpose();
-
-            // // TODO: test code
-            // if ((info_.diagonal().array() < 0).any()) {
-            //     std::cout << "[WARN] Info matrix has negative diagonal entries!\n";
-            //     std::cout << "Covariance matrix used:\n" << cov << std::endl;
-            //     std::cout << "Singular values:\n" << singular_values.transpose() << std::endl;
-            //     std::cout << "Inverted singular values:\n" << inv_singular_values.transpose() << std::endl;
-            //     //TODO
-            //     std::cout<<"v: "<<svd.matrixV()<<std::endl;
-            //     //TODO
-            //     std::cout<<"u^T: "<<svd.matrixU().transpose()<<std::endl;
-            //     std::cout << "Info matrix:\n" << info_ << std::endl;
-            // }
         }
     };
     struct NDTOptimizationData {
