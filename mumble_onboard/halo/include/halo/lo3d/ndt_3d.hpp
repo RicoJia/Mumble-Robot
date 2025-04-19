@@ -19,9 +19,30 @@ struct NDT3DOptions {
     double max_optimization_distance_squared = 20.0;   // in meters
     size_t min_pts_in_voxel                  = 3;
     double eps                               = 1e-2;
-    bool use_initial_translation_            = false;   // by setting to false, we use the point cloud center translation
+    bool remove_centroid_                    = false;   // by setting to false, we use the point cloud center translation
     double resolution                        = 1.0;     // 1m
 };
+
+Eigen::Matrix3d robustInfo(const Eigen::Matrix3d &cov,
+                           double rel_floor = 1e-2,   // floor as % of σ_max
+                           double abs_floor = 1e-4)   // or absolute floor
+{
+    // For symmetric PSD matrices Eigen's SelfAdjointEigenSolver is cheaper,
+    // gives eigenvalues λ and eigenvectors V (cov = V Λ Vᵀ).
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
+    const auto &lambdas = es.eigenvalues();   // ascending order
+    Eigen::Vector3d inv_lambda;
+
+    const double λ_max     = lambdas.tail<1>()(0);
+    const double floor_val = std::max(abs_floor, rel_floor * λ_max);
+
+    for (int i = 0; i < 3; ++i)
+        inv_lambda(i) = 1.0 / std::max(floor_val, lambdas(i));
+
+    // info = V · diag(inv_lambda) · Vᵀ   (guaranteed symmetric PSD)
+    return es.eigenvectors() * inv_lambda.asDiagonal() *
+           es.eigenvectors().transpose();
+}
 
 template <NeighborCount neighbor_count>
 class NDT3D {
@@ -39,12 +60,13 @@ class NDT3D {
             // We cap the ratio of singular values to the largest ones, instead of adding a small value to the diagonal
             // This is because the covariance matrix is still ill-formed, if the ratio is too large?
             Eigen::JacobiSVD<Eigen::Matrix3d> svd(cov, Eigen::ComputeFullU | Eigen::ComputeFullV);
-            Vec3d singular_values = svd.singularValues();   // eigen values of A^TA, where A = sigma_
-            Vec3d inv_singular_values;
-            for (size_t i = 0; i < 3; ++i) {
-                inv_singular_values(i) = 1.0 / std::max(1e-3 * singular_values(0), singular_values(i));
+
+            // TODO: code under testing:
+            info_ = robustInfo(cov, 1e-2, 1e-4);   // robustInfo(cov, 1e-2, 1e-4);
+            if ((info_.diagonal().array() < 0).any()) {
+                std::cout << "Covariance matrix used:\n"
+                          << cov << std::endl;
             }
-            info_ = svd.matrixV() * inv_singular_values.asDiagonal() * svd.matrixU().transpose();
         }
     };
     struct NDTOptimizationData {
@@ -57,23 +79,28 @@ class NDT3D {
   public:
     // Step 1
     explicit NDT3D(const NDT3DOptions &options) : options_(options),
-                                                  neighbor_window_(generate_neighbor_window_3d<NeighborCount::NEARBY6>()) {
+                                                  neighbor_window_(generate_neighbor_window_3d<NeighborCount::CENTER>()) {
     }
 
     // Step 2
     void set_target(const PCLCloudXYZIPtr &target) {
         target_.reset(new halo::PCLCloudXYZI);
-        add_cloud_with_distance_filtering(options_.max_distance, target, target_);
-        target_center_ = get_point_cloud_center(target_);
+        add_cloud_with_distance_filtering<false>(options_.max_distance, target, target_);
+        if (options_.remove_centroid_) {
+            target_center_ = get_point_cloud_center(target_);
+        }
         _build_voxel_grid();
+        std::cout << "Target  pt num: " << target_->points.size() << std::endl;
     }
 
     // Step 2
     void set_source(const PCLCloudXYZIPtr &source) {
         source_.reset(new halo::PCLCloudXYZI);
-        add_cloud_with_distance_filtering(options_.max_distance, source, source_);
-        source_center_ = get_point_cloud_center(source_);
-        std::cout << "source center: " << source_center_ << std::endl;
+        add_cloud_with_distance_filtering<false>(options_.max_distance, source, source_);
+        if (options_.remove_centroid_) {
+            source_center_ = get_point_cloud_center(source_);
+        }
+        std::cout << "Source pt num: " << source_->points.size() << std::endl;
     }
 
     /**
@@ -100,7 +127,7 @@ class NDT3D {
     inline bool align_gauss_newton(SE3 &relative_pose) {
         assert(target_ != nullptr && source_ != nullptr);
 
-        if (!options_.use_initial_translation_) {
+        if (options_.remove_centroid_) {
             relative_pose.translation() = target_center_ - source_center_;   // 设置平移初始值
         }
 
@@ -123,7 +150,7 @@ class NDT3D {
                         // iterator: size_t, VoxelData
                         auto iter = grid_.find(math::point_hash_func(dcoord[0], dcoord[1], dcoord[2]));
                         if (iter != grid_.end()) {
-                            // check for nan firwst
+                            // check for nan first
                             Vec3d e      = pt_map - iter->second.mean_;
                             double error = e.transpose() * iter->second.info_ * e;
                             if (std::isnan(error) || error > options_.max_optimization_distance_squared) {
@@ -137,6 +164,12 @@ class NDT3D {
                             intermediate_res[idx].e         = e;
                             intermediate_res[idx].error     = error;
                             intermediate_res[idx].voxel_ptr = &(iter->second);
+                            // TODO: test code
+                            if (intermediate_res[idx].error < 0) {
+                                std::cout << "Error is negative: " << intermediate_res[idx].error
+                                          << ", pt: " << pt_map.transpose() << ", mean: " << iter->second.mean_.transpose() << "e: " << e.transpose()
+                                          << ", info: " << iter->second.info_ << std::endl;
+                            }
                         }
                     }
                 });
@@ -160,10 +193,10 @@ class NDT3D {
             // Update pose separately
             relative_pose.so3() = relative_pose.so3() * SO3::exp(dx.head<3>());
             relative_pose.translation() += dx.tail<3>();
-            std::cout << "Iteration " << i << ", error: " << total_error << std::endl;
-            std::cout << "pose: " << relative_pose << std::endl;
+            std::cout << "Iteration " << i << ", error: " << total_error
+                      << "pose: " << relative_pose << ", dx: " << dx.transpose() << ", dx norm: " << dx.norm() << std::endl;
             // Error is large in this case: covrariance is small. inv_cov is in the order of 10^4.
-            // Then error is dispropotionately large
+            // Then error is disproportionately large
             if (dx.norm() < options_.eps) {
                 return true;
             }
@@ -198,7 +231,9 @@ class NDT3D {
                 voxel_data.update_voxel_data(key_data_pair.first, key_data_pair.second);
                 grid_[key_data_pair.first] = voxel_data;
             });
-        // No need to trum because we have segmented the point cloud
+        // No need to prune because we have segmented the point cloud
+        // TODO
+        std::cout << "grid size: " << grid_.size() << std::endl;
     }
 };
 }   // namespace halo

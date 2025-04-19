@@ -16,6 +16,7 @@
 #include "rosbag2_transport/reader_writer_factory.hpp"
 #include "rosbag2_cpp/reader.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace halo {
 
@@ -24,7 +25,7 @@ inline Eigen::IOFormat CleanFmt(4, 0, ", ", " ", "[", "]");
 
 class TextIO {
   public:
-    TextIO(const std::string &file_path) : fin(file_path) {
+    TextIO(const std::string &file_path, const size_t stopping_msg_index = 0) : fin(file_path), stopping_msg_index_(stopping_msg_index) {
         if (!fin.is_open()) {
             throw std::runtime_error("Failed to open file: " + file_path);
         } else {
@@ -50,6 +51,7 @@ class TextIO {
 
     void spin() {
         std::string line;
+        size_t msg_num = 0;
         while (std::getline(fin, line)) {
             if (line.empty())
                 continue;
@@ -57,14 +59,18 @@ class TextIO {
             std::stringstream ss(line);
             // Read the first token which should be the header.
             std::string header;
-            ss >> header;
-
+            if (!std::getline(ss, header, ','))
+                continue;   // malformed line
             // Find the callback for this header.
             auto it = callbacks_.find(header);
             if (it != callbacks_.end()) {
-                // Call the callback passing the stream (which now contains the rest of the line).
                 it->second(ss);
+                if (stopping_msg_index_ > 0 && msg_num >= stopping_msg_index_) {
+                    std::cout << "Stopping at message index: " << stopping_msg_index_ << std::endl;
+                    break;
+                }
             }
+            msg_num++;
         }
     }
 
@@ -114,12 +120,97 @@ class TextIO {
         return scan;
     }
 
+    inline static sensor_msgs::msg::PointCloud2 convert_2_pointcloud2(std::stringstream &ss) {
+        using Msg   = sensor_msgs::msg::PointCloud2;
+        using Field = sensor_msgs::msg::PointField;
+
+        Msg msg;
+        std::string tok;
+
+        // 1) discard the literal “it is ulhk_3d”
+        // std::getline(ss, tok, ',');
+
+        // 1) seq
+        std::getline(ss, tok, ',');
+
+        // 3) stamp “sec.nanosec”
+        std::getline(ss, tok, ',');
+        {
+            auto dot                 = tok.find('.');
+            msg.header.stamp.sec     = std::stoll(tok.substr(0, dot));
+            msg.header.stamp.nanosec = std::stoul(tok.substr(dot + 1));
+        }
+
+        // 4) frame_id
+        std::getline(ss, msg.header.frame_id, ',');
+
+        // 5) height, width
+        std::getline(ss, tok, ',');
+        msg.height = std::stoul(tok);
+        std::getline(ss, tok, ',');
+        msg.width = std::stoul(tok);
+
+        // 6) number of fields
+        std::getline(ss, tok, ',');
+        size_t n_fields = std::stoul(tok);
+        msg.fields.resize(n_fields);
+
+        // 7) each field: name, offset, datatype, count
+        for (size_t i = 0; i < n_fields; ++i) {
+            std::getline(ss, msg.fields[i].name, ',');
+            std::getline(ss, tok, ',');
+            msg.fields[i].offset = std::stoul(tok);
+            std::getline(ss, tok, ',');
+            msg.fields[i].datatype = static_cast<uint8_t>(std::stoi(tok));
+            std::getline(ss, tok, ',');
+            msg.fields[i].count = std::stoul(tok);
+        }
+
+        // 8) metadata flags/strides
+        std::getline(ss, tok, ',');
+        msg.is_bigendian = (tok == "1");
+        std::getline(ss, tok, ',');
+        msg.point_step = std::stoul(tok);
+        std::getline(ss, tok, ',');
+        msg.row_step = std::stoul(tok);
+        std::getline(ss, tok, ',');
+        msg.is_dense = (tok == "1");
+
+        // 9) now parse all remaining tokens as hex data bytes
+        msg.data.clear();
+        while (std::getline(ss, tok, ',')) {
+            if (tok.empty())
+                continue;
+            // each tok is two‐digit hex, e.g. "0f", "a3"
+            uint8_t byte = static_cast<uint8_t>(std::stoul(tok, nullptr, 16));
+            msg.data.push_back(byte);
+        }
+
+        return msg;
+    }
+
   private:
     std::ifstream fin;
+    size_t stopping_msg_index_;
     std::unordered_map<
         std::string,
         std::function<void(std::stringstream &ss)>>
         callbacks_;
+};
+
+class LapseTimer {
+  public:
+    LapseTimer() : last_time_point_(std::chrono::steady_clock::now()) {}
+
+    double elapsed_ms() {
+        auto now         = std::chrono::steady_clock::now();
+        auto ret         = std::chrono::duration<double, std::milli>(now - last_time_point_).count();
+        last_time_point_ = std::chrono::steady_clock::now();
+        return ret;
+    }
+
+  private:
+    std::chrono::steady_clock::time_point last_time_point_;
 };
 
 class RAIITimer {

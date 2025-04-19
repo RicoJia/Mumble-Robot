@@ -17,11 +17,17 @@ find_package(rosbag2_cpp REQUIRED)
 find_package(rosbag2_storage REQUIRED)
 find_package(rosbag2_transport REQUIRED)
 find_package(sensor_msgs REQUIRED)
+list(INSERT CMAKE_PREFIX_PATH 0 "/opt/pcl-1.14.0")
 find_package(PCL REQUIRED)
+find_package(pcl_conversions REQUIRED) # ← must come before
+                                       # ament_target_dependencies
+find_package(glog REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(g2o REQUIRED)
 find_package(fmt REQUIRED)
 find_package(gflags REQUIRED)
+
+message(STATUS "Found PCL ${PCL_VERSION}") # pcl 1.12.1
 
 # Ensure we have a release type
 if(NOT CMAKE_BUILD_TYPE)
@@ -68,8 +74,14 @@ target_link_libraries(
 )
 
 # Use ament macro to link ROS 2 libraries
-ament_target_dependencies(halo rclcpp rosbag2_cpp rosbag2_storage
-                          rosbag2_transport sensor_msgs)
+ament_target_dependencies(
+  halo
+  rclcpp
+  rosbag2_cpp
+  rosbag2_storage
+  rosbag2_transport
+  sensor_msgs
+  pcl_conversions)
 
 add_executable(
   export_scan_2_txt
@@ -100,8 +112,15 @@ if(BUILD_HALO_TESTS)
 
   function(add_slam_gtest name)
     add_executable(${name} tests/${name}.cpp)
-    target_link_libraries(${name} halo GTest::GTest GTest::Main pthread
-                          ${G2O_LIBS})
+    target_link_libraries(
+      ${name}
+      halo
+      GTest::GTest
+      GTest::Main
+      pthread
+      ${G2O_LIBS}
+      gflags
+      glog)
     add_test(NAME ${name} COMMAND ${name})
   endfunction()
 
@@ -118,6 +137,7 @@ if(BUILD_HALO_TESTS)
   # 3D SLAM Tests
   # ############################################################################
   add_slam_gtest(test_3d_icp)
+  add_slam_gtest(test_direct_3d_ndt_lo)
 
 endif()
 
