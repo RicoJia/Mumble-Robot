@@ -22,7 +22,7 @@ class DirectNDT3DLO {
                                                         ndt_3d_(options.ndt_3d_options) {
         local_map_.reset(new PCLCloudXYZI);   // very important, do not forget!
         if (options_.display_map) {
-            map_viewer_ = std::make_shared<PCLMapViewer>(0.1, true);
+            map_viewer_ = std::make_shared<PCLMapViewer>(0.5, true);
         }
     }
 
@@ -31,27 +31,28 @@ class DirectNDT3DLO {
     // - If it's a keyframe:
     //   - Add point cloud to the local map (Which has a constant number of keyframes)
     //   - Set local map as
-    void add_scan(PCLCloudXYZIPtr cloud) {
+    void add_scan(PCLCloudXYZIPtr cloud, bool visualize = true) {
         if (keyframe_clouds_poses_.size() == 0) {
             add_cloud_to_map(halo::SE3(), cloud);
             ndt_3d_.set_target(local_map_);
             return;
         }
+
         ndt_3d_.set_source(cloud);
         halo::SE3 world_pose = get_init_pose_guess();
-        // TODO
-        std::cout << "pose init: " << world_pose << std::endl;
-        bool success = ndt_3d_.align_gauss_newton(world_pose);
+        bool success         = ndt_3d_.align_gauss_newton(world_pose);
         if (!success) {
             std::cerr << "NDT failed to align" << std::endl;
             return;
         }
+        PCLCloudXYZIPtr transformed_cloud(new PCLCloudXYZI);
+        pcl::transformPointCloud(*cloud, *transformed_cloud, world_pose.matrix().cast<float>());
         if (is_keyframe(world_pose)) {
-            add_cloud_to_map(world_pose, cloud);
+            add_cloud_to_map(world_pose, transformed_cloud);
             ndt_3d_.set_target(local_map_);
         }
-        if (map_viewer_ != nullptr) {
-            map_viewer_->SetPoseAndCloud(world_pose, cloud);
+        if (visualize && map_viewer_ != nullptr) {
+            map_viewer_->SetPoseAndCloud(world_pose, transformed_cloud);
         }
     }
 
@@ -74,9 +75,7 @@ class DirectNDT3DLO {
      * 2. Add the transformed cloud to the keyframe clouds
      * 3. Update the local map, keep the number of keyframes constant
      */
-    void add_cloud_to_map(const SE3 &pose, PCLCloudXYZIPtr cloud) {
-        PCLCloudXYZIPtr transformed_cloud(new PCLCloudXYZI);
-        pcl::transformPointCloud(*cloud, *transformed_cloud, pose.matrix().cast<float>());
+    void add_cloud_to_map(const SE3 &pose, PCLCloudXYZIPtr transformed_cloud) {
         keyframe_clouds_poses_.push_back({transformed_cloud, pose});
         if (keyframe_clouds_poses_.size() > options_.num_keframes_in_map) {
             keyframe_clouds_poses_.pop_front();
@@ -86,7 +85,7 @@ class DirectNDT3DLO {
             *local_map_ += *(kf_pose_pair.first);
         }
         // TODO
-        std::cout << "added pt cloud: " << cloud->points.size() << ", added pose: " << pose << std::endl;
+        std::cout << "added pt cloud: " << transformed_cloud->points.size() << ", added pose: " << pose << std::endl;
     }
 
     /**

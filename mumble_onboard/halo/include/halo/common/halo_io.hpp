@@ -25,7 +25,7 @@ inline Eigen::IOFormat CleanFmt(4, 0, ", ", " ", "[", "]");
 
 class TextIO {
   public:
-    TextIO(const std::string &file_path) : fin(file_path) {
+    TextIO(const std::string &file_path, const size_t stopping_msg_index = 0) : fin(file_path), stopping_msg_index_(stopping_msg_index) {
         if (!fin.is_open()) {
             throw std::runtime_error("Failed to open file: " + file_path);
         } else {
@@ -64,10 +64,13 @@ class TextIO {
             // Find the callback for this header.
             auto it = callbacks_.find(header);
             if (it != callbacks_.end()) {
-                // Call the callback passing the stream (which now contains the rest of the line).
-                std::cout << "spin: " << msg_num++ << std::endl;
                 it->second(ss);
+                if (stopping_msg_index_ > 0 && msg_num >= stopping_msg_index_) {
+                    std::cout << "Stopping at message index: " << stopping_msg_index_ << std::endl;
+                    break;
+                }
             }
+            msg_num++;
         }
     }
 
@@ -188,10 +191,26 @@ class TextIO {
 
   private:
     std::ifstream fin;
+    size_t stopping_msg_index_;
     std::unordered_map<
         std::string,
         std::function<void(std::stringstream &ss)>>
         callbacks_;
+};
+
+class LapseTimer {
+  public:
+    LapseTimer() : last_time_point_(std::chrono::steady_clock::now()) {}
+
+    double elapsed_ms() {
+        auto now         = std::chrono::steady_clock::now();
+        auto ret         = std::chrono::duration<double, std::milli>(now - last_time_point_).count();
+        last_time_point_ = std::chrono::steady_clock::now();
+        return ret;
+    }
+
+  private:
+    std::chrono::steady_clock::time_point last_time_point_;
 };
 
 class RAIITimer {

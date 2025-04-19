@@ -21,6 +21,8 @@ class PCLMapViewer {
             viewer_ = nullptr;
         }
         voxel_filter_.setLeafSize(leaf_size, leaf_size, leaf_size);
+        // PCL 1.14 does not like VTK 9.1
+        vtkObject::GlobalWarningDisplayOff();
     }
 
     /**
@@ -29,6 +31,7 @@ class PCLMapViewer {
      * @param cloud_world
      */
     void SetPoseAndCloud(const SE3 &pose, PCLCloudXYZIPtr cloud_world) {
+        LapseTimer timer;
         voxel_filter_.setInputCloud(cloud_world);
         voxel_filter_.filter(*tmp_cloud_);
 

@@ -17,7 +17,7 @@ find_package(rosbag2_cpp REQUIRED)
 find_package(rosbag2_storage REQUIRED)
 find_package(rosbag2_transport REQUIRED)
 find_package(sensor_msgs REQUIRED)
-list(INSERT CMAKE_PREFIX_PATH 0 "/opt/pcl-1.13.0")
+list(INSERT CMAKE_PREFIX_PATH 0 "/opt/pcl-1.14.0")
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED) # ← must come before
                                        # ament_target_dependencies
