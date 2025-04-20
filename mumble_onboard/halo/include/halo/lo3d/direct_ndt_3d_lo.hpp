@@ -9,7 +9,6 @@ using namespace halo;
 namespace halo {
 class DirectNDT3DLO {
   public:
-    // TODO check
     struct DirectNDT3DLOOptions {
         size_t num_keframes_in_map = 30;
         // How to quatify angle? do we use norm?

@@ -12,14 +12,11 @@
 namespace halo {
 class PCLMapViewer {
   public:
-    PCLMapViewer(const float &leaf_size, bool use_pcl_vis = true)
-        : leaf_size_(leaf_size), tmp_cloud_(new PCLCloudXYZI), local_map_(new PCLCloudXYZI) {
-        if (use_pcl_vis) {
-            viewer_.reset(new pcl::visualization::PCLVisualizer());
-            viewer_->addCoordinateSystem(10, "world");
-        } else {
-            viewer_ = nullptr;
-        }
+    PCLMapViewer(const float &leaf_size, bool viz_on_car)
+        : leaf_size_(leaf_size), tmp_cloud_(new PCLCloudXYZI), local_map_(new PCLCloudXYZI),
+          viz_on_car_(viz_on_car) {
+        viewer_.reset(new pcl::visualization::PCLVisualizer());
+        viewer_->addCoordinateSystem(10, "world");
         voxel_filter_.setLeafSize(leaf_size, leaf_size, leaf_size);
         // PCL 1.14 does not like VTK 9.1
         vtkObject::GlobalWarningDisplayOff();
@@ -51,6 +48,18 @@ class PCLMapViewer {
             Eigen::Affine3f T;
             T.matrix() = pose.matrix().cast<float>();
             viewer_->addCoordinateSystem(5, T, "vehicle");
+            if (viz_on_car_) {
+                // --- Bird’s‑Eye Camera Setup ---
+                Eigen::Vector3f vehicle_pos = T.translation();
+                Eigen::Vector3f cam_pos     = vehicle_pos + Eigen::Vector3f(0, 0, 150);   // in meters
+                Eigen::Vector3f view_pt     = vehicle_pos;
+                Eigen::Vector3f up_dir      = Eigen::Vector3f(0, 1, 0);
+
+                viewer_->setCameraPosition(
+                    cam_pos.x(), cam_pos.y(), cam_pos.z(),
+                    view_pt.x(), view_pt.y(), view_pt.z(),
+                    up_dir.x(), up_dir.y(), up_dir.z());
+            }
             viewer_->spinOnce(1);
         }
 
@@ -88,5 +97,6 @@ class PCLMapViewer {
     float leaf_size_                               = 1.0;
     PCLCloudXYZIPtr tmp_cloud_;   //
     PCLCloudXYZIPtr local_map_;
+    bool viz_on_car_ = false;   // 是否在车上可视化
 };
 }   // namespace halo
