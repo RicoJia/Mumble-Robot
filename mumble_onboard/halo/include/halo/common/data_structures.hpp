@@ -18,6 +18,9 @@ class LRUHashMap {
             3. If size exceeds, pop the last one
         2. Get:
             1. return the pointer to the value, and bring the order of the key-val pair front
+        Move Construction:
+            - We expect to have 1 copy of the key because we need to store it in the unordered_map.
+            - Other than that, as we add, there is 1 move of the value, and 1 move of the key.
      */
   public:
     LRUHashMap(size_t sz) : size_(sz) {
@@ -25,16 +28,22 @@ class LRUHashMap {
             throw std::runtime_error("LRUHashMap is instatiated with 0 size.");
         itr_lookup_.reserve(size_);
     }
-    // TODO: to move
-    void add(const Key &key, const Value &value) {
-        auto map_itr = itr_lookup_.find(key);
-        if (map_itr != itr_lookup_.end()) {
-            auto list_itr    = map_itr->second;
-            list_itr->second = value;
+
+    // So the compiler will have to make sure K, and V actually match Key and Value
+    template <typename K, typename V>
+    void add(K &&key, V &&value) {
+        if (auto map_itr = itr_lookup_.find(key); map_itr != itr_lookup_.end()) {
+            auto &list_itr   = map_itr->second;
+            list_itr->second = std::forward<V>(value);
             cache_.splice(cache_.begin(), cache_, list_itr);
         } else {
-            cache_.emplace_front(key, value);
-            itr_lookup_[key] = cache_.begin();
+            cache_.emplace_front(
+                std::forward<K>(key), std::forward<V>(value));
+            // key has been moved-from, need to create a copy for key
+            itr_lookup_.emplace(
+                std::piecewise_construct,
+                std::forward_as_tuple(cache_.begin()->first),
+                std::forward_as_tuple(cache_.begin()));
         }
         // Pop if size has exceeded:
         if (cache_.size() > size_) {
