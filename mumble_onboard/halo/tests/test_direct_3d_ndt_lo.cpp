@@ -9,7 +9,7 @@
 #include <halo/lo3d/incremental_ndt_3d_lo.hpp>
 #include <gflags/gflags.h>
 
-DEFINE_string(bag_path, "./data/ulhk/ros1_scan_data.txt", "path to rosbag");
+DEFINE_string(bag_path, "./data/ulhk/test2.txt", "path to rosbag");
 DEFINE_string(dataset_type, "ULHK", "NCLT/ULHK/KITTI/WXB_3D");
 DEFINE_bool(use_pcl_ndt, false, "use pcl ndt to align?");
 DEFINE_bool(use_ndt_nearby_6, false, "use ndt nearby 6?");

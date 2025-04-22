@@ -73,6 +73,11 @@ class IncrementalNDTLO {
         }
     }
 
+    /**
+     * Logic - is keyframe when:
+     * - If the distance between the last keyframe and the current frame is larger than a threshold
+     * - Once reaches capacity in voxel
+     */
     bool is_keyframe(const SE3 &world_pose) const {
         SE3 last_pose     = keyframe_poses_.back();
         SE3 relative_pose = last_pose.inverse() * world_pose;

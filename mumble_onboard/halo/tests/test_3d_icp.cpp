@@ -165,7 +165,8 @@ TEST_F(ICP3DTest, TestInc3DNDT) {
         });
 }
 
-// DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
+#if 0  // DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
+
 TEST_F(ICP3DTest, Test3DPCL_ICP) {
     halo::profile_and_call(
         [&]() {
@@ -195,8 +196,8 @@ TEST_F(ICP3DTest, Test3DPCL_ICP) {
         });
 }
 
-DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
-the Lambda is done
+// DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
+// the Lambda is done
 TEST_F(ICP3DTest, Test3DPCL_NDT) {
     halo::profile_and_call(
         [&]() {
@@ -227,6 +228,7 @@ TEST_F(ICP3DTest, Test3DPCL_NDT) {
             std::cout << test_name << " took " << duration.count() << " ms" << std::endl;
         });
 }
+#endif
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
