@@ -4,7 +4,7 @@
         {
             "label": "colcon build",
             "type": "shell",
-            "command": "colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug --symlink-install --parallel-workers 4",
+            "command": "colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug --symlink-install --parallel-workers 2",
             "options": {
                 "cwd": "/home/mumble_robot"
             },
