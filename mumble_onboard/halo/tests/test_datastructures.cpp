@@ -69,6 +69,7 @@ TEST(TestDatastructures, TestLRUHashMapVanilla) {
     halo::LRUHashMap<int, std::string, true> lru_hashmap(3);
     lru_hashmap.add(1, "hello1");
     lru_hashmap.add(2, "hello2");
+    ASSERT_EQ(lru_hashmap.size(), 2) << "lru_hashmap size should be 2";
     lru_hashmap.add(3, "hello3");
     lru_hashmap.add(4, "hello4");   // should see popping 1
 
@@ -80,18 +81,20 @@ TEST(TestDatastructures, TestLRUHashMapVanilla) {
     if (val_ptr == nullptr) {
         ASSERT_NE(val_ptr, nullptr) << "val_ptr should not be nullptr";
     } else {
-        std::cout << "should see hello222: " << *val_ptr << std::endl;
+        ASSERT_EQ(*val_ptr, "hello222");
     }
 
-    lru_hashmap.add(6, "hello6");   // should see popping 4
+    lru_hashmap.add(6, "hello6");         // should see popping 4
+    lru_hashmap.add(5, "hello7", true);   // nothing happens
+    ASSERT_EQ(*(lru_hashmap.get(5)), "hello5");
+    lru_hashmap.add(5, "hello7", false);   // nothing happens
+    ASSERT_EQ(*(lru_hashmap.get(5)), "hello7");
 }
 
 TEST(TestDatastructures, TestLRUHashMapMoveSemantics) {
     halo::LRUHashMap<KeyTracer, ValueTracer, true> lru_hashmap(3);
-    // TODO
     std::cout << "expect 1 copy and 2 moves:" << std::endl;
     lru_hashmap.add(KeyTracer("hello1"), ValueTracer(1, 2));
-    // TODO
     std::cout << "expect 1 copy and 2 moves:" << std::endl;
     KeyTracer key2("hello2");
     ValueTracer val2(3, 4);

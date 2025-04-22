@@ -29,10 +29,16 @@ class LRUHashMap {
         itr_lookup_.reserve(size_);
     }
 
-    // So the compiler will have to make sure K, and V actually match Key and Value
+    /**
+     * insert_only: if true, do not update the value if the key already exists.
+     * In this case, the key is NOT moved to the front of the list.
+     */
     template <typename K, typename V>
-    void add(K &&key, V &&value) {
+    void add(K &&key, V &&value, bool insert_only = false) {
         if (auto map_itr = itr_lookup_.find(key); map_itr != itr_lookup_.end()) {
+            if (insert_only) {
+                return;
+            }
             auto &list_itr   = map_itr->second;
             list_itr->second = std::forward<V>(value);
             cache_.splice(cache_.begin(), cache_, list_itr);
@@ -40,10 +46,10 @@ class LRUHashMap {
             cache_.emplace_front(
                 std::forward<K>(key), std::forward<V>(value));
             // key has been moved-from, need to create a copy for key
-            itr_lookup_.emplace(
-                std::piecewise_construct,
-                std::forward_as_tuple(cache_.begin()->first),
-                std::forward_as_tuple(cache_.begin()));
+            itr_lookup_.try_emplace(
+                cache_.begin()->first,   // key
+                cache_.begin()           // mapped_type must be constructible from this iterator
+            );
         }
         // Pop if size has exceeded:
         if (cache_.size() > size_) {
@@ -56,15 +62,20 @@ class LRUHashMap {
         }
     }
 
+    // For the getter, we currently are not bringing it to the front
+    // for thread-safety and simplicity
     Value *get(const Key &key) {
         if (itr_lookup_.find(key) != itr_lookup_.end()) {
             auto list_itr = itr_lookup_[key];
-            cache_.splice(cache_.begin(), cache_, list_itr);
-            // TODO Should I bring it to the front?
+            // cache_.splice(cache_.begin(), cache_, list_itr);
             return &list_itr->second;
         } else {
             return nullptr;
         }
+    }
+
+    size_t size() const {
+        return cache_.size();
     }
 
   private:

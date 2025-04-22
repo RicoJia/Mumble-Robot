@@ -13,11 +13,6 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
-void export_3d_scan_2_txt(const std::string &bag_file,
-                          const std::string &scan_topic,
-                          const std::string &output_txt_file) {
-}
-
 void export_2d_scan_2_txt(const std::string &bag_file,
                           const std::string &scan_topic,
                           const std::string &output_txt_file) {
@@ -74,5 +69,4 @@ int main(int argc, char **argv) {
         }
     }
     export_2d_scan_2_txt(bag_path, "/scan", "scan_file.txt");
-    export_3d_scan_2_txt(bag_path, "/scan", "scan3d_file.txt");
 }

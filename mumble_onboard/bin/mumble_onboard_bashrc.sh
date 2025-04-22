@@ -1,4 +1,5 @@
-# Can do: clear && colcon_build_source --parallel-workers 4 --event-handlers console_direct+ --cmake-args -DCMAKE_VERBOSE_MAKEFILE=ON
+# clear && MAKEFLAGS="-j 4" colcon build --symlink-install 
+# Can do: clear && colcon_build_source --parallel-workers 2 --event-handlers console_direct+ --cmake-args -DCMAKE_VERBOSE_MAKEFILE=ON
 colcon_build_source(){
     colcon build --symlink-install "$@"
     source install/setup.bash

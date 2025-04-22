@@ -69,6 +69,7 @@ TEST(TestLinearFitting, TestPlaneFitting) {
         std::cout << "Test case 1: plane fitting using SelfAdjointEigenSolver " << std::endl;
         halo::RAIITimer timer;
         bool success = math::fit_plane(plane_params_estimate, pcl_cloud);
+        ASSERT_TRUE(success);
     }
 
     std::cout << "plane_params_estimate: " << plane_params_estimate << std::endl;
