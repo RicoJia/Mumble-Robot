@@ -1,3 +1,5 @@
+// TO inspect: python3 /home/mumble_robot/src/mumble_onboard/halo/scripts/visualize_pcd.py -p /tmp/inc_ndt_pcl_pcl_merged.pcd
+// TO run: ./build/mumble_onboard/halo/test_3d_icp --source_path "data/ch7/EPFL/aquarius_source.pcd" --target_path "data/ch7/EPFL/aquarius_target.pcd" --ground_truth_path "data/ch7/EPFL/aquarius_pose.txt"
 #include <gtest/gtest.h>
 #include <iostream>
 #include <cstdlib>
@@ -6,6 +8,7 @@
 #include <halo/common/debug_utils.hpp>
 #include <halo/lo3d/icp_3d_methods.hpp>
 #include <halo/lo3d/ndt_3d.hpp>
+#include <halo/lo3d/incremental_ndt_3d.hpp>
 
 // EPFL 雕像数据集：./ch7/EPFL/aquarius_{sourcd.pcd, target.pcd}，真值在对应目录的_pose.txt中
 // EPFL 模型比较精细，配准时应该采用较小的栅格
@@ -46,6 +49,8 @@ class ICP3DTest : public ::testing::Test {
         target.reset(new halo::PCLCloudXYZI);
         pcl::io::loadPCDFile(source_path, *source);
         pcl::io::loadPCDFile(target_path, *target);
+        std::cout << "Source pt num: " << source->points.size() << std::endl;
+        std::cout << "Target pt num: " << target->points.size() << std::endl;
 
         std::ifstream in_stream(ground_truth_path);
         if (in_stream) {
@@ -143,68 +148,85 @@ TEST_F(ICP3DTest, Test3DNDT) {
         });
 }
 
-// DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
-// TEST_F(ICP3DTest, Test3DPCL_ICP) {
-//     halo::profile_and_call(
-//         [&]() {
-//             std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-//             pcl::IterativeClosestPoint<halo::PCLPointXYZI, halo::PCLPointXYZI> icp_pcl;
-//             icp_pcl.setInputSource(source);
-//             icp_pcl.setInputTarget(target);
-//             halo::PCLCloudXYZIPtr output_pcl(new halo::PCLCloudXYZI);
-//             icp_pcl.align(*output_pcl);
-
-//             // Due to numerical error, R might not be orthogonal.
-//             Eigen::Matrix4d T = icp_pcl.getFinalTransformation().cast<double>();
-//             // Extract the top-left 3x3 rotation block
-//             Eigen::Matrix3d R = T.block<3, 3>(0, 0);
-//             // Re-orthogonalize R using SVD
-//             Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
-//             Eigen::Matrix3d R_orthogonal = svd.matrixU() * svd.matrixV().transpose();
-//             T.block<3, 3>(0, 0) = R_orthogonal;
-
-//             relative_pose = halo::SE3(T);
-//             std::cout<<"pose error: "<<(ground_truth_pose.inverse() * relative_pose).log().norm()<<std::endl;
-//             success   = true;
-//             test_name = "pcl_icp_pcl";
-//             std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
-//             std::chrono::duration<double, std::milli> duration = end - start;
-//             std::cout << test_name << " took " << duration.count() << " ms" << std::endl;
-//         });
-// }
+TEST_F(ICP3DTest, TestInc3DNDT) {
+    halo::profile_and_call(
+        [&]() {
+            std::cout << "====================== Test3D Inc NDT ======================" << std::endl;
+            halo::IncrementalNDTOptions options;
+            options.max_iterations   = 20;
+            options.remove_centroid_ = true;
+            // halo::NDT3D<halo::NeighborCount::NEARBY6> ndt_3d(options);
+            halo::IncrementalNDT3D<halo::NeighborCount::CENTER> inc_ndt_3d(options);
+            inc_ndt_3d.set_source(target);
+            inc_ndt_3d.add_cloud(target);
+            inc_ndt_3d.set_source(source);
+            success   = inc_ndt_3d.align_gauss_newton(relative_pose);
+            test_name = "inc_ndt_pcl";
+        });
+}
 
 // DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
-// the Lambda is done
-// TEST_F(ICP3DTest, Test3DPCL_NDT) {
-//     halo::profile_and_call(
-//         [&]() {
-//             std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-//             pcl::NormalDistributionsTransform<halo::PCLPointXYZI, halo::PCLPointXYZI> ndt_pcl;
-//             ndt_pcl.setInputSource(source);
+TEST_F(ICP3DTest, Test3DPCL_ICP) {
+    halo::profile_and_call(
+        [&]() {
+            std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+            pcl::IterativeClosestPoint<halo::PCLPointXYZI, halo::PCLPointXYZI> icp_pcl;
+            icp_pcl.setInputSource(source);
+            icp_pcl.setInputTarget(target);
+            halo::PCLCloudXYZIPtr output_pcl(new halo::PCLCloudXYZI);
+            icp_pcl.align(*output_pcl);
 
-//             assert(target && "target point cloud is null!");
-//             std::cout << "Target cloud has " << target->points.size() << " points." << std::endl;
-//             ndt_pcl.setInputTarget(this->target); // with this line, the test crashes
-//             halo::PCLCloudXYZIPtr output_pcl(new halo::PCLCloudXYZI);
-//             ndt_pcl.align(*output_pcl);
-//             // Due to numerical error, R might not be orthogonal.
-//             Eigen::Matrix4d T = ndt_pcl.getFinalTransformation().cast<double>();
-//             // Extract the top-left 3x3 rotation block
-//             Eigen::Matrix3d R = T.block<3, 3>(0, 0);
-//             // Re-orthogonalize R using SVD
-//             Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
-//             Eigen::Matrix3d R_orthogonal = svd.matrixU() * svd.matrixV().transpose();
-//             T.block<3, 3>(0, 0) = R_orthogonal;
+            // Due to numerical error, R might not be orthogonal.
+            Eigen::Matrix4d T = icp_pcl.getFinalTransformation().cast<double>();
+            // Extract the top-left 3x3 rotation block
+            Eigen::Matrix3d R = T.block<3, 3>(0, 0);
+            // Re-orthogonalize R using SVD
+            Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
+            Eigen::Matrix3d R_orthogonal = svd.matrixU() * svd.matrixV().transpose();
+            T.block<3, 3>(0, 0) = R_orthogonal;
 
-//             relative_pose = halo::SE3(T);
-//             std::cout<<"pose error: "<<(ground_truth_pose.inverse() * relative_pose).log().norm()<<std::endl;
-//             success   = true;
-//             test_name = "pcl_ndt_pcl";
-//             std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
-//             std::chrono::duration<double, std::milli> duration = end - start;
-//             std::cout << test_name << " took " << duration.count() << " ms" << std::endl;
-//         });
-// }
+            relative_pose = halo::SE3(T);
+            std::cout<<"pose error: "<<(ground_truth_pose.inverse() * relative_pose).log().norm()<<std::endl;
+            success   = true;
+            test_name = "pcl_icp_pcl";
+            std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> duration = end - start;
+            std::cout << test_name << " took " << duration.count() << " ms" << std::endl;
+        });
+}
+
+DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
+the Lambda is done
+TEST_F(ICP3DTest, Test3DPCL_NDT) {
+    halo::profile_and_call(
+        [&]() {
+            std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+            pcl::NormalDistributionsTransform<halo::PCLPointXYZI, halo::PCLPointXYZI> ndt_pcl;
+            ndt_pcl.setInputSource(source);
+
+            assert(target && "target point cloud is null!");
+            std::cout << "Target cloud has " << target->points.size() << " points." << std::endl;
+            ndt_pcl.setInputTarget(this->target); // with this line, the test crashes
+            halo::PCLCloudXYZIPtr output_pcl(new halo::PCLCloudXYZI);
+            ndt_pcl.align(*output_pcl);
+            // Due to numerical error, R might not be orthogonal.
+            Eigen::Matrix4d T = ndt_pcl.getFinalTransformation().cast<double>();
+            // Extract the top-left 3x3 rotation block
+            Eigen::Matrix3d R = T.block<3, 3>(0, 0);
+            // Re-orthogonalize R using SVD
+            Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
+            Eigen::Matrix3d R_orthogonal = svd.matrixU() * svd.matrixV().transpose();
+            T.block<3, 3>(0, 0) = R_orthogonal;
+
+            relative_pose = halo::SE3(T);
+            std::cout<<"pose error: "<<(ground_truth_pose.inverse() * relative_pose).log().norm()<<std::endl;
+            success   = true;
+            test_name = "pcl_ndt_pcl";
+            std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> duration = end - start;
+            std::cout << test_name << " took " << duration.count() << " ms" << std::endl;
+        });
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

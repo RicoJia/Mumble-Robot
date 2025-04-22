@@ -121,8 +121,7 @@ class TextIO {
     }
 
     inline static sensor_msgs::msg::PointCloud2 convert_2_pointcloud2(std::stringstream &ss) {
-        using Msg   = sensor_msgs::msg::PointCloud2;
-        using Field = sensor_msgs::msg::PointField;
+        using Msg = sensor_msgs::msg::PointCloud2;
 
         Msg msg;
         std::string tok;

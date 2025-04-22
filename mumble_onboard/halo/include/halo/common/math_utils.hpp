@@ -31,6 +31,32 @@ Eigen::Matrix<double, Eigen::Dynamic, 3> deque_2_matrix(const std::deque<Eigen::
 // Real Mathy Stuff
 //////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief cov = U * S * V^T, here we adjust S so it's not ill formed.
+ * We cap the ratio of singular values to the largest ones, instead of adding a small value to the diagonal
+ * This is because the covariance matrix is still ill-formed, if the ratio is too large?
+ */
+Eigen::Matrix3d robustInfo(const Eigen::Matrix3d &cov,
+                           double rel_floor = 1e-2,   // floor as % of σ_max
+                           double abs_floor = 1e-4)   // or absolute floor
+{
+    // For symmetric PSD matrices Eigen's SelfAdjointEigenSolver is cheaper,
+    // gives eigenvalues λ and eigenvectors V (cov = V Λ Vᵀ).
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
+    const auto &lambdas = es.eigenvalues();   // ascending order
+    Eigen::Vector3d inv_lambda;
+
+    const double λ_max     = lambdas.tail<1>()(0);
+    const double floor_val = std::max(abs_floor, rel_floor * λ_max);
+
+    for (int i = 0; i < 3; ++i)
+        inv_lambda(i) = 1.0 / std::max(floor_val, lambdas(i));
+
+    // info = V · diag(inv_lambda) · Vᵀ   (guaranteed symmetric PSD)
+    return es.eigenvectors() * inv_lambda.asDiagonal() *
+           es.eigenvectors().transpose();
+}
+
 template <typename Container, typename VectorType, typename MatrixType>
 inline void compute_full_cov_and_mean(const Container &data, VectorType &mean,
                                       MatrixType &cov) {

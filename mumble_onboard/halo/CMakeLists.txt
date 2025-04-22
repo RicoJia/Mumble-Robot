@@ -138,6 +138,7 @@ if(BUILD_HALO_TESTS)
   # ############################################################################
   add_slam_gtest(test_3d_icp)
   add_slam_gtest(test_direct_3d_ndt_lo)
+  add_slam_gtest(test_datastructures)
 
 endif()
 

@@ -23,27 +23,6 @@ struct NDT3DOptions {
     double resolution                        = 1.0;     // 1m
 };
 
-Eigen::Matrix3d robustInfo(const Eigen::Matrix3d &cov,
-                           double rel_floor = 1e-2,   // floor as % of σ_max
-                           double abs_floor = 1e-4)   // or absolute floor
-{
-    // For symmetric PSD matrices Eigen's SelfAdjointEigenSolver is cheaper,
-    // gives eigenvalues λ and eigenvectors V (cov = V Λ Vᵀ).
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
-    const auto &lambdas = es.eigenvalues();   // ascending order
-    Eigen::Vector3d inv_lambda;
-
-    const double λ_max     = lambdas.tail<1>()(0);
-    const double floor_val = std::max(abs_floor, rel_floor * λ_max);
-
-    for (int i = 0; i < 3; ++i)
-        inv_lambda(i) = 1.0 / std::max(floor_val, lambdas(i));
-
-    // info = V · diag(inv_lambda) · Vᵀ   (guaranteed symmetric PSD)
-    return es.eigenvectors() * inv_lambda.asDiagonal() *
-           es.eigenvectors().transpose();
-}
-
 template <NeighborCount neighbor_count>
 class NDT3D {
   private:
@@ -61,8 +40,7 @@ class NDT3D {
             // This is because the covariance matrix is still ill-formed, if the ratio is too large?
             Eigen::JacobiSVD<Eigen::Matrix3d> svd(cov, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
-            // TODO: code under testing:
-            info_ = robustInfo(cov, 1e-2, 1e-4);   // robustInfo(cov, 1e-2, 1e-4);
+            info_ = math::robustInfo(cov, 1e-2, 1e-4);   // robustInfo(cov, 1e-2, 1e-4);
             if ((info_.diagonal().array() < 0).any()) {
                 std::cout << "Covariance matrix used:\n"
                           << cov << std::endl;
@@ -134,7 +112,6 @@ class NDT3D {
         std::vector<size_t> indices(source_->points.size());
         std::iota(indices.begin(), indices.end(), 0);
 
-        double last_total_error = 0.0;
         for (size_t i = 0; i < options_.max_iterations; ++i) {
             std::vector<NDTOptimizationData> intermediate_res(source_->points.size());
             // iterate thru all source points
@@ -200,7 +177,6 @@ class NDT3D {
             if (dx.norm() < options_.eps) {
                 return true;
             }
-            last_total_error = total_error;
         }
 
         return false;
