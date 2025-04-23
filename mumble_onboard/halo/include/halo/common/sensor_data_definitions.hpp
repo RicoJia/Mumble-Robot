@@ -102,4 +102,22 @@ struct _get_pointcloud_dimensions {
 template <typename T>
 inline constexpr bool static_false = false;
 
+/// 带ring, range等其他信息的全量信息点云
+struct PCLFullPointType {
+    PCL_ADD_POINT4D;
+    float range       = 0;   // this could be zero in interpretation
+    float radius      = 0;
+    uint8_t intensity = 0;
+    uint8_t ring      = 0;
+    uint8_t angle     = 0;
+    double time       = 0;
+    float height      = 0;
+
+    inline PCLFullPointType() {}
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+using PCLFullPointCloudType = pcl::PointCloud<PCLFullPointType>;
+using PCLFullCloudPtr       = PCLFullPointCloudType::Ptr;
+
 }   // namespace halo

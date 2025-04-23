@@ -1,4 +1,4 @@
-// ./build/mumble_onboard/halo/test_direct_3d_ndt_lo --stopping_msg_index 1200
+// ./build/mumble_onboard/halo/test_loamlike_feature_extraction --bag_path data/wxb/ros1_scan_data.txt
 #include <gtest/gtest.h>
 #include <iostream>
 #include <cstdlib>
@@ -8,17 +8,23 @@
 #include <halo/lo3d/loam_like_feature_extraction.hpp>
 #include <gflags/gflags.h>
 
-DEFINE_string(bag_path, "./data/ulhk/test2.txt", "path to rosbag");
+DEFINE_string(bag_path, "data/wxb/ros1_scan_data.txt", "path to rosbag");
 DEFINE_int64(stopping_msg_index, 0, "0 means no limit, otherwise stop at this message index");
 DEFINE_int64(start_visualize_msg_index, 0, "start visualization from this index");
+
+using namespace halo;
 
 TEST(INDIRECT3DNDTTest, test_loam_like_feature_extraction) {
     halo::TextIO text_io(FLAGS_bag_path, FLAGS_stopping_msg_index);
     int num_msgs = 0;
     text_io.register_callback(
-        "VELODYNE",
+        "PCLFULLCLOUD",
         [&](std::stringstream &ss) {
-            velodyne_msgs::msg::VelodyneScan scan_msg = halo::TextIO::convert_txt_to_ros2_velodyne_scan(ss);
+            PCLFullCloudPtr scan_ptr = halo::TextIO::convert_txt_to_pcl_full_cloud(ss);
+            for (const auto &pt : scan_ptr->points) {
+                std::cout << int(pt.ring) << std::endl;
+            }
+            // velodyne_msgs::msg::VelodyneScan scan_msg = halo::TextIO::convert_txt_to_ros2_velodyne_scan(ss);
             // auto scan_cloud = halo::convert_2_pclcloud_xyz_i(scan_msg);
             // halo::downsample_point_cloud(scan_cloud);
             // std::cout << "=================================num_msgs: " << num_msgs << ", ptr size: " << scan_cloud->points.size() << std::endl;

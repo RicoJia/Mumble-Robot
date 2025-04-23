@@ -51,6 +51,8 @@ add_library(
   halo STATIC
   src/halo.cpp)
 
+target_compile_features(halo PUBLIC cxx_std_20)
+
 target_include_directories(
   halo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${PCL_INCLUDE_DIRS}
               ${OpenCV_INCLUDE_DIRS} ${G2O_INCLUDE_DIRS})
@@ -139,6 +141,7 @@ if(BUILD_HALO_TESTS)
   add_slam_gtest(test_3d_icp)
   add_slam_gtest(test_direct_3d_ndt_lo)
   add_slam_gtest(test_datastructures)
+  add_slam_gtest(test_loamlike_feature_extraction)
 
 endif()
 

@@ -63,7 +63,7 @@ std::ostream &operator<<(std::ostream &os, const ValueTracer &v) {
 TEST(TestDatastructures, TestLRUHashMapVanilla) {
     try {
         halo::LRUHashMap<int, std::string, true> lru_hashmap(0);
-    } catch (std::runtime_error) {
+    } catch (const std::runtime_error &) {
     }
 
     halo::LRUHashMap<int, std::string, true> lru_hashmap(3);
