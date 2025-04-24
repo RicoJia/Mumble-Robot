@@ -7,6 +7,14 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+option(ENABLE_GPROF "Build with gprof profiling support" OFF)
+if(ENABLE_GPROF)
+  message(STATUS "==> gprof profiling ENABLED")
+  # Append -pg to C, C++ and linker flags
+  add_compile_options(-pg)
+  add_link_options   (-pg)
+endif()
+
 # Ensure that a build type is set
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE

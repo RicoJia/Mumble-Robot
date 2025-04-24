@@ -46,4 +46,7 @@ services:
       - /home/ricojia/file_exchange_port/Deep-Blue-Academy-SLAM/slam_in_autonomous_driving/data/:/home/mumble_robot/data/
       - /home/ricojia/file_exchange_port/Mumble-Robot/mumble_simulation_isaac/bags/:/home/mumble_robot/bags/
       - /home/ricojia/file_exchange_port/Mumble-Robot/vscode_configs:/home/mumble_robot/.vscode
+      # - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    privileged: true  # Enable privileged mode for full device access
     network_mode: host  # Use host network mode so topics can be heard
+    pid: "host"
