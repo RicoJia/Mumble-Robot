@@ -3,6 +3,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl_conversions/pcl_conversions.h>   // for pcl::fromROSMsg
+#include <pcl/common/transforms.h>
 #include <type_traits>
 #include <chrono>
 #include <execution>
@@ -36,7 +37,60 @@ inline static PCLCloudXYZIPtr convert_2_pclcloud_xyz_i(const sensor_msgs::msg::P
     return cloud;
 }
 
+inline pcl::PointXYZI to_pcl_point_xyzi(const halo::PCLFullPointType &fp) {
+    pcl::PointXYZI p;
+    p.x         = fp.x;
+    p.y         = fp.y;
+    p.z         = fp.z;
+    p.intensity = fp.intensity;
+    return p;
+}
+
+inline PCLCloudXYZIPtr to_pcl_point_xyzi_cloud(PCLFullCloudPtr cloud) {
+    PCLCloudXYZIPtr xyzi_cloud(new PCLCloudXYZI);
+    xyzi_cloud->points.resize(cloud->points.size());
+    std::transform(std::execution::par_unseq,
+                   cloud->points.begin(), cloud->points.end(),
+                   xyzi_cloud->points.begin(),
+                   [](const PCLFullPointType &pt) -> PCLPointXYZI {
+                       return to_pcl_point_xyzi(pt);
+                   });
+    if (cloud->height > 1) {
+        // source was an organised range image / multi-scan LiDAR
+        xyzi_cloud->width  = cloud->width;                  // same columns
+        xyzi_cloud->height = std::max(cloud->height, 1u);   // same rows / rcloudgs
+    } else {
+        // treat as unorganised 1-D cloud
+        xyzi_cloud->width  = static_cast<uint32_t>(xyzi_cloud->points.size());
+        xyzi_cloud->height = 1;
+    }
+
+    // keep the origcloudal “dense” flag and sensor pose
+    xyzi_cloud->is_dense            = cloud->is_dense;
+    xyzi_cloud->sensor_origin_      = cloud->sensor_origin_;
+    xyzi_cloud->sensor_orientation_ = cloud->sensor_orientation_;
+
+    return xyzi_cloud;
+}
+
 // ======================== PCL Simple Processing ========================
+
+/**
+ * @brief: apply pose to cloud. Also, a side effect is to set height and width if they are missing
+ */
+inline PCLCloudXYZIPtr apply_transform(PCLCloudXYZIPtr &cloud, const halo::SE3 &pose) {
+    if (cloud->height <= 1) {
+        // fully unorganized
+        cloud->height = 1;
+        cloud->width  = static_cast<uint32_t>(cloud->points.size());
+    } else {
+        // keep original row count
+        cloud->width  = static_cast<uint32_t>(cloud->points.size()) / cloud->height;
+    }
+    PCLCloudXYZIPtr transformed_cloud(new PCLCloudXYZI);
+    pcl::transformPointCloud(*cloud, *transformed_cloud, pose.matrix().cast<float>());
+    return transformed_cloud;
+}
 
 /**
  * @brief A leaf node is a voxel in the 3D space. This is to perserve remove
@@ -45,14 +99,22 @@ inline static PCLCloudXYZIPtr convert_2_pclcloud_xyz_i(const sensor_msgs::msg::P
  * @note: THIS MIGHT CAUSE A SEGFAULT in GTest. Maybe in other frameworks, too.
  * specifically, it's the line `voxel.filter(*output);`
  */
-inline void downsample_point_cloud(PCLCloudXYZIPtr &cloud, float voxel_size = 0.1) {
-    pcl::VoxelGrid<PCLPointXYZI> voxel;
+template <typename CloudPtr>
+inline void downsample_point_cloud(
+    CloudPtr &cloud,
+    float voxel_size = 0.1f) {
+    using PointCloud = typename CloudPtr::element_type;   // e.g. pcl::PointCloud<YourPointT>
+    using PointT     = typename PointCloud::PointType;
+    // set up the filter for your PointT
+    pcl::VoxelGrid<PointT> voxel;
     voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
     voxel.setInputCloud(cloud);
 
-    PCLCloudXYZIPtr output(new PCLCloudXYZI);
+    // allocate output of the same type
+    auto output = std::make_shared<pcl::PointCloud<PointT>>();
     voxel.filter(*output);
 
+    // swap contents so the original pointer now holds the downsampled cloud
     cloud->swap(*output);
 }
 

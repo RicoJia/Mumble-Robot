@@ -331,4 +331,11 @@ T load_param(const std::string &yaml_path, const std::string &param_name) {
     return config[param_name].as<T>();
 }
 
+template <typename CloudType>
+void SaveCloudToFile(const std::string &filePath, CloudType &cloud) {
+    cloud.height = 1;
+    cloud.width  = cloud.size();
+    pcl::io::savePCDFileASCII(filePath, cloud);
+}
+
 }   // namespace halo

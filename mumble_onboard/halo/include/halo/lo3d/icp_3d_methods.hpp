@@ -11,17 +11,17 @@
 
 namespace halo {
 
-class ICP3D {
-  private:
-    struct PtPtICPRes {
-        Eigen::Matrix<double, 3, 6> J;
-        Eigen::Matrix<double, 3, 1> e;
-    };
-    struct PtPlaneICPRes {
-        Eigen::Matrix<double, 1, 6> J;
-        double e;
-    };
+// Making them public so loam like odometer can access them
+struct PtPtICPRes {
+    Eigen::Matrix<double, 3, 6> J;
+    Eigen::Matrix<double, 3, 1> e;
+};
+struct PtPlaneICPRes {
+    Eigen::Matrix<double, 1, 6> J;
+    double e;
+};
 
+class ICP3D {
   public:
     struct Options {
         size_t max_iterations         = 40;
@@ -180,13 +180,13 @@ class ICP3D {
                     nano_tree_->search_tree_single_point(
                         to_pcl_point_xyzi(pt_map), local_ret_index, local_out_dist_sqr, options_.pt_line_nn_count);
 
-                    halo::PCLCloudXYZIPtr plane_cloud(new halo::PCLCloudXYZI);
-                    plane_cloud->points.reserve(local_ret_index.size());
+                    halo::PCLCloudXYZIPtr line_cloud(new halo::PCLCloudXYZI);
+                    line_cloud->points.reserve(local_ret_index.size());
                     for (const auto &idx : local_ret_index) {
-                        plane_cloud->points.push_back(target_->points.at(idx));
+                        line_cloud->points.push_back(target_->points.at(idx));
                     }
                     // local_ret_index, line = t0 + x * norm_vec
-                    auto [t0, norm_vec] = math::fit_line_3d(plane_cloud);
+                    auto [t0, norm_vec] = math::fit_line_3d(line_cloud);
                     Vec3d distance_vec  = math::point_to_line_distance(pt_map, t0.cast<double>().eval(), norm_vec.cast<double>().eval());
 
                     Eigen::Matrix<double, 3, 3> norm_vec_hat = SO3::hat(norm_vec.cast<double>());

@@ -31,6 +31,7 @@ class DirectNDT3DLO {
     //   - Add point cloud to the local map (Which has a constant number of keyframes)
     //   - Set local map as
     void add_scan(PCLCloudXYZIPtr cloud, bool visualize = true) {
+        downsample_point_cloud(cloud);
         if (keyframe_clouds_poses_.size() == 0) {
             add_cloud_to_map(halo::SE3(), cloud);
             ndt_3d_.set_target(local_map_);

@@ -1,4 +1,5 @@
 // ./build/mumble_onboard/halo/test_direct_3d_ndt_lo --stopping_msg_index 1200
+// To profile: perf record -F 999 --call-graph dwarf -g -- ./build/mumble_onboard/halo/test_direct_3d_ndt_lo  --stopping_msg_index 30
 #include <gtest/gtest.h>
 #include <iostream>
 #include <cstdlib>
@@ -28,7 +29,6 @@ TEST(DIRECT3DNDTTest, test_direct_3d_ndt) {
         [&](std::stringstream &ss) {
             auto scan_msg   = halo::TextIO::convert_2_pointcloud2(ss);
             auto scan_cloud = halo::convert_2_pclcloud_xyz_i(scan_msg);
-            halo::downsample_point_cloud(scan_cloud);
             std::cout << "=================================num_msgs: " << num_msgs << ", ptr size: " << scan_cloud->points.size() << std::endl;
             std::cout << "FLAGS_start_visualize_msg_index: " << FLAGS_start_visualize_msg_index << std::endl;
             bool visualize = FLAGS_start_visualize_msg_index < num_msgs;
@@ -49,7 +49,6 @@ TEST(DIRECT3DNDTTest, test_incremental_3d_ndt) {
         [&](std::stringstream &ss) {
             auto scan_msg   = halo::TextIO::convert_2_pointcloud2(ss);
             auto scan_cloud = halo::convert_2_pclcloud_xyz_i(scan_msg);
-            halo::downsample_point_cloud(scan_cloud);
             std::cout << "=================================num_msgs: " << num_msgs << ", ptr size: " << scan_cloud->points.size() << std::endl;
             bool visualize = FLAGS_start_visualize_msg_index < num_msgs;
             inc_ndt_3d_lo.add_scan(scan_cloud, visualize);

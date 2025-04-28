@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# /home/mumble_robot/src/mumble_onboard/halo/scripts/visualize_pcd.py
+# python3 /home/mumble_robot/src/mumble_onboard/halo/scripts/visualize_pcd.py -p /tmp/edge_points0.pcd
 import open3d as o3d
 import argparse
 

@@ -9,7 +9,6 @@
 #pragma GCC diagnostic pop   // recover diagnostic directive
 
 #include <opencv2/opencv.hpp>
-
 namespace halo {
 
 using PCLPointXYZI    = pcl::PointXYZI;

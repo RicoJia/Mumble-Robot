@@ -4,7 +4,7 @@
 #   --cmake-args -DENABLE_GPROF=ON
 #   gprof ./build/mumble_onboard/halo/test_direct_3d_ndt_lo gmon.out > profile.txt
 colcon_build_source(){
-    colcon build --symlink-install "$@"
+    clear && MAKEFLAGS="-j 4" colcon build --symlink-install  "$@"
     source install/setup.bash
 }
 

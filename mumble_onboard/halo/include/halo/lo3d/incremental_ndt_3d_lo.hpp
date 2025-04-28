@@ -27,6 +27,7 @@ class IncrementalNDTLO {
             - Set local map as
      */
     void add_scan(PCLCloudXYZIPtr cloud, bool visualize = true) {
+        downsample_point_cloud(cloud, 0.1f);
         if (inc_ndt_3d_.size() == 0) {
             inc_ndt_3d_.add_cloud(cloud);
             keyframe_poses_.emplace_back(halo::SE3());

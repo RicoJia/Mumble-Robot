@@ -10,6 +10,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS
     "${CMAKE_CXX_FLAGS} -march=native -funroll-loops -ftree-vectorize"
 )# for SIMD optimizations
+# Propagate Debug flags
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  message(STATUS "Halo: Building in Debug mode with gdb symbols")
+  # append -g and -O0 so both the static lib and test executables carry debug
+  # info
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -pg -ggdb -O0")
+  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg")
+endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -123,7 +131,7 @@ if(BUILD_HALO_TESTS)
       ${G2O_LIBS}
       gflags
       glog)
-    add_test(NAME ${name} COMMAND ${name})
+    add_test(NAME ${name} COMMAND ${name} --gtest_catch_exceptions=0)
   endfunction()
 
   add_slam_gtest(test_math)
@@ -141,7 +149,7 @@ if(BUILD_HALO_TESTS)
   add_slam_gtest(test_3d_icp)
   add_slam_gtest(test_direct_3d_ndt_lo)
   add_slam_gtest(test_datastructures)
-  add_slam_gtest(test_loamlike_feature_extraction)
+  add_slam_gtest(test_3d_loamlike_feature_extraction)
 
 endif()
 
