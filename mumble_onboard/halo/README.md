@@ -66,23 +66,24 @@ target_link_libraries(my_executable
 
 - NDT Odometer & Incremental NDT Odometer
 
-    <div style="text-align: center;">
-    <p align="center">
-        <figure>
-            <img src="https://i.postimg.cc/8cT7R7LN/ndt-sputnik.gif" height="300" alt=""/>
-        </figure>
-    </p>
-    </div>
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="./media/ndt-sputnik.gif" height="300" alt=""/>
+    </figure>
+</p>
+</div>
 
 - LOAM-Like Odometer
 
-    <div style="text-align: center;">
-    <p align="center">
-        <figure>
-            <img src="./media/ndt-sputnik.gif" height="300" alt=""/>
-        </figure>
-    </p>
-    </div>
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="./media/loam-sputnik.gif" height="300" alt=""/>
+    </figure>
+</p>
+</div>
+
 
 TODO: remove me
 
