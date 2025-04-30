@@ -43,7 +43,7 @@ if(NOT CMAKE_BUILD_TYPE)
       Release
       CACHE STRING \"Build type\" FORCE)
 endif()
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g ${CMAKE_CXX_FLAGS}")
 
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
