@@ -6,8 +6,8 @@
 /**
  * Usage:
  * YamlLoadedConfig config;
- * config.add_option("Option1", Type, "default_value");
- * config.add_option("Option2", Type, "default_value");
+ * config.add_option("Option1", "default_value");   // using type deduction
+ * config.add_option<size_t>("Option2", "default_value"); // using explicit type
  * config.load_from_yaml("path/to/config.yaml");
  * Voila, the options will magically be loaded from the YAML file! If a field is not found, the default value will be used.
  */

@@ -12,9 +12,9 @@
 namespace halo {
 class PCLMapViewer {
   public:
-    PCLMapViewer(const float &leaf_size, bool viz_on_car)
+    PCLMapViewer(const float &leaf_size, bool viz_on_car, size_t viz_speedups = 1)
         : leaf_size_(leaf_size), tmp_cloud_(new PCLCloudXYZI), local_map_(new PCLCloudXYZI),
-          viz_on_car_(viz_on_car) {
+          viz_on_car_(viz_on_car), viz_speedups_(viz_speedups) {
         viewer_.reset(new pcl::visualization::PCLVisualizer());
         viewer_->addCoordinateSystem(10, "world");
         voxel_filter_.setLeafSize(leaf_size, leaf_size, leaf_size);
@@ -38,8 +38,9 @@ class PCLMapViewer {
         voxel_filter_.filter(*tmp_cloud_);
         // swap or copy the filtered result back into local_map_
         local_map_->swap(*tmp_cloud_);
+        cnt_frame_++;
 
-        if (viewer_ != nullptr) {
+        if (viewer_ != nullptr && cnt_frame_ % viz_speedups_ == 0) {
             viewer_->removePointCloud("local_map");
             viewer_->removeCoordinateSystem("vehicle");
             pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> fieldColor(local_map_, "z");
@@ -61,6 +62,7 @@ class PCLMapViewer {
                     up_dir.x(), up_dir.y(), up_dir.z());
             }
             viewer_->spinOnce(1);
+            cnt_frame_ = 0;
         }
 
         if (local_map_->size() > 600000) {
@@ -97,6 +99,8 @@ class PCLMapViewer {
     float leaf_size_                               = 1.0;
     PCLCloudXYZIPtr tmp_cloud_;   //
     PCLCloudXYZIPtr local_map_;
-    bool viz_on_car_ = false;   // 是否在车上可视化
+    bool viz_on_car_     = false;   // 是否在车上可视化
+    size_t viz_speedups_ = 1;       // 可视化速度加速倍数
+    size_t cnt_frame_    = 0;       // 计数器
 };
 }   // namespace halo

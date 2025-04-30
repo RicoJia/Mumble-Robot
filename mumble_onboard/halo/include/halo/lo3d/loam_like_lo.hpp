@@ -22,7 +22,6 @@ class LOAMLikeOdometer {
         options_.add_option("num_keframes_in_map", 30);
         options_.add_option("kf_angle_thre", 0.52);
         options_.add_option("kf_dist_thre", 0.5);
-        options_.add_option("display_map", true);
         options_.add_option("max_iterations", 20);
         options_.add_option("max_pt_plane_distance", 0.1);
         options_.add_option("max_pt_line_distance", 0.5);
@@ -34,10 +33,13 @@ class LOAMLikeOdometer {
         options_.add_option("use_edge_points", true);
         options_.add_option("use_surf_points", true);
         options_.add_option("fixed_camera_perception", true);
+        options_.add_option("visualize", true);
+        options_.add_option<size_t>("visualize_speedups", 1);
         options_.load_from_yaml(yaml_path);
 
-        if (options_.get<bool>("display_map")) {
-            map_viewer_ = std::make_shared<PCLMapViewer>(0.5, options_.get<bool>("fixed_camera_perception"));
+        if (options_.get<bool>("visualize")) {
+            map_viewer_ = std::make_shared<PCLMapViewer>(0.5, options_.get<bool>("fixed_camera_perception"),
+                                                         options_.get<size_t>("visualize_speedups"));
         }
     }
 

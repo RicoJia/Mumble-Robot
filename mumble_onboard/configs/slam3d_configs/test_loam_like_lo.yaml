@@ -1,6 +1,7 @@
 visualize: true # General configs
+visualize_speedups: 10 # Must be integer
 fixed_camera_perception: false
 
 keyframe_angular_dist_thre: 0.26 #15 deg
-keyframe_linear_dist_thre:  0.3  #0.3m
-keyframe_num_in_submap: 50  # the min of (keyframe_num_in_submap, submap_frame_num) will be actually used
+keyframe_linear_dist_thre:  1.0  #0.3m
+keyframe_num_in_submap: 30  # the min of (keyframe_num_in_submap, submap_frame_num) will be actually used

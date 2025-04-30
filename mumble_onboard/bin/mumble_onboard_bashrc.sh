@@ -34,7 +34,7 @@ if [ ! -d "/home/mumble_robot/build/" ]; then
     echo "First container launch: running colcon build..."
     colcon_build_source
     sudo ln -s /home/mumble_robot/src/mumble_onboard/bin/perf /usr/bin/perf
-    sudo sysctl -w kernel.perf_event_paranoid=0
+    sudo sysctl -w kernel.perf_event_paranoid=1
     sudo sysctl --system
     cd /home/mumble_robot/src/mumble_physical_runtime
 fi
