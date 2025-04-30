@@ -100,9 +100,21 @@ struct _get_pointcloud_dimensions {
 
 struct IMUData {
     double timestamp = 0.0;
-    Vec3d acc;
-    Vec3d gyro;
+    Vec3d acc;    // in m/s^2
+    Vec3d gyro;   // in rad/s
+
+    static IMUData from_millig_acc_deg_gyro(
+        const double &timestamp, const Vec3d &acc_milli_g, const Vec3d &gyro_deg) {
+        return IMUData{
+            timestamp,
+            acc_milli_g * MILLI_G_TO_M_S2,
+            gyro_deg * DEG_TO_RAD};
+    }
+
+    static constexpr double MILLI_G_TO_M_S2 = 9.81 / 1000.0;   // 1g = 9.81m/s^2
+    static constexpr double DEG_TO_RAD      = M_PI / 180.0;
 };
+
 using IMUDataPtr = std::shared_ptr<IMUData>;
 
 template <typename T>

@@ -302,16 +302,22 @@ class ROS2BagIo {
     }
 
     void spin() {
-        while (reader_->has_next()) {
+        while (!is_shutdown_ && reader_->has_next()) {
             rosbag2_storage::SerializedBagMessageSharedPtr msg = reader_->read_next();
             if (auto it = callbacks_.find(msg->topic_name); it != callbacks_.end()) {
                 it->second(msg);
             }
         }
+        is_shutdown_ = true;
+    }
+
+    void signal_shutdown() {
+        is_shutdown_ = true;
     }
 
   private:
     std::string bag_file_;
+    bool is_shutdown_ = false;
     std::unique_ptr<rosbag2_cpp::Reader> reader_;
     std::unordered_map<
         std::string,

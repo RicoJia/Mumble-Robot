@@ -77,6 +77,41 @@ inline void compute_full_cov_and_mean(const Container &data, VectorType &mean,
           static_cast<double>(len - 1);
 }
 
+template <typename Container,
+          typename VectorType,
+          typename MatrixType,
+          typename Getter>
+inline void compute_cov_and_mean(const Container &data,
+                                 VectorType &mean,
+                                 MatrixType &cov,
+                                 Getter &&getter) {
+    const size_t N = data.size();
+    assert(N > 1);
+
+    // 1) mean = (1/N) ∑ getter(item)
+    mean = std::accumulate(
+               data.begin(), data.end(),
+               VectorType::Zero().eval(),
+               [&getter](const VectorType &sum, auto const &item) -> VectorType {
+                   return sum + getter(item);
+               }) /
+           static_cast<double>(N);
+
+    // 2) cov = (1/(N−1)) ∑ (diff * diffᵀ)
+    cov = std::accumulate(
+              data.begin(), data.end(),
+              MatrixType::Zero().eval(),
+              [&mean, &getter](const MatrixType &sum, auto const &item) -> MatrixType {
+                  auto value = getter(item).eval();
+                  auto diff  = value - mean;              // Vec3d
+                  return sum + diff * diff.transpose();   // Mat3d outer product
+              }) /
+          static_cast<double>(N - 1);
+}
+
+/**
+ * @brief compute_cov_and_mean. Note that cov is diagonal.
+ */
 template <typename Container, typename VectorType, typename Getter>
 inline void compute_cov_and_mean(const Container &data, VectorType &mean,
                                  VectorType &cov, Getter &&getter) {

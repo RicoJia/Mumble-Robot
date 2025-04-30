@@ -58,7 +58,6 @@ TEST(INDIRECT3DNDTTest, test_loam_like_odom) {
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    // Now parse your --bag_path, --dataset_type, etc.
     gflags::ParseCommandLineFlags(&argc, &argv, /*remove_flags=*/true);
     return RUN_ALL_TESTS();
 }
