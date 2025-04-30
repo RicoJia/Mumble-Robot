@@ -10,6 +10,7 @@
 #include <gflags/gflags.h>
 
 DEFINE_string(bag_path, "data/wxb/ros1_scan_data.txt", "path to rosbag");
+DEFINE_string(yaml_path, "src/mumble_onboard/configs/slam3d_configs/test_loam_like_lo.yaml", "path to config");
 DEFINE_int64(stopping_msg_index, 0, "0 means no limit, otherwise stop at this message index");
 DEFINE_int64(start_visualize_msg_index, 0, "start visualization from this index");
 
@@ -38,8 +39,8 @@ using namespace halo;
 TEST(INDIRECT3DNDTTest, test_loam_like_odom) {
     halo::TextIO text_io(FLAGS_bag_path, FLAGS_stopping_msg_index);
     int num_msgs = 0;
-    halo::LOAMLikeOdometer::Options options;
-    halo::LOAMLikeOdometer odometer(options);
+    std::cout << "yaml path: " << FLAGS_yaml_path << std::endl;
+    halo::LOAMLikeOdometer odometer(FLAGS_yaml_path);
     text_io.register_callback(
         "PCLFULLCLOUD",
         [&](std::stringstream &ss) {

@@ -259,7 +259,7 @@ class RAIITimer {
     ~RAIITimer() {
         auto end                              = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
-        std::cout << "Elapsed time: " << elapsed.count() << "s\n";
+        std::cout << "Total Elapsed time: " << elapsed.count() << "s\n";
     }
 
   private:

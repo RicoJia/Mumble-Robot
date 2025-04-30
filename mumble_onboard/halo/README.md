@@ -116,3 +116,8 @@ This implementation is a proof of concept with SIMD and multi-threaded optimzati
 
 ## Generic Tools
 - `visualize_pcd.py`: visualize a 3D point cloud in pcd 
+- `yaml_loaded_config.hpp`: handy configuration object that can be set by an yaml file without manual loading every single field
+
+## Acknowledgements
+
+[Without Dr.Gao Xiang's great work in LiDAR SLAM](https://github.com/gaoxiang12), this repo could not happen. Thank you Dr. Gao!

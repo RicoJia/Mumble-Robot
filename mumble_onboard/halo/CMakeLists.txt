@@ -150,6 +150,7 @@ if(BUILD_HALO_TESTS)
   add_slam_gtest(test_direct_3d_ndt_lo)
   add_slam_gtest(test_datastructures)
   add_slam_gtest(test_3d_loamlike_feature_extraction)
+  add_slam_gtest(test_yaml_loaded_config)
 
 endif()
 

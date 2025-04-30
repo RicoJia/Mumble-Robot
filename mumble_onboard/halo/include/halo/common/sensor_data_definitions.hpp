@@ -98,6 +98,13 @@ struct _get_pointcloud_dimensions {
         (pcl::traits::has_field<PointT, pcl::fields::z>::value ? 1 : 0);
 };
 
+struct IMUData {
+    double timestamp = 0.0;
+    Vec3d acc;
+    Vec3d gyro;
+};
+using IMUDataPtr = std::shared_ptr<IMUData>;
+
 template <typename T>
 inline constexpr bool static_false = false;
 

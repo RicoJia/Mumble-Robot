@@ -8,6 +8,7 @@
 #include <halo/common/point_cloud_processing.hpp>
 #include <halo/common/pcl_pointcloud_viewer.hpp>
 #include <halo/common/data_structures.hpp>
+#include <halo/common/yaml_loaded_config.hpp>
 
 #include <halo/lo3d/loam_like_feature_extraction.hpp>
 #include <halo/lo3d/icp_3d_methods.hpp>
@@ -17,30 +18,26 @@
 namespace halo {
 class LOAMLikeOdometer {
   public:
-    struct Options {
-        size_t num_keframes_in_map   = 30;
-        double kf_angle_thre         = 0.52;   // in rad, 30 deg
-        double kf_dist_thre          = 0.5;    // m
-        bool display_map             = true;
-        size_t max_iterations        = 20;
-        double max_pt_plane_distance = 0.1;
-        double max_pt_line_distance = 0.5;
-        size_t pt_line_nn_count      = 5;
-        size_t pt_plane_nn_count     = 5;
-        double eps                   = 1e-2;
-        size_t min_edge_pts          = 20;
-        size_t min_planar_pts        = 20;
+    explicit LOAMLikeOdometer(const std::string &yaml_path) : feature_extractor_(FeatureExtractor::Options{}) {
+        options_.add_option("num_keframes_in_map", 30);
+        options_.add_option("kf_angle_thre", 0.52);
+        options_.add_option("kf_dist_thre", 0.5);
+        options_.add_option("display_map", true);
+        options_.add_option("max_iterations", 20);
+        options_.add_option("max_pt_plane_distance", 0.1);
+        options_.add_option("max_pt_line_distance", 0.5);
+        options_.add_option("pt_line_nn_count", 5);
+        options_.add_option("pt_plane_nn_count", 5);
+        options_.add_option("eps", 1e-2);
+        options_.add_option("min_edge_pts", 20);
+        options_.add_option("min_planar_pts", 20);
+        options_.add_option("use_edge_points", true);
+        options_.add_option("use_surf_points", true);
+        options_.add_option("fixed_camera_perception", true);
+        options_.load_from_yaml(yaml_path);
 
-        bool use_edge_points = true;   // 是否使用边缘点
-        bool use_surf_points = true;   // 是否使用平面点
-
-        FeatureExtractor::Options feature_extractor_options;
-    };
-
-    explicit LOAMLikeOdometer(const LOAMLikeOdometer::Options &options) : options_(options),
-                                                                          feature_extractor_(options_.feature_extractor_options) {
-        if (options_.display_map) {
-            map_viewer_ = std::make_shared<PCLMapViewer>(0.5, true);
+        if (options_.get<bool>("display_map")) {
+            map_viewer_ = std::make_shared<PCLMapViewer>(0.5, options_.get<bool>("fixed_camera_perception"));
         }
     }
 
@@ -80,9 +77,10 @@ class LOAMLikeOdometer {
             return;
         }
 
-        if (edge_points->points.size() < options_.min_edge_pts || planar_points->points.size() < options_.min_planar_pts) {
+        if (edge_points->points.size() < options_.get<int>("min_edge_pts") || planar_points->points.size() <
+                                                                                  options_.get<int>("min_planar_pts")) {
             std::cerr << "There are not enough edge or planar points " << edge_points->points.size() << ", " << planar_points->points.size() << ", "
-                                                                                                          << std::endl;
+                      << std::endl;
             return;
         }
 
@@ -125,7 +123,7 @@ class LOAMLikeOdometer {
         planars_.emplace_back(planar_points);
         keyframe_poses_.emplace_back(world_pose);
 
-        if (keyframe_poses_.size() > options_.num_keframes_in_map) {
+        if (keyframe_poses_.size() > options_.get<int>("num_keframes_in_map")) {
             edges_.pop_front();
             planars_.pop_front();
             keyframe_poses_.pop_front();
@@ -164,30 +162,33 @@ class LOAMLikeOdometer {
         if (cnt_frame_ > 30) {
             return true;
         }
-        if (relative_pose.translation().norm() > options_.kf_dist_thre) {
+        if (relative_pose.translation().norm() > options_.get<double>("kf_dist_thre")) {
             return true;
         }
-        if (relative_pose.so3().log().norm() > options_.kf_angle_thre) {
+        if (relative_pose.so3().log().norm() > options_.get<double>("kf_angle_thre")) {
             return true;
         }
         return false;
     }
 
-    // Hand_written pt-pt and pt-plane ICP
-    // Get jacobian and error
+    /**
+     * @brief: Hand_written pt-pt and pt-plane ICP
+     Profiling results of Alignment:
+        - Edge (1.5k), 0.2ms
+        - Planar: (15k): 1.5ms
+     */
     bool align(halo::SE3 &world_pose, PCLCloudXYZIPtr edge_points, PCLCloudXYZIPtr planar_points) {
         std::vector<size_t> edge_indices(edge_points->points.size());
         std::iota(edge_indices.begin(), edge_indices.end(), 0);
         std::vector<size_t> planar_indices(planar_points->points.size());
         std::iota(planar_indices.begin(), planar_indices.end(), 0);
 
-        // TODO: to instrument
-        for (size_t i = 0; i < options_.max_iterations; ++i) {
+        for (size_t i = 0; i < options_.get<int>("max_iterations"); ++i) {
             // Pt-pt icp
             Eigen::Matrix<double, 6, 6> H = Eigen::Matrix<double, 6, 6>::Zero();
             Vec6d b                       = Vec6d::Zero();
             double total_error            = 0.0;
-            if (options_.use_edge_points) {
+            if (options_.get<bool>("use_edge_points")) {
                 std::vector<PtPtICPRes> intermediate_res(edge_points->points.size());
                 std::for_each(
                     std::execution::par_unseq,
@@ -199,7 +200,7 @@ class LOAMLikeOdometer {
                         std::vector<unsigned int> local_ret_index;
                         std::vector<float> local_out_dist_sqr;
                         edge_tree_->search_tree_single_point(
-                            to_pcl_point_xyzi(pt_map), local_ret_index, local_out_dist_sqr, options_.pt_line_nn_count);
+                            to_pcl_point_xyzi(pt_map), local_ret_index, local_out_dist_sqr, options_.get<int>("pt_line_nn_count"));
                         halo::PCLCloudXYZIPtr line_cloud(new halo::PCLCloudXYZI);
 
                         line_cloud->points.reserve(local_ret_index.size());
@@ -210,7 +211,7 @@ class LOAMLikeOdometer {
                         auto [t0, norm_vec] = math::fit_line_3d(line_cloud);
                         Vec3d distance_vec  = math::point_to_line_distance(pt_map, t0.cast<double>().eval(), norm_vec.cast<double>().eval());
 
-                        if (distance_vec.norm() > options_.max_pt_line_distance)
+                        if (distance_vec.norm() > options_.get<double>("max_pt_line_distance"))
                             return;
 
                         Eigen::Matrix<double, 3, 3> norm_vec_hat = SO3::hat(norm_vec.cast<double>());
@@ -230,7 +231,7 @@ class LOAMLikeOdometer {
                 }
             }
             // pt-plane icp
-            if (options_.use_surf_points) {
+            if (options_.get<bool>("use_surf_points")) {
                 std::vector<PtPlaneICPRes> intermediate_res(planar_points->points.size());
                 std::for_each(
                     std::execution::par_unseq,
@@ -242,7 +243,7 @@ class LOAMLikeOdometer {
                         std::vector<unsigned int> local_ret_index;
                         std::vector<float> local_out_dist_sqr;
                         size_t valid_neighbor_num = planar_tree_->search_tree_single_point(
-                            to_pcl_point_xyzi(pt_map), local_ret_index, local_out_dist_sqr, options_.pt_plane_nn_count);
+                            to_pcl_point_xyzi(pt_map), local_ret_index, local_out_dist_sqr, options_.get<int>("pt_plane_nn_count"));
 
                         if (valid_neighbor_num <= 3) {
                             std::cerr << "[pt_plane_icp3d]: valid_neighbor_num <=3: " << valid_neighbor_num << std::endl;
@@ -265,7 +266,7 @@ class LOAMLikeOdometer {
                         }
                         // e = [ax + by + cz +d]
                         double error = plane_params.head<3>().dot(pt_map) + plane_params(3);
-                        if (std::abs(error) > options_.max_pt_plane_distance) {
+                        if (std::abs(error) > options_.get<double>("max_pt_plane_distance")) {
                             return;
                         }
                         Eigen::Matrix<double, 1, 6> J;
@@ -293,7 +294,7 @@ class LOAMLikeOdometer {
             world_pose.translation() += dx.tail<3>();
             std::cout << "Iteration " << i << ", error: " << total_error;
             std::cout << ", pose: " << world_pose << ", dx: " << dx.norm() << std::endl;
-            if (dx.norm() < options_.eps) {
+            if (dx.norm() < options_.get<double>("eps")) {
                 last_poses_.push(world_pose);
                 return true;
             }
@@ -301,7 +302,7 @@ class LOAMLikeOdometer {
         return false;
     }
 
-    LOAMLikeOdometer::Options options_;
+    YamlLoadedConfig options_;
     FeatureExtractor feature_extractor_;
     std::shared_ptr<PCLMapViewer> map_viewer_ = nullptr;
     std::deque<SE3> keyframe_poses_;
