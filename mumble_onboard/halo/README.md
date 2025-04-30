@@ -86,13 +86,7 @@ target_link_libraries(my_executable
 
 TODO: remove me
 
-<div style="text-align: center;">
-<p align="center">
-    <figure>
-        <img src="https://i.postimg.cc/TwPB8rT3/lo.png" height="200" alt=""/>
-    </figure>
-</p>
-</div>
+[![ndt-sputnik.gif](https://i.postimg.cc/CxZSSdw0/ndt-sputnik.gif)](https://postimg.cc/JsW9QryY)
 
 ### Scan Matching
 
