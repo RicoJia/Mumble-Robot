@@ -6,32 +6,21 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <geometry_msgs/msg/vector3.hpp>
+
 namespace halo {
 
-/**
- * @brief: Filter out scan points not in the lidar's range.
- */
-inline std::vector<ScanObj> get_valid_scan_obj(LaserScanMsg::SharedPtr scan) {
-    std::vector<ScanObj> ret;
-    ret.reserve(scan->ranges.size());
-    for (size_t i = 0; i < scan->ranges.size(); ++i) {
-        float r = scan->ranges[i];
-        if (scan->range_min <= r && r <= scan->range_max) {
-            ret.emplace_back(r, scan->angle_min + i * scan->angle_increment);
-        }
-    }
-    return ret;
+////////////////////////////////////////////////////////////////////////
+// ROS2 Conversions
+////////////////////////////////////////////////////////////////////////
+
+static inline Vec3d to_vec3d(const geometry_msgs::msg::Vector3 &m) noexcept {
+    return Vec3d{m.x, m.y, m.z};
 }
 
-/**
- * @brief: Convert range and angle from a robot pose to map frame point
- */
-inline Vec2d scan_point_to_map_frame(
-    const double &range, const double &angle, const SE2 &T_map_robot) {
-    double x = range * std::cos(angle);
-    double y = range * std::sin(angle);
-    return T_map_robot * Vec2d(x, y);
-}
+////////////////////////////////////////////////////////////////////////
+// PCL Conversions
+////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief: In this function, we assume that invalid points are not in the scan
@@ -86,6 +75,35 @@ PCLCloud3DPtr laser_scan_2_PointXYZ(std::shared_ptr<sensor_msgs::msg::LaserScan>
     cloud->height = 1;   // Unorganized point cloud.
 
     return cloud;
+}
+
+////////////////////////////////////////////////////////////////////////
+// Internal Conversions
+////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief: Filter out scan points not in the lidar's range.
+ */
+inline std::vector<ScanObj> get_valid_scan_obj(LaserScanMsg::SharedPtr scan) {
+    std::vector<ScanObj> ret;
+    ret.reserve(scan->ranges.size());
+    for (size_t i = 0; i < scan->ranges.size(); ++i) {
+        float r = scan->ranges[i];
+        if (scan->range_min <= r && r <= scan->range_max) {
+            ret.emplace_back(r, scan->angle_min + i * scan->angle_increment);
+        }
+    }
+    return ret;
+}
+
+/**
+ * @brief: Convert range and angle from a robot pose to map frame point
+ */
+inline Vec2d scan_point_to_map_frame(
+    const double &range, const double &angle, const SE2 &T_map_robot) {
+    double x = range * std::cos(angle);
+    double y = range * std::sin(angle);
+    return T_map_robot * Vec2d(x, y);
 }
 
 /**
