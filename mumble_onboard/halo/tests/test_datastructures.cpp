@@ -63,7 +63,7 @@ std::ostream &operator<<(std::ostream &os, const ValueTracer &v) {
 TEST(TestDatastructures, TestLRUHashMapVanilla) {
     try {
         halo::LRUHashMap<int, std::string, true> lru_hashmap(0);
-    } catch (std::runtime_error) {
+    } catch (const std::runtime_error &) {
     }
 
     halo::LRUHashMap<int, std::string, true> lru_hashmap(3);
@@ -99,6 +99,19 @@ TEST(TestDatastructures, TestLRUHashMapMoveSemantics) {
     KeyTracer key2("hello2");
     ValueTracer val2(3, 4);
     lru_hashmap.add(std::move(key2), std::move(val2));
+}
+
+TEST(TestDatastructures, TestQueue) {
+    halo::SizeLimitedDeque<int> queue(3);
+    queue.push(1);
+    queue.push(2);
+    queue.push(3);
+    ASSERT_EQ(queue.size(), 3) << "queue size should be 3";
+    ASSERT_EQ(queue.at(0), 1) << "queue front should be 1";
+    queue.push(4);   // popping 1
+    ASSERT_EQ(queue.at(0), 2) << "queue front should be 1";
+    queue.pop();
+    ASSERT_EQ(queue.at(0), 3) << "queue front should be 3";
 }
 
 int main(int argc, char **argv) {

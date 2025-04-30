@@ -62,6 +62,33 @@ target_link_libraries(my_executable
 
 ## 3D SLAM Components & Frameworks
 
+### Lidar Odometers
+
+- NDT Odometer & Incremental NDT Odometer
+
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="./media/ndt-sputnik.gif" height="300" alt=""/>
+    </figure>
+</p>
+</div>
+
+- LOAM-Like Odometer
+
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="./media/loam-sputnik.gif" height="300" alt=""/>
+    </figure>
+</p>
+</div>
+
+
+TODO: remove me
+
+
+
 ### Scan Matching
 
 We are using [2 datasets from EPFL](https://lgg.epfl.ch/statues.php) as benchmarks: Kneeling Lady and Aquarius. Our task is to match the source to the target point cloud. Below are comparisons between [Point-Point ICP, Point-Line ICP, Point-Plane ICP, NDT, and PCL ICP](./include/halo/lo3d/icp_3d_methods.hpp)
@@ -116,3 +143,8 @@ This implementation is a proof of concept with SIMD and multi-threaded optimzati
 
 ## Generic Tools
 - `visualize_pcd.py`: visualize a 3D point cloud in pcd 
+- `yaml_loaded_config.hpp`: handy configuration object that can be set by an yaml file without manual loading every single field
+
+## Acknowledgements
+
+[Without Dr.Gao Xiang's great work in LiDAR SLAM](https://github.com/gaoxiang12), this repo could not happen. Thank you Dr. Gao!

@@ -9,7 +9,6 @@
 #pragma GCC diagnostic pop   // recover diagnostic directive
 
 #include <opencv2/opencv.hpp>
-
 namespace halo {
 
 using PCLPointXYZI    = pcl::PointXYZI;
@@ -99,7 +98,32 @@ struct _get_pointcloud_dimensions {
         (pcl::traits::has_field<PointT, pcl::fields::z>::value ? 1 : 0);
 };
 
+struct IMUData {
+    double timestamp = 0.0;
+    Vec3d acc;
+    Vec3d gyro;
+};
+using IMUDataPtr = std::shared_ptr<IMUData>;
+
 template <typename T>
 inline constexpr bool static_false = false;
+
+/// 带ring, range等其他信息的全量信息点云
+struct PCLFullPointType {
+    PCL_ADD_POINT4D;
+    float range       = 0;   // this could be zero in interpretation
+    float radius      = 0;
+    uint8_t intensity = 0;
+    uint8_t ring      = 0;
+    uint8_t angle     = 0;
+    double time       = 0;
+    float height      = 0;
+
+    inline PCLFullPointType() {}
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+using PCLFullPointCloudType = pcl::PointCloud<PCLFullPointType>;
+using PCLFullCloudPtr       = PCLFullPointCloudType::Ptr;
 
 }   // namespace halo

@@ -1,7 +1,10 @@
 # clear && MAKEFLAGS="-j 4" colcon build --symlink-install 
 # Can do: clear && colcon_build_source --parallel-workers 2 --event-handlers console_direct+ --cmake-args -DCMAKE_VERBOSE_MAKEFILE=ON
+# For profiling:
+#   --cmake-args -DENABLE_GPROF=ON
+#   gprof ./build/mumble_onboard/halo/test_direct_3d_ndt_lo gmon.out > profile.txt
 colcon_build_source(){
-    colcon build --symlink-install "$@"
+    clear && MAKEFLAGS="-j 4" colcon build --symlink-install  "$@"
     source install/setup.bash
 }
 
@@ -30,5 +33,9 @@ rm_build(){
 if [ ! -d "/home/mumble_robot/build/" ]; then
     echo "First container launch: running colcon build..."
     colcon_build_source
+    sudo ln -s /home/mumble_robot/src/mumble_onboard/bin/perf /usr/bin/perf
+    # Run this on the host, too
+    sudo sysctl -w kernel.perf_event_paranoid=0
+    sudo sysctl -w kernel.kptr_restrict=0
     cd /home/mumble_robot/src/mumble_physical_runtime
 fi

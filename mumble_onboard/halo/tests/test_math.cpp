@@ -12,7 +12,6 @@ using namespace halo;
 
 TEST(ComputeCovarianceTest, MeanAndCovariance3D) {
     using Vec3d = Eigen::Vector3d;
-    using Mat3d = Eigen::Matrix3d;
 
     std::vector<Vec3d> points = {
         Vec3d(1.0, 2.0, 3.0),

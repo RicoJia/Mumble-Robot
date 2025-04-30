@@ -18,6 +18,8 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
+#include "halo/common/sensor_data_definitions.hpp"
+
 namespace halo {
 
 // foo.format(CleanFmt) << std::endl;
@@ -188,6 +190,44 @@ class TextIO {
         return msg;
     }
 
+    inline static PCLFullCloudPtr convert_txt_to_pcl_full_cloud(std::stringstream &ss) {
+        // create an empty cloud
+        auto cloud = std::make_shared<PCLFullPointCloudType>();
+        std::string token;
+
+        // each comma‑delimited token is one point’s fields
+        while (std::getline(ss, token, ',')) {
+            std::istringstream iss(token);
+            PCLFullPointType pt;
+            // 1) parse the floats x,y,z, range, radius
+            if (!(iss >> pt.x >> pt.y >> pt.z >> pt.range >> pt.radius)) {
+                continue;   // malformed, skip
+            }
+
+            // 2) parse intensity, ring, angle as ints, then assign
+            int intensity, ring, angle;
+            double time;
+            float height;
+            if (!(iss >> intensity >> ring >> angle >> time >> height)) {
+                continue;
+            }
+            pt.intensity = static_cast<uint8_t>(intensity);
+            pt.ring      = static_cast<uint8_t>(ring);
+            pt.angle     = static_cast<uint8_t>(angle);
+            pt.time      = time;
+            pt.height    = height;
+
+            cloud->points.push_back(std::move(pt));
+        }
+
+        // finalize cloud metadata
+        cloud->width    = static_cast<uint32_t>(cloud->points.size());
+        cloud->height   = 1;
+        cloud->is_dense = false;
+
+        return cloud;
+    }
+
   private:
     std::ifstream fin;
     size_t stopping_msg_index_;
@@ -219,7 +259,7 @@ class RAIITimer {
     ~RAIITimer() {
         auto end                              = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
-        std::cout << "Elapsed time: " << elapsed.count() << "s\n";
+        std::cout << "Total Elapsed time: " << elapsed.count() << "s\n";
     }
 
   private:
@@ -289,6 +329,13 @@ T load_param(const std::string &yaml_path, const std::string &param_name) {
         throw std::runtime_error(oss.str());
     }
     return config[param_name].as<T>();
+}
+
+template <typename CloudType>
+void SaveCloudToFile(const std::string &filePath, CloudType &cloud) {
+    cloud.height = 1;
+    cloud.width  = cloud.size();
+    pcl::io::savePCDFileASCII(filePath, cloud);
 }
 
 }   // namespace halo

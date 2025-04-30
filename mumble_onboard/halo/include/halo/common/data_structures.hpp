@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <list>
 #include <cstddef>
+#include <deque>
 #include <utility>
 
 namespace halo {
@@ -82,6 +83,50 @@ class LRUHashMap {
     std::list<std::pair<Key, Value>> cache_;
     std::unordered_map<Key, typename std::list<std::pair<Key, Value>>::iterator> itr_lookup_;
     size_t size_;
+};
+
+template <typename T>
+class SizeLimitedDeque {
+  public:
+    SizeLimitedDeque(size_t max_size) : max_size_(max_size) {}
+
+    template <typename V>
+    void push(V &&value) {
+        if (deque_.size() >= max_size_) {
+            deque_.pop_front();
+        }
+        deque_.emplace_back(std::forward<T>(value));
+    }
+
+    T &at(size_t index) {
+        if (index >= deque_.size()) {
+            throw std::out_of_range("SizeLimitdQueue query index out of range: " + std::to_string(index));
+        }
+        auto it = deque_.begin();
+        std::advance(it, index);
+        return *it;
+    }
+
+    const T at(size_t index) const {
+        if (index >= deque_.size()) {
+            throw std::out_of_range("SizeLimitdQueue query index out of range: " + std::to_string(index));
+        }
+        return deque_.at(index);
+    }
+
+    size_t size() const {
+        return deque_.size();
+    }
+
+    void pop() {
+        if (!deque_.empty()) {
+            deque_.pop_front();
+        }
+    }
+
+  private:
+    std::deque<T> deque_;
+    size_t max_size_;
 };
 
 }   // namespace halo

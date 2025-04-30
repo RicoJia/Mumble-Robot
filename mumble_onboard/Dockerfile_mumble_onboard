@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rmw-fastrtps-cpp \
     ros-humble-ros2interface \
     ros-humble-ros2topic \
+    ros-humble-velodyne-msgs \
+    ros-humble-angles \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Ceres and Google dependencies
