@@ -62,6 +62,28 @@ target_link_libraries(my_executable
 
 ## 3D SLAM Components & Frameworks
 
+### Lidar Odometers
+
+- NDT Odometer & Incremental NDT Odometer
+
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="https://i.postimg.cc/8cT7R7LN/ndt-sputnik.gif" height="300" alt=""/>
+    </figure>
+</p>
+</div>
+
+- LOAM-Like Odometer
+
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="https://i.postimg.cc/W4F3SGKy/loam-sputnik.gif" height="300" alt=""/>
+    </figure>
+</p>
+</div>
+
 ### Scan Matching
 
 We are using [2 datasets from EPFL](https://lgg.epfl.ch/statues.php) as benchmarks: Kneeling Lady and Aquarius. Our task is to match the source to the target point cloud. Below are comparisons between [Point-Point ICP, Point-Line ICP, Point-Plane ICP, NDT, and PCL ICP](./include/halo/lo3d/icp_3d_methods.hpp)
