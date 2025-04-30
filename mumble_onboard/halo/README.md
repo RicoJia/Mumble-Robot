@@ -79,14 +79,14 @@ target_link_libraries(my_executable
     <div style="text-align: center;">
     <p align="center">
         <figure>
-            <img src="https://i.postimg.cc/W4F3SGKy/loam-sputnik.gif" height="300" alt=""/>
+            <img src="./media/ndt-sputnik.gif" height="300" alt=""/>
         </figure>
     </p>
     </div>
 
 TODO: remove me
 
-[![ndt-sputnik.gif](https://i.postimg.cc/CxZSSdw0/ndt-sputnik.gif)](https://postimg.cc/JsW9QryY)
+
 
 ### Scan Matching
 
