@@ -16,25 +16,25 @@ DEFINE_int64(start_visualize_msg_index, 0, "start visualization from this index"
 
 using namespace halo;
 
-// TEST(INDIRECT3DNDTTest, test_loam_like_feature_extraction) {
-//     halo::TextIO text_io(FLAGS_bag_path, FLAGS_stopping_msg_index);
-//     int num_msgs = 0;
-//     halo::FeatureExtractor::Options options;
-//     halo::FeatureExtractor extractor(options);
-//     text_io.register_callback(
-//         "PCLFULLCLOUD",
-//         [&](std::stringstream &ss) {
-//             PCLFullCloudPtr scan_ptr = halo::TextIO::convert_txt_to_pcl_full_cloud(ss);
-//             std::cout << "=================================num_msgs: " << num_msgs << ", ptr size: " << scan_ptr->points.size() << std::endl;
-//             PCLCloudXYZIPtr edge_points = nullptr;
-//             PCLCloudXYZIPtr planar_points = nullptr;
-//             extractor.extract(scan_ptr, edge_points, planar_points);
-//             SaveCloudToFile("/tmp/edge_points.pcd", *edge_points);
-//             SaveCloudToFile("/tmp/planar_points.pcd", *planar_points);
-//             num_msgs++;
-//         });
-//     text_io.spin();
-// }
+TEST(INDIRECT3DNDTTest, test_loam_like_feature_extraction) {
+    halo::TextIO text_io(FLAGS_bag_path, FLAGS_stopping_msg_index);
+    int num_msgs = 0;
+    halo::FeatureExtractor::Options options;
+    halo::FeatureExtractor extractor(options);
+    text_io.register_callback(
+        "PCLFULLCLOUD",
+        [&](std::stringstream &ss) {
+            PCLFullCloudPtr scan_ptr = halo::TextIO::convert_txt_to_pcl_full_cloud(ss);
+            std::cout << "=================================num_msgs: " << num_msgs << ", ptr size: " << scan_ptr->points.size() << std::endl;
+            PCLCloudXYZIPtr edge_points   = nullptr;
+            PCLCloudXYZIPtr planar_points = nullptr;
+            extractor.extract(scan_ptr, edge_points, planar_points);
+            SaveCloudToFile("/tmp/edge_points.pcd", *edge_points);
+            SaveCloudToFile("/tmp/planar_points.pcd", *planar_points);
+            num_msgs++;
+        });
+    text_io.spin();
+}
 
 TEST(INDIRECT3DNDTTest, test_loam_like_odom) {
     halo::TextIO text_io(FLAGS_bag_path, FLAGS_stopping_msg_index);
