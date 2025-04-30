@@ -84,6 +84,16 @@ target_link_libraries(my_executable
     </p>
     </div>
 
+TODO: remove me
+
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="https://i.postimg.cc/TwPB8rT3/lo.png" height="200" alt=""/>
+    </figure>
+</p>
+</div>
+
 ### Scan Matching
 
 We are using [2 datasets from EPFL](https://lgg.epfl.ch/statues.php) as benchmarks: Kneeling Lady and Aquarius. Our task is to match the source to the target point cloud. Below are comparisons between [Point-Point ICP, Point-Line ICP, Point-Plane ICP, NDT, and PCL ICP](./include/halo/lo3d/icp_3d_methods.hpp)
