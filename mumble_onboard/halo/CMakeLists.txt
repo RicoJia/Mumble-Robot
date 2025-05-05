@@ -134,6 +134,13 @@ if(BUILD_HALO_TESTS)
     add_test(NAME ${name} COMMAND ${name} --gtest_catch_exceptions=0)
   endfunction()
 
+  # ############################################################################
+  # ESKF SLAM Tests
+  # ############################################################################
+  add_slam_gtest(test_gins_imu_eskf)
+  # ############################################################################
+  # 2D SLAM Tests
+  # ############################################################################
   add_slam_gtest(test_math)
   add_slam_gtest(test_2d_slam_visualization)
   add_slam_gtest(test_2d_slam_degredation)

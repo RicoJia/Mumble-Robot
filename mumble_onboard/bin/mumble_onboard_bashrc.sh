@@ -35,7 +35,7 @@ if [ ! -d "/home/mumble_robot/build/" ]; then
     colcon_build_source
     sudo ln -s /home/mumble_robot/src/mumble_onboard/bin/perf /usr/bin/perf
     # Run this on the host, too
-    sudo sysctl -w kernel.perf_event_paranoid=0
+    sudo sysctl -w kernel.perf_event_paranoid=-1
     sudo sysctl -w kernel.kptr_restrict=0
     cd /home/mumble_robot/src/mumble_physical_runtime
 fi
