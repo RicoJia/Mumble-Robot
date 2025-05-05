@@ -64,12 +64,22 @@ target_link_libraries(my_executable
 
 ### Lidar Odometers
 
-- NDT Odometer & Incremental NDT Odometer
+- NDT Odometer
 
 <div style="text-align: center;">
 <p align="center">
     <figure>
         <img src="./media/ndt-sputnik.gif" height="300" alt=""/>
+    </figure>
+</p>
+</div>
+
+- Incremental NDT Odometer
+
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="./media/ndt-sputnik-top.gif" height="300" alt=""/>
     </figure>
 </p>
 </div>
