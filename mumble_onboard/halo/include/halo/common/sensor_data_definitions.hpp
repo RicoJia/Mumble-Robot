@@ -9,6 +9,8 @@
 #pragma GCC diagnostic pop   // recover diagnostic directive
 
 #include <opencv2/opencv.hpp>
+#include "utm_convert/utm.h"
+
 namespace halo {
 
 using PCLPointXYZI    = pcl::PointXYZI;
@@ -98,24 +100,6 @@ struct _get_pointcloud_dimensions {
         (pcl::traits::has_field<PointT, pcl::fields::z>::value ? 1 : 0);
 };
 
-struct IMUData {
-    double timestamp = 0.0;
-    Vec3d acc;    // in m/s^2
-    Vec3d gyro;   // in rad/s
-
-    static IMUData from_millig_acc_deg_gyro(
-        const double &timestamp, const Vec3d &acc_milli_g, const Vec3d &gyro_deg) {
-        return IMUData{
-            timestamp,
-            acc_milli_g * MILLI_G_TO_M_S2,
-            gyro_deg * DEG_TO_RAD};
-    }
-
-    static constexpr double MILLI_G_TO_M_S2 = 9.81 / 1000.0;   // 1g = 9.81m/s^2
-    static constexpr double DEG_TO_RAD      = M_PI / 180.0;
-};
-
-using IMUDataPtr = std::shared_ptr<IMUData>;
 
 template <typename T>
 inline constexpr bool static_false = false;
@@ -137,5 +121,43 @@ struct PCLFullPointType {
 
 using PCLFullPointCloudType = pcl::PointCloud<PCLFullPointType>;
 using PCLFullCloudPtr       = PCLFullPointCloudType::Ptr;
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// State Estimation Functions
+////////////////////////////////////////////////////////////////////////////////////////////
+
+struct IMUData {
+    double timestamp = 0.0;
+    Vec3d acc;    // in m/s^2
+    Vec3d gyro;   // in rad/s
+
+    static IMUData from_millig_acc_deg_gyro(
+        const double &timestamp, const Vec3d &acc_milli_g, const Vec3d &gyro_deg) {
+        return IMUData{
+            timestamp,
+            acc_milli_g * MILLI_G_TO_M_S2,
+            gyro_deg * DEG_TO_RAD};
+    }
+
+    static constexpr double MILLI_G_TO_M_S2 = 9.80665 / 1000.0;   // 1g = 9.81m/s^2
+    static constexpr double DEG_TO_RAD      = M_PI / 180.0;
+};
+
+struct NavState{
+    double timestamp_ = 0;
+    SO3 R_;
+    Vec3d v_;
+    Vec3d p_;
+};
+
+class UTM{
+
+};
+
+class GNSS{
+
+};
+
+using IMUDataPtr = std::shared_ptr<IMUData>;
 
 }   // namespace halo

@@ -105,6 +105,7 @@ inline void downsample_point_cloud(
     float voxel_size = 0.1f) {
     using PointCloud = typename CloudPtr::element_type;   // e.g. pcl::PointCloud<YourPointT>
     using PointT     = typename PointCloud::PointType;
+
     // set up the filter for your PointT
     pcl::VoxelGrid<PointT> voxel;
     voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
@@ -151,8 +152,6 @@ void save_pcd_file(const std::string &file_path, CloudType &cloud) {
     cloud.height = 1;
     cloud.width  = cloud.size();
     pcl::io::savePCDFileASCII(file_path, cloud);
-    // TODO
-    std::cout << "Saved point cloud to" << file_path << std::endl;
 }
 
 /**

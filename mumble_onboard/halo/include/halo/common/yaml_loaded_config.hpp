@@ -1,7 +1,10 @@
 #include <typeindex>
 #include <string>
 #include <unordered_map>
+#include <sstream>
 #include <yaml-cpp/yaml.h>
+
+using std::stringstream;
 
 /**
  * Usage:
@@ -59,8 +62,10 @@ class YamlLoadedConfig {
             try {
                 return std::any_cast<T &>(it->second.value);
             } catch (const std::bad_any_cast &e) {
-                std::cerr << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
+                stringstream ss;
+                ss << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
                           << ", but wanted: " << typeid(T).name() << '\n';
+                throw std::runtime_error(ss.str());
             }
         } else {
             throw std::runtime_error("Field '" + name + "' not found");
@@ -74,8 +79,10 @@ class YamlLoadedConfig {
             try {
                 return std::any_cast<const T &>(it->second.value);
             } catch (const std::bad_any_cast &e) {
-                std::cerr << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
+                stringstream ss;
+                ss << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
                           << ", but wanted: " << typeid(T).name() << '\n';
+                throw std::runtime_error(ss.str());
             }
         } else {
             throw std::runtime_error("Field '" + name + "' not found");
