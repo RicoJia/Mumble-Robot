@@ -3,6 +3,7 @@
 #include <iostream>
 #include "sophus/se2.hpp"
 #include <opencv2/opencv.hpp>
+#include <sstream>
 
 namespace halo {
 
@@ -15,6 +16,13 @@ inline std::ostream &operator<<(std::ostream &os, const Sophus::SE3d &pose) {
     os << "  [SO3] " << pose.so3().log().transpose();
     os << "  [Translation] " << pose.translation().transpose() << "\n";
     return os;
+}
+
+
+inline std::string to_string(const Eigen::Vector3d& v) {
+    std::stringstream ss;
+    ss << "[" << v.x() << ", " << v.y() << ", " << v.z() << "]";
+    return ss.str();
 }
 
 template <typename Func>
