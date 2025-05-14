@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # Adopted from here: https://github.com/waveshareteam/ugv_rpi/blob/main/tutorial_en/base_ctrl.py
+# IMU + electronics compass: QMI8658C + AK09918
+# https://www.waveshare.com/general-driver-for-robots.htm
+
 
 import json
 import os
 import queue
 import threading
 import time
-
 import serial
 
 

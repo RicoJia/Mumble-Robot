@@ -79,7 +79,7 @@ class LOAMLikeOdometer {
             return;
         }
 
-        if (edge_points->points.size() < options_.get<int>("min_edge_pts") || planar_points->points.size() <
+        if (int(edge_points->points.size()) < options_.get<int>("min_edge_pts") || int(planar_points->points.size()) <
                                                                                   options_.get<int>("min_planar_pts")) {
             std::cerr << "There are not enough edge or planar points " << edge_points->points.size() << ", " << planar_points->points.size() << ", "
                       << std::endl;
@@ -125,7 +125,7 @@ class LOAMLikeOdometer {
         planars_.emplace_back(planar_points);
         keyframe_poses_.emplace_back(world_pose);
 
-        if (keyframe_poses_.size() > options_.get<int>("num_keframes_in_map")) {
+        if (int(keyframe_poses_.size()) > options_.get<int>("num_keframes_in_map")) {
             edges_.pop_front();
             planars_.pop_front();
             keyframe_poses_.pop_front();
@@ -185,7 +185,7 @@ class LOAMLikeOdometer {
         std::vector<size_t> planar_indices(planar_points->points.size());
         std::iota(planar_indices.begin(), planar_indices.end(), 0);
 
-        for (size_t i = 0; i < options_.get<int>("max_iterations"); ++i) {
+        for (int i = 0; i < options_.get<int>("max_iterations"); ++i) {
             // Pt-pt icp
             Eigen::Matrix<double, 6, 6> H = Eigen::Matrix<double, 6, 6>::Zero();
             Vec6d b                       = Vec6d::Zero();
