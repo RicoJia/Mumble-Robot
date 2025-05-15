@@ -12,6 +12,7 @@
 #include <ranges>
 #include <thread>
 #include <deque>
+#include <algorithm>   // std::swap
 
 namespace halo {
 
@@ -85,7 +86,7 @@ inline PCLCloudXYZIPtr apply_transform(PCLCloudXYZIPtr &cloud, const halo::SE3 &
         cloud->width  = static_cast<uint32_t>(cloud->points.size());
     } else {
         // keep original row count
-        cloud->width  = static_cast<uint32_t>(cloud->points.size()) / cloud->height;
+        cloud->width = static_cast<uint32_t>(cloud->points.size()) / cloud->height;
     }
     PCLCloudXYZIPtr transformed_cloud(new PCLCloudXYZI);
     pcl::transformPointCloud(*cloud, *transformed_cloud, pose.matrix().cast<float>());
@@ -117,6 +118,32 @@ inline void downsample_point_cloud(
 
     // swap contents so the original pointer now holds the downsampled cloud
     cloud->swap(*output);
+}
+
+template <typename CloudPtr>
+void distance_filter(
+    CloudPtr &cloud,
+    double min_dist,
+    double max_dist) {
+    const double min_d2 = min_dist * min_dist;
+    const double max_d2 = max_dist * max_dist;
+    // build a temp cloud
+    using PointCloud = typename CloudPtr::element_type;   // e.g. pcl::PointCloud<YourPointT>
+    using PointT     = typename PointCloud::PointType;
+    pcl::PointCloud<PointT> tmp;
+    tmp.reserve(cloud->size());
+
+    for (const auto &pt : cloud->points) {
+        double d2 = pt.x * pt.x + pt.y * pt.y + pt.z * pt.z;
+        if (max_d2 >= d2 && d2 >= min_d2)
+            tmp.push_back(pt);
+    }
+
+    // swap tmp back into the original cloud
+    cloud->points.swap(tmp.points);
+    cloud->width    = static_cast<uint32_t>(cloud->points.size());
+    cloud->height   = 1;
+    cloud->is_dense = true;
 }
 
 inline Vec3d get_point_cloud_center(PCLCloudXYZIPtr &point_cloud) {

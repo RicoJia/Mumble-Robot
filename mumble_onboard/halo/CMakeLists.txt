@@ -59,6 +59,10 @@ add_library(
   halo STATIC
   src/halo.cpp)
 
+target_include_directories(
+  halo PUBLIC # We don't want consumers to see those headers
+              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty>)
+
 target_compile_features(halo PUBLIC cxx_std_20)
 
 target_include_directories(

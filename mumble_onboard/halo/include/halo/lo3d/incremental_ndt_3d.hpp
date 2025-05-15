@@ -14,12 +14,12 @@ namespace halo {
 
 // consistent with Gao's impl ✅
 struct IncrementalNDTOptions {
-    size_t max_iterations                    = 15;
+    size_t max_iterations                    = 20;
     double max_distance                      = 30.0;
-    double max_optimization_distance_squared = 20.0;   // in meters
+    double max_optimization_distance_squared = 9.0;   // 20.0;   // in meters
     size_t min_pts_in_voxel                  = 5;
-    size_t max_pts_in_voxel                  = 50;       // To check
-    double eps                               = 1e-2;     // 1e-3;
+    size_t max_pts_in_voxel                  = 5000;     // To check
+    double eps                               = 5e-3;     // 1e-3;
     bool remove_centroid_                    = false;    // by setting to false, we use the point cloud center translation
     double resolution                        = 1.0;      // 1m
     double res_outlier_th                    = 5.0;      // 异常值拒绝阈值
@@ -86,7 +86,7 @@ class IncrementalNDT3D {
             cov_                       = (size_ * (cov_ + normalized_mean * normalized_mean.transpose()) +
                     other.size_ * (other.cov_ + other_normalized_mean * other_normalized_mean.transpose())) /
                    (size_ + other.size_);
-            mean_ = new_mean;                             // TODO: swap is faster than copy?
+            mean_ = new_mean;   // TODO: swap is faster than copy?
             // TODO: try simple +10^-3
             info_ = math::robustInfo(cov_, 1e-2, 1e-4);   // robustInfo(cov, 1e-2, 1e-4);
             size_ += other.size_;
