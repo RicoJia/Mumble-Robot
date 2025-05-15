@@ -7,8 +7,7 @@ class IncrementalNDTLO {
   public:
     // Step 1
     explicit IncrementalNDTLO(
-        const std::string &yaml_path,
-        const IncrementalNDTOptions &inc_ndt_3d_options) : inc_ndt_3d_(inc_ndt_3d_options) {
+        const std::string &yaml_path) : inc_ndt_3d_(yaml_path) {
         options_.add_option<double>("kf_angle_thre", 0.52);
         options_.add_option<double>("kf_dist_thre", 0.5);
         options_.add_option<bool>("visualize", true);

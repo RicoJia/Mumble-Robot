@@ -5,3 +5,5 @@
 **/tmp/
 
 mumble_simulation_isaac/bags/ros1_scan_data.txt
+mumble_simulation_isaac/bags/mojave_room*
+

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <typeindex>
 #include <string>
 #include <unordered_map>
@@ -49,7 +51,7 @@ class YamlLoadedConfig {
     }
 
     void load_from_yaml(const std::string file_path) {
-        YAML::Node root = YAML::LoadFile(file_path);
+        YAML::Node root = file_path.empty() ? YAML::Node{} : YAML::LoadFile(file_path);
         for (auto &[k, fld] : fields_) {
             fld.reload_func(root);
         }
@@ -64,7 +66,7 @@ class YamlLoadedConfig {
             } catch (const std::bad_any_cast &e) {
                 stringstream ss;
                 ss << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
-                          << ", but wanted: " << typeid(T).name() << '\n';
+                   << ", but wanted: " << typeid(T).name() << '\n';
                 throw std::runtime_error(ss.str());
             }
         } else {
@@ -81,7 +83,7 @@ class YamlLoadedConfig {
             } catch (const std::bad_any_cast &e) {
                 stringstream ss;
                 ss << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
-                          << ", but wanted: " << typeid(T).name() << '\n';
+                   << ", but wanted: " << typeid(T).name() << '\n';
                 throw std::runtime_error(ss.str());
             }
         } else {

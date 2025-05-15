@@ -152,11 +152,8 @@ TEST_F(ICP3DTest, TestInc3DNDT) {
     halo::profile_and_call(
         [&]() {
             std::cout << "====================== Test3D Inc NDT ======================" << std::endl;
-            halo::IncrementalNDTOptions options;
-            options.max_iterations   = 20;
-            options.remove_centroid_ = true;
             // halo::NDT3D<halo::NeighborCount::NEARBY6> ndt_3d(options);
-            halo::IncrementalNDT3D<halo::NeighborCount::CENTER> inc_ndt_3d(options);
+            halo::IncrementalNDT3D<halo::NeighborCount::CENTER> inc_ndt_3d("");
             inc_ndt_3d.set_source(target);
             inc_ndt_3d.add_cloud(target);
             inc_ndt_3d.set_source(source);
@@ -165,7 +162,7 @@ TEST_F(ICP3DTest, TestInc3DNDT) {
         });
 }
 
-#if 0  // DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
+#if 0   // DANGER: commented out because there's a bug likely in PCL that causes a segfault, right at when the
 
 TEST_F(ICP3DTest, Test3DPCL_ICP) {
     halo::profile_and_call(

@@ -41,8 +41,7 @@ DEFINE_int64(start_msg_index, 0, "start visualization from this index");
 // }
 
 TEST(DIRECT3DNDTTest, test_incremental_3d_ndt_bag_test) {
-    halo::IncrementalNDTOptions inc_ndt_3d_options;
-    halo::IncrementalNDTLO inc_ndt_3d_lo(FLAGS_yaml_config_path, inc_ndt_3d_options);
+    halo::IncrementalNDTLO inc_ndt_3d_lo(FLAGS_yaml_config_path);
     ROS2BagIo bag_io(FLAGS_bag_path, FLAGS_stopping_msg_index);
     int num_msgs = 0;
     bag_io.register_callback<sensor_msgs::msg::PointCloud2>(

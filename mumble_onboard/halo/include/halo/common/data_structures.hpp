@@ -24,7 +24,13 @@ class LRUHashMap {
             - Other than that, as we add, there is 1 move of the value, and 1 move of the key.
      */
   public:
-    LRUHashMap(size_t sz) : size_(sz) {
+    LRUHashMap(size_t sz) {
+        initialize_if_havent(sz);
+    }
+
+    LRUHashMap() = default;
+    void initialize_if_havent(size_t sz) {
+        size_ = sz;
         if (size_ == 0)
             throw std::runtime_error("LRUHashMap is instatiated with 0 size.");
         itr_lookup_.reserve(size_);
