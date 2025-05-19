@@ -30,6 +30,7 @@ class IncrementalNDTLO {
             - Set local map as
      */
     void add_scan(PCLCloudXYZIPtr cloud) {
+        PCLCloudXYZIPtr orig_cloud(new pcl::PointCloud<pcl::PointXYZI>(*cloud));
         downsample_point_cloud(cloud, options_.get<float>("add_scan_leaf_size"));
         distance_filter(cloud, options_.get<double>("nearest_distance_range"), options_.get<double>("farthest_distance_range"));
 
@@ -49,11 +50,12 @@ class IncrementalNDTLO {
         PCLCloudXYZIPtr transformed_cloud = nullptr;
         bool is_kframe                    = is_keyframe(world_pose);
         if (is_kframe) {
-            // TODO
             std::cout << "keyframe detected" << std::endl;
             cnt_frame_ = 0;
             transformed_cloud.reset(new PCLCloudXYZI);
-            pcl::transformPointCloud(*cloud, *transformed_cloud, world_pose.matrix().cast<float>());
+            // TODO: see if this works. If so, please filter them first.
+            // pcl::transformPointCloud(*cloud, *transformed_cloud, world_pose.matrix().cast<float>());
+            pcl::transformPointCloud(*orig_cloud, *transformed_cloud, world_pose.matrix().cast<float>());
             inc_ndt_3d_.add_cloud(transformed_cloud);
         } else {
             ++cnt_frame_;
@@ -68,7 +70,7 @@ class IncrementalNDTLO {
             if (options_.get<bool>("visualize")) {
                 map_viewer_->SetPoseAndCloud(world_pose, transformed_cloud);
             } else {
-                map_viewer_->SetPoseAndCloudNoViz(transformed_cloud);
+                map_viewer_->SetPoseAndCloudNoViz(world_pose, transformed_cloud);
             }
         }
     }

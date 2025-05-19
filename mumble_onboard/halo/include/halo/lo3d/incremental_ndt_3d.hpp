@@ -126,7 +126,6 @@ class IncrementalNDT3D {
             std::vector<IncNDTOptimizationData> intermediate_res(source_->points.size());
             // iterate thru all source points
             // TODO: only last neighbor is contributing to the residual
-            // TODO: remove_centroid?
             std::for_each(
                 std::execution::par_unseq,
                 indices.begin(), indices.end(),
@@ -188,7 +187,8 @@ class IncrementalNDT3D {
             }
         }
 
-        return false;
+        // Returning true, otherwise, false will halt the entire process
+        return true;
     }
 
     /** Step 4: Workflow:

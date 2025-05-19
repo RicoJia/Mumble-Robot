@@ -33,8 +33,7 @@ inline PCLPointXYZI to_pcl_point_xyzi(const Eigen::Matrix<S, 3, 1> &pt) {
 inline static PCLCloudXYZIPtr convert_2_pclcloud_xyz_i(const sensor_msgs::msg::PointCloud2 &msg) {
     // then convert into a PCL point-cloud
     PCLCloudXYZIPtr cloud(new pcl::PointCloud<pcl::PointXYZI>());
-    pcl::fromROSMsg(msg, *cloud);
-
+    pcl::fromROSMsg(msg, *cloud);   // might emit "Failed to find match for field 'intensity"
     return cloud;
 }
 
@@ -114,6 +113,7 @@ inline void downsample_point_cloud(
 
     // allocate output of the same type
     auto output = std::make_shared<pcl::PointCloud<PointT>>();
+    // If leaf size is too small, there'd be a warning
     voxel.filter(*output);
 
     // swap contents so the original pointer now holds the downsampled cloud
