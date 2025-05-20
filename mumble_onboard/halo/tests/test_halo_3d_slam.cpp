@@ -1,107 +1,46 @@
+// ./build/mumble_onboard/halo/test_halo_3d_slam --bag_path bags/mojave_room4 --start_msg_index=10 --stopping_msg_index 12 --yaml_config_path="src/mumble_onboard/configs/slam3d_configs/test_slam_3d.yaml"
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include <halo/common/halo_io.hpp>
 #include <halo/common/sensor_utils.hpp>
 #include <halo/common/debug_utils.hpp>
 
+#include <gtest/gtest.h>
+#include <iostream>
+#include <cstdlib>
+#include <halo/common/halo_io.hpp>
+#include <halo/common/sensor_utils.hpp>
+#include <halo/common/point_cloud_processing.hpp>
+#include <halo/common/debug_utils.hpp>
+#include <gflags/gflags.h>
+
+#include <halo/slam3d/frontend_3d.hpp>
+
 DEFINE_string(bag_path, "./data/ulhk/test2.txt", "path to rosbag");
 DEFINE_string(yaml_config_path, "", "Path to yaml config");
 DEFINE_int64(stopping_msg_index, 10000000, "0 means no limit, otherwise stop at this message index");
 DEFINE_int64(start_msg_index, 0, "start visualization from this index");
 
-/**
-
-// TODO: do we need EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-class KeyFrame{
-    // can a static class func access private members of an input KeyFrame obj? TODO
-    SE3 lidar_pose_
-};
-
-class IEKFLio{
-    get_current_state();
-    NavState queue;
-    std::vector<NavStated> imu_states_;
-};
-
-// TODO: can save keyframes when the queue is full.
-// Currently don't have disk loading / offloading, because we work w/ 1000 - 10000 frames. That's under 5G of gigs
-// TODO: loading / offloading, using DMA. Also, we can copy frames -> {kframe_id: key_frame} in memory, when we are about to optimize
-
-class HaloSLAM3DFrontend{
-    add_cloud(cloud){
-        s = iekf_lio.get_current_state();
-        check_create_keyframe(s);
-    }
-    // Get keyframes, from current LIO
-    get_keyframes() -> unique_ptr<vector<KeyFrame>>{
-    }
-
-    iekf_lio -> NavState queu
-};
-
-
-struct LoopCandidate{
-    LoopCandidate(id1, id2, pose)
-};
-
-class HaloSLAMLoopDetection3D{
-    void run(){
-        DetectLoopCandidates(); // get loop_candiates_
-        RemoveGround(clouds, 0.1);  // if (pt.z > z_min) { output->points.emplace_back(pt); }
-        ComputeLoopCandidates();    // use
-        SaveResults();  // save P of idx1, idx2 of keyframes
-    }
-
-    ComputeForCandidate(){
-        // build submap
-            // find some submap_idx_range, put them together
-        // TODO: profile NDT and my own
-        // pcl::NormalDistributionsTransform<PointType, PointType> ndt;
-
-        for (auto& r : res) {
-            ndt.setResolution(r);
-        }
-        // ?? TODO
-        c.ndt_score_ = ndt.getTransformationProbability();
-
-    }
-    }
-};
-
-class HaloSLAM3DOptim{
-
-    run(){
-        kf_queue; loop_candidates
-        if (!rtk_has_rot_ && stage_ == 1) {
-            InitialAlign();
-        }
-
-        BuildProblem();  // 建立问题
-
-        Solve();           // 带着RK求解一遍
-        RemoveOutliers();  // 移除异常值
-        Solve();           // 再求解一遍
-
-        SaveResults();  // 保存结果
-
-    }
-
-    BuildProblem(){
-        AddVertices();  // v is pose of each keyframes_ as the initial guess
-        AddLidarEdges();    // add edge between every pair of keyframes. e is the keyframe guess
-        AddLoopEdges(); // e is the loop candidate relative pose
-    }  // 建立问题
-
-    SaveResults(){
-        v.second->write(fout);
-        e->write(fout); // lidar edge and loop edge
-    }
-
-};
-
-*/
+using namespace halo;
 
 TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
+    // yaml_config_path;
+    halo::HaloSLAM3DFrontend halo_slam_3d_front_end(FLAGS_yaml_config_path);
+    ROS2BagIo bag_io(FLAGS_bag_path, FLAGS_stopping_msg_index);
+    int num_msgs = 0;
+    bag_io.register_callback<sensor_msgs::msg::PointCloud2>(
+        "/tof_sensor/points",
+        [&](std::shared_ptr<sensor_msgs::msg::PointCloud2> scan_msg) {
+            if (num_msgs >= FLAGS_start_msg_index) {
+                auto scan_cloud = halo::convert_2_pclcloud_xyz_i(*scan_msg);
+                std::cout << "=================================num_msgs: " << num_msgs << ", ptr size: " << scan_cloud->points.size() << std::endl;
+                halo_slam_3d_front_end.add_cloud(scan_cloud);
+            }
+            num_msgs++;
+        });
+    bag_io.spin();
+    // halo_slam_3d_front_end.get_keyframes();
+    // inc_ndt_3d_lo.save_map("/tmp/test_incremental_3d_ndt.pcd");
 }
 
 int main(int argc, char **argv) {

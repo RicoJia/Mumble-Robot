@@ -18,8 +18,7 @@ inline std::ostream &operator<<(std::ostream &os, const Sophus::SE3d &pose) {
     return os;
 }
 
-
-inline std::string to_string(const Eigen::Vector3d& v) {
+inline std::string to_string(const Eigen::Vector3d &v) {
     std::stringstream ss;
     ss << "[" << v.x() << ", " << v.y() << ", " << v.z() << "]";
     return ss.str();
@@ -34,7 +33,7 @@ void profile_and_call(Func &&func, const std::string &label = "") {
     std::cout << label << " took " << duration.count() << " ms" << std::endl;
 }
 
-void close_cv_window_on_esc() {
+inline void close_cv_window_on_esc() {
     while (true) {
         int key = cv::waitKey(0);
         if (key == 27) {

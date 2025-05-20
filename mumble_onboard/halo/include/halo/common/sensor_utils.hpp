@@ -46,7 +46,7 @@ inline PCLCloud2DPtr laser_scan_2_PointXY(const std::vector<ScanObj> &scan_objs)
 /**
  * @brief: Convert a raw laser scan message to a pcl point cloud
  */
-PCLCloud3DPtr laser_scan_2_PointXYZ(std::shared_ptr<sensor_msgs::msg::LaserScan> current_scan_ptr) {
+inline PCLCloud3DPtr laser_scan_2_PointXYZ(std::shared_ptr<sensor_msgs::msg::LaserScan> current_scan_ptr) {
     // Create a new point cloud pointer.
     PCLCloud3DPtr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
@@ -143,7 +143,7 @@ inline void visualize_2d_scan(
 /**
  * @brief: Convert from pose to image coord
  */
-Vec2i pose_2_img_coord(const Vec2d &world_pose, const Vec2i &image_center, double res) {
+inline Vec2i pose_2_img_coord(const Vec2d &world_pose, const Vec2i &image_center, double res) {
     return (world_pose * res).cast<int>() + image_center;
 }
 
@@ -151,7 +151,7 @@ Vec2i pose_2_img_coord(const Vec2d &world_pose, const Vec2i &image_center, doubl
  * @brief: from a discrete ROS2 scan message, find the interpolated range value in between angles
  * @param angle: the angle should be in [-pi, pi)
  */
-float interpolate_range(double angle, const LaserScanMsg::SharedPtr &scan) {
+inline float interpolate_range(double angle, const LaserScanMsg::SharedPtr &scan) {
     if (angle < scan->angle_min || angle > scan->angle_max)
         return 0.0f;
 

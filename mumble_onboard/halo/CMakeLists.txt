@@ -54,10 +54,15 @@ else()
   message(STATUS "CCACHE not found, not using ccache")
 endif()
 
+# Gather *all* .cpp/.cc/.c files under src/ (and re-run if files change)
+file(GLOB_RECURSE HALO_SOURCES CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c)
+
 # Add library
 add_library(
   halo STATIC
-  src/halo.cpp)
+  ${HALO_SOURCES})
 
 target_include_directories(
   halo PUBLIC # We don't want consumers to see those headers
@@ -162,6 +167,7 @@ if(BUILD_HALO_TESTS)
   add_slam_gtest(test_datastructures)
   add_slam_gtest(test_3d_loamlike_feature_extraction)
   add_slam_gtest(test_yaml_loaded_config)
+  add_slam_gtest(test_halo_3d_slam)
 
 endif()
 

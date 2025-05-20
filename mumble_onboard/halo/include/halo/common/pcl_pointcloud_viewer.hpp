@@ -22,7 +22,7 @@ class PCLMapViewer {
         vtkObject::GlobalWarningDisplayOff();
     }
 
-    void SetPoseAndCloudNoViz(const SE3 &pose, PCLCloudXYZIPtr cloud_world) {
+    void SetPoseAndCloudNoViz(PCLCloudXYZIPtr cloud_world) {
         voxel_filter_.setInputCloud(cloud_world);
         voxel_filter_.filter(*tmp_cloud_);
 

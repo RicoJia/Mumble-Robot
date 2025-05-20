@@ -1,5 +1,8 @@
 #pragma once
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sophus/se2.hpp"
 
@@ -100,7 +103,6 @@ struct _get_pointcloud_dimensions {
         (pcl::traits::has_field<PointT, pcl::fields::z>::value ? 1 : 0);
 };
 
-
 template <typename T>
 inline constexpr bool static_false = false;
 
@@ -143,19 +145,20 @@ struct IMUData {
     static constexpr double DEG_TO_RAD      = M_PI / 180.0;
 };
 
-struct NavState{
+struct NavState {
     double timestamp_ = 0;
     SO3 R_;
     Vec3d v_;
     Vec3d p_;
+    SE3 get_se3() const {
+        return SE3(R_, p_);
+    }
 };
 
-class UTM{
-
+class UTM {
 };
 
-class GNSS{
-
+class GNSS {
 };
 
 using IMUDataPtr = std::shared_ptr<IMUData>;

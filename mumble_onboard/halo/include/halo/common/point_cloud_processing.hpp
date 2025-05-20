@@ -100,7 +100,7 @@ inline PCLCloudXYZIPtr apply_transform(PCLCloudXYZIPtr &cloud, const halo::SE3 &
  * specifically, it's the line `voxel.filter(*output);`
  */
 template <typename CloudPtr>
-inline void downsample_point_cloud(
+void downsample_point_cloud(
     CloudPtr &cloud,
     float voxel_size = 0.1f) {
     using PointCloud = typename CloudPtr::element_type;   // e.g. pcl::PointCloud<YourPointT>
@@ -226,11 +226,11 @@ class CloudViewer {
 // ======================== Hashing ========================
 
 // TODO: to move, and replace below
-Vec3i get_grid_point_coord(const PCLPointXYZI &pt, const float &resolution) {
+inline Vec3i get_grid_point_coord(const PCLPointXYZI &pt, const float &resolution) {
     return Vec3i(int(pt.x * resolution), int(pt.y * resolution), int(pt.z * resolution));
 }
 
-Vec3i get_grid_point_coord(const Vec3d &pt, const float &resolution) {
+inline Vec3i get_grid_point_coord(const Vec3d &pt, const float &resolution) {
     return Vec3i(int(pt(0) * resolution), int(pt(1) * resolution), int(pt(2) * resolution));
 }
 
@@ -239,7 +239,7 @@ Vec3i get_grid_point_coord(const Vec3d &pt, const float &resolution) {
  and put them into "point matrices" in an unordered_map.
  a "point matrix" (each row is x,y,z).
  */
-std::unordered_map<size_t, std::deque<Vec3d>> split_point_cloud_by_hash(const PCLCloudXYZIPtr &cloud, const float &resolution) {
+inline std::unordered_map<size_t, std::deque<Vec3d>> split_point_cloud_by_hash(const PCLCloudXYZIPtr &cloud, const float &resolution) {
     std::unordered_map<size_t, std::deque<Vec3d>> hash_buckets;
     for (const auto &pt : cloud->points) {
         Vec3d coord           = to_vec_3d(pt);

@@ -70,7 +70,7 @@ class IncrementalNDTLO {
             if (options_.get<bool>("visualize")) {
                 map_viewer_->SetPoseAndCloud(world_pose, transformed_cloud);
             } else {
-                map_viewer_->SetPoseAndCloudNoViz(world_pose, transformed_cloud);
+                map_viewer_->SetPoseAndCloudNoViz(transformed_cloud);
             }
         }
     }
