@@ -9,8 +9,8 @@ keyframe_frame_gap: 10 # TODO
 nearest_distance_range: 0.3 # in meters
 
 # add_scan_leaf_size is used in scan matching, visualize_scan_leaf_size is a secondary filter for visualization
-add_scan_leaf_size: 0.01
-visualize_scan_leaf_size: 0.01
+add_scan_leaf_size: 0.02
+visualize_scan_leaf_size: 0.02
 visualizer_spin_time: 5000 #5000 #in ms
 
 #######################################################################
@@ -24,16 +24,16 @@ iekf_kf_dist_thre:  1.0  #0.3m
 # Shared Parameters
 #######################################################################
 
-farthest_distance_range: 4.5 # in meters
+farthest_distance_range: 4.5 #4.5 # in meters
 
 #######################################################################
 # Inc NDT Scan Matching Parameters
 #######################################################################
 
-max_iterations: 10
+max_iterations: 20
 opt_err_rejection_distance_sq: 9.0  #in meters
 min_pts_in_voxel: 5
-max_pts_in_voxel: 500
-eps: 1e-2
-resolution: 1.0
+max_pts_in_voxel: 50000
+eps: 1e-3
+resolution: 3.0 # This could make a difference
 max_voxel_number: 100000  # above which we pop the oldest voxel

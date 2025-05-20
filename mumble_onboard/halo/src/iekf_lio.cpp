@@ -67,12 +67,13 @@ class IEKFLIO::IEKFLIOImpl {
         // SE3 current_pose = ieskf_.GetNominalSE3();
         SE3 delta_pose = last_pose_.inverse() * current_pose;
 
-        if (delta_pose.translation().norm() > options_.get<double>("iekf_kf_dist_thre") || delta_pose.so3().log().norm() > options_.get<double>("iekf_kf_angle_thre")) {
-            // 将地图合入NDT中
-            PCLCloudXYZIPtr current_scan_world(new PCLCloudXYZI);
-            pcl::transformPointCloud(*undistorted_cloud, *current_scan_world, current_pose.matrix());
-            inc_ndt_3d_.add_cloud(current_scan_world);
-        }
+        // TODO: This is inconsistent with Gao's impl - there should be a {}
+        // if (delta_pose.translation().norm() > options_.get<double>("iekf_kf_dist_thre") || delta_pose.so3().log().norm() > options_.get<double>("iekf_kf_angle_thre")) {
+        // 将地图合入NDT中
+        PCLCloudXYZIPtr current_scan_world(new PCLCloudXYZI);
+        pcl::transformPointCloud(*undistorted_cloud, *current_scan_world, current_pose.matrix());
+        inc_ndt_3d_.add_cloud(current_scan_world);
+        // }
         // TODO This is inconsistent with Gao's impl - it's in the above if {}
         last_pose_ = current_pose;
     }
