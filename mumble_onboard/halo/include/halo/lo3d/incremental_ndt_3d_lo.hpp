@@ -87,7 +87,7 @@ class IncrementalNDTLO {
   private:
     halo::SE3 get_init_pose_guess() const {
         if (keyframe_poses_.size() == 0) {
-            return halo::SE3();
+            return halo::SE3{};
         }
         // There's at least 1 past keyframe already.
         auto last_pose = keyframe_poses_.back();
@@ -120,7 +120,7 @@ class IncrementalNDTLO {
         if (relative_pose.translation().norm() > options_.get<double>("kf_dist_thre")) {
             return true;
         }
-        if (world_pose.so3().log().norm() > options_.get<double>("kf_angle_thre")) {
+        if (relative_pose.so3().log().norm() > options_.get<double>("kf_angle_thre")) {
             return true;
         }
         return false;

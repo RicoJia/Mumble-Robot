@@ -13,7 +13,7 @@ class IEKFLIO {
     IEKFLIO(const std::string &config_yaml);
     ~IEKFLIO();
 
-    NavState get_current_state();
+    NavState get_current_state() const;
     void add_cloud(PCLCloudXYZIPtr cloud);
     PCLCloudXYZIPtr get_current_scan() const;
 
