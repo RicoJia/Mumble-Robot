@@ -26,8 +26,8 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
      */
     void add_cloud(PCLCloudXYZIPtr cloud) {
         lio_->add_cloud(cloud);
-        auto s = lio_->get_current_state();
-        extract_key_frame(s);
+        NavState current_state = lio_->get_current_state();
+        extract_key_frame(current_state);
     }
 
     /**
@@ -55,14 +55,19 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
         }
         auto current_pose = state.get_se3();
         if (last_kf_ != nullptr) {
-            auto last_pose  = last_kf_->lidar_pose_;
-            double distance = (current_pose.translation() - last_pose.translation()).norm();
-            double angle    = (current_pose.so3() * last_pose.so3().inverse()).log().norm();   // its axis‐angle magnitude
-            if (distance < options_.get<double>("kf_dist_thre") && angle < options_.get<double>("kf_angle_thre")) {
+            auto last_pose    = last_kf_->lidar_pose_;
+            SE3 relative_pose = last_pose.inverse() * current_pose;
+            if (relative_pose.translation().norm() <=
+                options_.get<double>("kf_dist_thre") && 
+                relative_pose.so3().log().norm() <=
+                    options_.get<double>("kf_angle_thre")
+            ) {
                 return;
             }
         }
         keyframes_.emplace_back(std::make_shared<KeyFrame3D>());
+        // TODO
+        std::cout << "Key frame detected!" << std::endl;
         last_kf_              = keyframes_.back();
         last_kf_->timestamp_  = state.timestamp_;
         last_kf_->id_         = keyframes_.size() - 1;

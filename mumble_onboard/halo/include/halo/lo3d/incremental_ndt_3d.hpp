@@ -120,6 +120,8 @@ class IncrementalNDT3D {
     bool align_gauss_newton(SE3 &relative_pose) {
         assert(source_ != nullptr);
 
+        std::cout << "before GN: " << relative_pose << std::endl;
+
         std::vector<size_t> indices(source_->points.size());
         std::iota(indices.begin(), indices.end(), 0);
         for (size_t i = 0; i < options_.get<size_t>("max_iterations"); ++i) {
@@ -188,7 +190,7 @@ class IncrementalNDT3D {
         }
 
         // Returning true, otherwise, false will halt the entire process
-        return true;
+        return false;
     }
 
     /** Step 4: Workflow:

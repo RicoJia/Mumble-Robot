@@ -7,11 +7,15 @@
 // Build submap: can we use gaussian voxel instead?
 
 namespace halo {
-    struct LoopCandidate{
+struct LoopCandidate {
+    size_t idx1_ = 0;
+    size_t idx2_ = 0;
+    SE3 Tij_;
+    double ndt_score_ = 0.0;
+};
 
-    };
-
-    class LoopDetection3D {
-
-    };
-}
+class LoopDetection3D {
+    explicit LoopDetection3D(const std ::string &config_yaml) {
+    }
+};
+}   // namespace halo

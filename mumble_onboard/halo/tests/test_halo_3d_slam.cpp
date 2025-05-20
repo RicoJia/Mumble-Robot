@@ -16,12 +16,56 @@
 
 #include <halo/slam3d/frontend_3d.hpp>
 
+#include <pcl/common/transforms.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <filesystem>
+#include <iostream>
+
 DEFINE_string(bag_path, "./data/ulhk/test2.txt", "path to rosbag");
 DEFINE_string(yaml_config_path, "", "Path to yaml config");
 DEFINE_int64(stopping_msg_index, 10000000, "0 means no limit, otherwise stop at this message index");
 DEFINE_int64(start_msg_index, 0, "start visualization from this index");
 
 using namespace halo;
+
+inline void save_keyframes_map(
+    const std::deque<std::shared_ptr<halo::KeyFrame3D>> &keyframes,
+    const std::string &filename) {
+    using Cloud    = pcl::PointCloud<pcl::PointXYZI>;
+    using CloudPtr = Cloud::Ptr;
+
+    // 1) Make sure the parent directory exists
+    std::filesystem::path out_path(filename);
+    std::filesystem::create_directories(out_path.parent_path());
+
+    // 2) Allocate the “world” cloud
+    CloudPtr world_map(new Cloud);
+
+    // 3) For each keyframe, transform & append
+    for (auto &kf : keyframes) {
+        if (!kf || !kf->cloud_ || kf->cloud_->empty()) {
+            std::cerr << "[save_keyframes_map] skipping empty keyframe\n";
+            continue;
+        }
+
+        // Convert Sophus::SE3d → Eigen::Matrix4f for PCL
+        Eigen::Matrix4f T = kf->lidar_pose_.matrix().cast<float>();
+
+        CloudPtr tmp(new Cloud);
+        pcl::transformPointCloud(*kf->cloud_, *tmp, T);
+        *world_map += *tmp;
+    }
+
+    // 4) Save the result
+    if (pcl::io::savePCDFileBinary(filename, *world_map) == 0) {
+        std::cout << "Saved concatenated map ("
+                  << world_map->size()
+                  << " points) to " << filename << "\n";
+    } else {
+        std::cerr << "Failed to write map to " << filename << "\n";
+    }
+}
 
 TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
     // yaml_config_path;
@@ -39,7 +83,10 @@ TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
             num_msgs++;
         });
     bag_io.spin();
-    // halo_slam_3d_front_end.get_keyframes();
+    auto keyframe_ptr = halo_slam_3d_front_end.get_keyframes();
+
+    save_keyframes_map(*keyframe_ptr, "/tmp/test_halo_3d_slam.pcd");
+
     // inc_ndt_3d_lo.save_map("/tmp/test_incremental_3d_ndt.pcd");
 }
 

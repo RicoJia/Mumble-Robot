@@ -147,9 +147,9 @@ struct IMUData {
 
 struct NavState {
     double timestamp_ = 0;
-    SO3 R_;
-    Vec3d v_;
-    Vec3d p_;
+    SO3 R_            = SO3{};           // ✅ identity quaternion
+    Vec3d v_          = Vec3d::Zero();   // velocities start at zero
+    Vec3d p_          = Vec3d::Zero();   // position starts at origin
     SE3 get_se3() const {
         return SE3(R_, p_);
     }
