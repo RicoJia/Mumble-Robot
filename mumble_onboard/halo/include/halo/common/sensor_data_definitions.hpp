@@ -47,6 +47,10 @@ using Vec4d = Eigen::Vector4d;
 using Vec6d = Eigen::Matrix<double, 6, 1>;
 
 using Mat3d = Eigen::Matrix3d;
+using Mat4f = Eigen::Matrix4f;
+using Mat4d = Eigen::Matrix4d;
+
+using Quatd = Eigen::Quaterniond;
 
 constexpr size_t INVALID_INDEX  = std::numeric_limits<size_t>::max();
 constexpr size_t INVALID_INDEX2 = std::numeric_limits<size_t>::max() - 1;

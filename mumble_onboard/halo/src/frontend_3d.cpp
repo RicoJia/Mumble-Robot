@@ -58,10 +58,9 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
             auto last_pose    = last_kf_->lidar_pose_;
             SE3 relative_pose = last_pose.inverse() * current_pose;
             if (relative_pose.translation().norm() <=
-                options_.get<double>("kf_dist_thre") && 
+                    options_.get<double>("kf_dist_thre") &&
                 relative_pose.so3().log().norm() <=
-                    options_.get<double>("kf_angle_thre")
-            ) {
+                    options_.get<double>("kf_angle_thre")) {
                 return;
             }
         }

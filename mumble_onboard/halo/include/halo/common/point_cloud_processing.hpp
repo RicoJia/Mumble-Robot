@@ -172,6 +172,20 @@ void add_cloud_with_distance_filtering(
     }
 }
 
+inline void remove_ground(PCLCloudXYZIPtr &cloud, float z_min) {
+    PCLCloudXYZIPtr output(new PCLCloudXYZI);
+    for (const auto &pt : cloud->points) {
+        if (pt.z > z_min) {
+            output->points.emplace_back(pt);
+        }
+    }
+
+    output->height   = 1;
+    output->is_dense = false;
+    output->width    = static_cast<uint32_t>(output->points.size());
+    cloud->swap(*output);
+}
+
 // ======================== PCL IO ========================
 
 template <typename CloudType>

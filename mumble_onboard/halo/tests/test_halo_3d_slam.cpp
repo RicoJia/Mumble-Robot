@@ -15,6 +15,7 @@
 #include <gflags/gflags.h>
 
 #include <halo/slam3d/frontend_3d.hpp>
+#include <halo/slam3d/loop_detection_3d.hpp>
 
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
@@ -83,9 +84,17 @@ TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
             num_msgs++;
         });
     bag_io.spin();
-    auto keyframe_ptr = halo_slam_3d_front_end.get_keyframes();
+    auto keyframe_deq_ptr = halo_slam_3d_front_end.get_keyframes();
 
-    save_keyframes_map(*keyframe_ptr, "/tmp/test_halo_3d_slam.pcd");
+    halo::LoopDetection3D loop_detection_3d(FLAGS_yaml_config_path);
+    loop_detection_3d.run(keyframe_deq_ptr);
+    auto candidates_ptr = loop_detection_3d.get_successful_candidates();
+
+    for (const auto &c : *candidates_ptr) {
+        std::cout << "Loop candidate: " << c.idx1_ << " " << c.idx2_ << " " << c.ndt_score_ << std::endl;
+    }
+
+    save_keyframes_map(*keyframe_deq_ptr, "/tmp/test_halo_3d_slam.pcd");
 
     // inc_ndt_3d_lo.save_map("/tmp/test_incremental_3d_ndt.pcd");
 }
