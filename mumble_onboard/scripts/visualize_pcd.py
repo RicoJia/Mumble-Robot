@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-# python3 /home/mumble_robot/src/mumble_onboard/halo/scripts/visualize_pcd.py -p /tmp/edge_points0.pcd
+
+"""
+PCD Viewer: visualize a single .pcd file with perspective camera angles
+
+Usage:
+    ros2 run mumble_onboard visualize_pcd.py -p /tmp/edge_points0.pcd
+
+"""
+
 import time
 import argparse, os
 import numpy as np

@@ -24,3 +24,7 @@ The docker compose orchestration architecture:
 </p>
 </div>
 
+## Tools
+- `visualize_pcd.py`: visualize a 3D point cloud in pcd
+- `pcd_consecutive_viewer.py`: visualize `.pcd` files in a directory using arrow keys
+

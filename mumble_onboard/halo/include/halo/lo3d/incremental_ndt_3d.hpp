@@ -100,6 +100,8 @@ class IncrementalNDT3D {
         options_.add_option<double>("resolution", 1.0);
         options_.add_option<double>("res_outlier_th", 5.0);
         options_.add_option<size_t>("max_voxel_number", 100000);
+        options_.add_option<bool>("print_inc_ndt_debug_info", true);
+
         options_.load_from_yaml(yaml_path);
 
         lru_hashmap_.initialize_if_havent(options_.get<size_t>("max_voxel_number"));
@@ -120,7 +122,9 @@ class IncrementalNDT3D {
     bool align_gauss_newton(SE3 &relative_pose) {
         assert(source_ != nullptr);
 
-        std::cout << "before GN: " << relative_pose << std::endl;
+        if (options_.get<bool>("print_inc_ndt_debug_info")) {
+            std::cout << "before GN: " << relative_pose << std::endl;
+        }
 
         std::vector<size_t> indices(source_->points.size());
         std::iota(indices.begin(), indices.end(), 0);
@@ -152,10 +156,12 @@ class IncrementalNDT3D {
                             intermediate_res[idx].e         = e;
                             intermediate_res[idx].error     = error;
                             intermediate_res[idx].voxel_ptr = voxel_ptr;
-                            if (intermediate_res[idx].error < 0) {
-                                std::cout << "Error is negative: " << intermediate_res[idx].error
-                                          << ", pt: " << pt_map.transpose() << ", mean: " << voxel_ptr->mean_.transpose() << "e: " << e.transpose()
-                                          << ", info: " << voxel_ptr->info_ << std::endl;
+                            if (options_.get<bool>("print_inc_ndt_debug_info")) {
+                                if (intermediate_res[idx].error < 0) {
+                                    std::cout << "Error is negative: " << intermediate_res[idx].error
+                                              << ", pt: " << pt_map.transpose() << ", mean: " << voxel_ptr->mean_.transpose() << "e: " << e.transpose()
+                                              << ", info: " << voxel_ptr->info_ << std::endl;
+                                }
                             }
                         }
                     }
@@ -180,8 +186,10 @@ class IncrementalNDT3D {
             // Update pose separately
             relative_pose.so3() = relative_pose.so3() * SO3::exp(dx.head<3>());
             relative_pose.translation() += dx.tail<3>();   // TODO: try pre-multiplicating relative_pose.so3()
-            std::cerr << "Iteration " << i << ", error: " << total_error
-                      << "pose: " << relative_pose << ", dx: " << dx.transpose() << ", dx norm: " << dx.norm() << std::endl;
+            if (options_.get<bool>("print_inc_ndt_debug_info")) {
+                std::cerr << "Iteration " << i << ", error: " << total_error
+                          << "pose: " << relative_pose << ", dx: " << dx.transpose() << ", dx norm: " << dx.norm() << std::endl;
+            }
             // Error is large in this case: covrariance is small. inv_cov is in the order of 10^4.
             // Then error is disproportionately large
             if (dx.norm() < options_.get<double>("eps")) {

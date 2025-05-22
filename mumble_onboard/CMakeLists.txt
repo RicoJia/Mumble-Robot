@@ -53,8 +53,10 @@ target_link_libraries(
   mumbo_halo_slam halo)
 ament_target_dependencies(mumbo_halo_slam rclcpp)
 
+file(GLOB MUMBLE_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/*.py")
+
 # Install Python scripts
-install(PROGRAMS scripts/mumble_bag_recorder.py DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS ${MUMBLE_SCRIPTS} DESTINATION lib/${PROJECT_NAME})
 
 # Install C++ binary
 install(TARGETS mumbo_halo_slam DESTINATION lib/${PROJECT_NAME})
