@@ -263,8 +263,7 @@ class PoseVertex : public g2o::BaseVertex<6, SE3> {
     PoseVertex() {}
 
     virtual void setToOriginImpl() override {
-        // TODO
-        // _estimate = SE3();
+        _estimate = SE3();
     }
     virtual bool read(std::istream &is) override {
         double data[7];
@@ -290,6 +289,7 @@ class PoseVertex : public g2o::BaseVertex<6, SE3> {
      * @param update_ for VertexPose : BaseVertex<6, SE3>,  g2o knows the minimal dimension is 6. So update_ points to an array of six doubles:
      * 0	1	2	3	4	5
        ωₓ	ωᵧ	ω_z	tₓ	tᵧ	t_z
+       @note In debug mode, this function could cause data alignment issue
      */
     virtual void oplusImpl(const double *update) override {
         // // Right perturbation
@@ -300,11 +300,11 @@ class PoseVertex : public g2o::BaseVertex<6, SE3> {
         // // _estimate.so3()     = _estimate.so3() * SO3::exp(dω);
         // // _estimate.translation() += dt;
 
-        // // _estimate.so3() = _estimate.so3() * SO3::exp(Eigen::Map<const Vec3d>(&update[0]));
-        // // _estimate.translation() += Eigen::Map<const Vec3d>(&update[3]);
-        // // make sure any internal, pre‐computed representations, e.g. the homogeneous‐transform matrix, cached Jacobians, Hessian,
-        // // as out-of-date
-        // updateCache();
+        _estimate.so3() = _estimate.so3() * SO3::exp(Eigen::Map<const Vec3d>(&update[0]));
+        _estimate.translation() += Eigen::Map<const Vec3d>(&update[3]);
+        // make sure any internal, pre‐computed representations, e.g. the homogeneous‐transform matrix, cached Jacobians, Hessian,
+        // as out-of-date
+        updateCache();
     }
 };
 
@@ -317,11 +317,10 @@ class EdgeSE3 : public g2o::BaseBinaryEdge<6, SE3, PoseVertex, PoseVertex> {
         setMeasurement(T_12);
     }
     void computeError() override {
-        // PoseVertex *v1 = (PoseVertex *)_vertices[0];
-        // PoseVertex *v2 = (PoseVertex *)_vertices[1];
-        // SE3 T_12        = v1->estimate().inverse() * v2->estimate();
-        // // What is this vector? 6-vector? TODO
-        // _error = (_measurement.inverse() * T_12).log();
+        PoseVertex *v1 = (PoseVertex *)_vertices[0];
+        PoseVertex *v2 = (PoseVertex *)_vertices[1];
+        SE3 T_12       = v1->estimate().inverse() * v2->estimate();
+        _error         = (_measurement.inverse() * T_12).log();
     }
 
     virtual bool read(std::istream &is) override {

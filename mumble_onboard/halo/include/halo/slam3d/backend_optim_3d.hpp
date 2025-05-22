@@ -52,7 +52,6 @@ class HaloSLAM3DOptim {
      */
     void run(std::deque<KeyFrame3DPtr> *keyframes_ptr,
              const std::deque<LoopCandidate> *loop_candidates_ptr) {
-        // TODO
         std::cout << "Running optimization ...." << std::endl;
         build_problem(keyframes_ptr, loop_candidates_ptr);
         solve();   // solve with RK TODO?
@@ -104,8 +103,6 @@ class HaloSLAM3DOptim {
      *
      */
     void add_lidar_edges(const std::deque<KeyFrame3DPtr> *keyframes_ptr) {
-        // options_.get<double>("kf_dist_thre") && TODO
-
         const auto &keyframes = *keyframes_ptr;
         for (size_t i = 0; i < keyframes.size(); ++i) {
             const auto &kf1 = *(keyframes.at(i));
@@ -122,7 +119,6 @@ class HaloSLAM3DOptim {
                 lidar_edges_.push_back(edge);
             }
         }
-        // TODO
         std::cout << "lidar edges: " << lidar_edges_.size() << std::endl;
     }
 
@@ -140,7 +136,6 @@ class HaloSLAM3DOptim {
             optimizer_.addEdge(edge);
             loop_edges_.push_back(edge);
         }
-        // TODO
         std::cout << "loop edges: " << loop_edges_.size() << std::endl;
     }
 
@@ -148,7 +143,6 @@ class HaloSLAM3DOptim {
      * @brief: Boiler Plate solve.
      */
     void solve() {
-        // TODO
         std::cout << "Solving the optimization problem..." << std::endl;
         optimizer_.setVerbose(true);
         optimizer_.initializeOptimization(0);
@@ -165,7 +159,6 @@ class HaloSLAM3DOptim {
      TODO: add gnss edges
      */
     void remove_outliers() {
-        // TODO
         std::cout << "Removing outliers..." << std::endl;
         size_t removed_outlier_cnt = 0;
         auto remove_outlier        = [&removed_outlier_cnt](g2o::OptimizableGraph::Edge *e) {

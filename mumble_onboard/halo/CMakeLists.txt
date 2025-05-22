@@ -39,11 +39,8 @@ if(NOT CMAKE_BUILD_TYPE)
       Release
       CACHE STRING "Build type" FORCE)
 endif()
-# THIS LINE IS CAUSING https://github.com/RainerKuemmerle/g2o/issues/250
-# findings: set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS}") is really slow,
-# why?
+# THIS LINE Could CAUSE https://github.com/RainerKuemmerle/g2o/issues/250
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -g")
-# set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g ${CMAKE_CXX_FLAGS}")
 
 # Enable ccache if available
 find_program(CCACHE_PROGRAM ccache)
