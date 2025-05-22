@@ -16,7 +16,7 @@ rm -rf /tmp/test_halo_3d_slam.pcd
 # ./build/mumble_onboard/halo/test_halo_3d_slam --bag_path bags/mojave_room5 --start_msg_index=130 --stopping_msg_index 140 --yaml_config_path="src/mumble_onboard/configs/slam3d_configs/test_slam_3d.yaml" && python3 /home/mumble_robot/src/mumble_onboard/halo/scripts/visualize_pcd.py -p /tmp/test_halo_3d_slam.pcd
 
 /home/mumble_robot/build/mumble_onboard/halo/test_halo_3d_slam \
-  --bag_path /home/mumble_robot/bags/mojave_room5 \
+  --bag_path /home/mumble_robot/bags/mojave_apt1 \
   --start_msg_index="$START_IDX" \
   --stopping_msg_index="$STOP_IDX" \
   --yaml_config_path="/home/mumble_robot/src/mumble_onboard/configs/slam3d_configs/test_slam_3d.yaml" \

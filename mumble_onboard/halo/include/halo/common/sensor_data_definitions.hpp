@@ -85,6 +85,11 @@ struct Lidar2DFrame {
 
 using Lidar2DFramePtr = std::shared_ptr<Lidar2DFrame>;
 
+struct PointLine2DICPData {
+    Vec3f params_;   //[a,b,c] in ax + by + c = 0
+    size_t idx_in_source_cloud_ = INVALID_INDEX;
+};
+
 struct NNMatch {
     size_t idx_in_this_cloud             = INVALID_INDEX;
     size_t closest_pt_idx_in_other_cloud = INVALID_INDEX;

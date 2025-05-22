@@ -42,4 +42,36 @@ inline void close_cv_window_on_esc() {
     }
 }
 
+/**
+ * @brief: print information about chi2
+ */
+template <typename Container>
+std::string get_edges_info(const Container &edges, double rk_delta_squared) {
+    std::vector<double> chi2_vec;
+    chi2_vec.reserve(edges.size());
+    for (auto &edge : edges) {
+        if (edge->level() == 0) {
+            edge->computeError();
+            chi2_vec.push_back(edge->chi2());
+        }
+    }
+
+    if (chi2_vec.empty()) {
+        return "No valid chi2!";
+    }
+
+    double avg = std::accumulate(
+                     chi2_vec.begin(),
+                     chi2_vec.end(),
+                     0.0) /
+                 chi2_vec.size();
+
+    // format into a single string
+    std::ostringstream oss;
+    oss << "avg: " << avg
+        << ", size: " << chi2_vec.size()
+        << ", thre: " << rk_delta_squared;
+    return oss.str();
+}
+
 }   // namespace halo
