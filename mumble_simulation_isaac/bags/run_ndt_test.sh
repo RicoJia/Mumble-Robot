@@ -20,5 +20,4 @@ rm -rf /tmp/test_halo_3d_slam.pcd
   --start_msg_index="$START_IDX" \
   --stopping_msg_index="$STOP_IDX" \
   --yaml_config_path="/home/mumble_robot/src/mumble_onboard/configs/slam3d_configs/test_slam_3d.yaml" \
-  && ros2 run mumble_onboard visualize_pcd.py \
-    -p /tmp/test_halo_3d_slam.pcd -s
+  && ros2 run mumble_onboard pcd_sequence_viewer.py /tmp/test_halo_3d_slam.pcd
