@@ -25,8 +25,9 @@ struct LoopCandidate {
     double ndt_score_ = 0.0;
 };
 
+// TODO: I want to make the pointers const, Is there a good way?
 class LoopDetection3D {
-    using KeyFrame3DPtr = std::shared_ptr<KeyFrame3D>;
+    using KeyFrame3DPtr = std::shared_ptr<KeyFrame3D>;   // This should be const
 
   public:
     explicit LoopDetection3D(const std ::string &config_yaml) {
@@ -42,7 +43,6 @@ class LoopDetection3D {
     }
 
     void run(std::deque<KeyFrame3DPtr> *keyframes_ptr) {
-        // TODO
         std::cout << "Detecting loop candidates..." << std::endl;
         detect_loop_candidates(keyframes_ptr);
         compute_loop_candidates(keyframes_ptr);
@@ -94,8 +94,7 @@ class LoopDetection3D {
                       [this, &keyframes_ptr](LoopCandidate &c) { check_candidate(c, keyframes_ptr); });
 
         for (const auto &c : loop_candidates_) {
-            // TODO
-            std::cout << "Raw Loop candidate: " << c.idx1_ << " " << c.idx2_ << " " << c.ndt_score_ << std::endl;
+            std::cout << "Raw Loop candidate with NDT scores: " << c.idx1_ << " " << c.idx2_ << " " << c.ndt_score_ << std::endl;
             if (c.ndt_score_ > options_.get<double>("ndt_score_th")) {
                 successful_loop_candidates_.emplace_back(c);
             }
@@ -124,8 +123,7 @@ class LoopDetection3D {
                     continue;
                 }
                 auto kf    = keyframes_ptr->at(id);
-                auto cloud = kf->cloud_;
-                remove_ground(cloud, 0.1);
+                auto cloud = remove_ground_cp(kf->cloud_, options_.get<double>("ground_z_val"));
 
                 if (cloud->empty()) {
                     std::cerr << "Cloud is empty after removing ground points!" << std::endl;
@@ -141,8 +139,10 @@ class LoopDetection3D {
             return submap;
         };
 
-        auto submap_kf1            = build_submap(c.idx1_);
-        PCLCloudXYZIPtr submap_kf2 = kf2->cloud_;
+        auto submap_kf1 = build_submap(c.idx1_);
+
+        PCLCloudXYZIPtr submap_kf2(new PCLCloudXYZI);
+        pcl::copyPointCloud(*kf2->cloud_, *submap_kf2);
         if (submap_kf1->empty() || submap_kf2->empty()) {
             c.ndt_score_ = 0;
             return;

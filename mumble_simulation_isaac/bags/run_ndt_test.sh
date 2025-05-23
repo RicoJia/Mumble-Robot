@@ -11,7 +11,7 @@ if [ -z "$START_IDX" ] || [ -z "$STOP_IDX" ]; then
   exit 1
 fi
 
-rm -rf /tmp/test_halo_3d_slam.pcd
+rm -rf /tmp/slam3d/*.pcd
 
 # ./build/mumble_onboard/halo/test_halo_3d_slam --bag_path bags/mojave_room5 --start_msg_index=130 --stopping_msg_index 140 --yaml_config_path="src/mumble_onboard/configs/slam3d_configs/test_slam_3d.yaml" && python3 /home/mumble_robot/src/mumble_onboard/halo/scripts/visualize_pcd.py -p /tmp/test_halo_3d_slam.pcd
 

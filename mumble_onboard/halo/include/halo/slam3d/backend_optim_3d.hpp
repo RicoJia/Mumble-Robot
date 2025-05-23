@@ -57,6 +57,7 @@ class HaloSLAM3DOptim {
         solve();   // solve with RK TODO?
         // remove_outliers();
         // solve();   // solve again
+        update_keyframes(keyframes_ptr);
     }
 
   private:
@@ -90,6 +91,9 @@ class HaloSLAM3DOptim {
             optimizer_.addVertex(vertex);
             vertices_.emplace_back(vertex);
         }
+        /* ⬇️  anchor the gauge freedom */
+        if (!vertices_.empty())
+            vertices_.front()->setFixed(true);
         std::cout << "vertices: " << vertices_.size() << std::endl;
     }
 
@@ -128,13 +132,17 @@ class HaloSLAM3DOptim {
             PoseVertex *v1 = vertices_.at(c.idx1_);
             PoseVertex *v2 = vertices_.at(c.idx2_);
 
-            auto edge = new EdgeSE3(v1, v2, c.T12_);
-            edge->setInformation(info_);
-            auto rk = new g2o::RobustKernelCauchy();
+            auto e = new EdgeSE3(v1, v2, c.T12_);
+            // experimental code
+            const double w = std::exp(-c.ndt_score_);   // example
+            e->setInformation(info_);                   // TODO: to try w * info_
+
+            auto *rk = new g2o::RobustKernelCauchy;
             rk->setDelta(options_.get<double>("rk_delta_squared"));
-            edge->setRobustKernel(rk);
-            optimizer_.addEdge(edge);
-            loop_edges_.push_back(edge);
+            e->setRobustKernel(rk);
+
+            optimizer_.addEdge(e);
+            loop_edges_.push_back(e);
         }
         std::cout << "loop edges: " << loop_edges_.size() << std::endl;
     }
@@ -144,6 +152,7 @@ class HaloSLAM3DOptim {
      */
     void solve() {
         std::cout << "Solving the optimization problem..." << std::endl;
+
         optimizer_.setVerbose(true);
         optimizer_.initializeOptimization(0);
         optimizer_.optimize(100);
@@ -172,6 +181,24 @@ class HaloSLAM3DOptim {
         };
         std::for_each(loop_edges_.begin(), loop_edges_.end(), remove_outlier);
         std::cout << "Loop outlier: " << removed_outlier_cnt << "/" << loop_edges_.size() << std::endl;
+    }
+
+    /**
+     * @brief TODO: update kf pose with gnsss pose
+     *
+     * @param keyframes_ptr
+     */
+    void update_keyframes(std::deque<KeyFrame3DPtr> *keyframes_ptr) {
+        for (auto &kf : *keyframes_ptr) {
+            auto *v = optimizer_.vertex(kf->id_);
+            if (!v) {
+                std::cerr << "vertex not found!" << kf->id_ << std::endl;
+                continue;
+            } else {
+                auto *pose_v    = dynamic_cast<PoseVertex *>(v);
+                kf->lidar_pose_ = pose_v->estimate();
+            }
+        }
     }
 
     YamlLoadedConfig options_;

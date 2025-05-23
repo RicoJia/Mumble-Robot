@@ -102,6 +102,7 @@ class SequenceViewer:
             params = o3d.io.read_pinhole_camera_parameters(self.session_json)
             self.ctr.convert_from_pinhole_camera_parameters(params)
         ro = self.vis.get_render_option()
+        ro.light_on = False
         ro.point_size = 1.0
         ro.background_color = np.asarray([0.05, 0.05, 0.05])
         ro.show_coordinate_frame = True

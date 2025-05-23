@@ -32,6 +32,13 @@ DEFINE_int64(start_msg_index, 0, "start visualization from this index");
 
 using namespace halo;
 
+void print_keyframe_info(const std::deque<std::shared_ptr<halo::KeyFrame3D>> &keyframes) {
+    for (const auto &kf : keyframes) {
+        std::cout << "Keyframe: " << kf->id_ << ", pose: " << kf->lidar_pose_ << ", ";
+    }
+    std::cout << std::endl;
+}
+
 inline void save_keyframes_map(
     const std::deque<std::shared_ptr<halo::KeyFrame3D>> &keyframes,
     const std::string &filename) {

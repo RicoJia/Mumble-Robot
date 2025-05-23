@@ -292,16 +292,21 @@ class PoseVertex : public g2o::BaseVertex<6, SE3> {
        @note In debug mode, this function could cause data alignment issue
      */
     virtual void oplusImpl(const double *update) override {
-        // // Right perturbation
-        // // Will this cause a problem? with Eigen::Map, there is an alignment issue
-        // // TODO
-        // Vec3d dω(update[0], update[1], update[2]);
-        // Vec3d dt(update[3], update[4], update[5]);
-        // // _estimate.so3()     = _estimate.so3() * SO3::exp(dω);
-        // // _estimate.translation() += dt;
+        // Right perturbation
+        // Will this cause a problem? with Eigen::Map, there is an alignment issue
 
         _estimate.so3() = _estimate.so3() * SO3::exp(Eigen::Map<const Vec3d>(&update[0]));
         _estimate.translation() += Eigen::Map<const Vec3d>(&update[3]);
+
+        // // TODO
+        Vec3d dω(update[0], update[1], update[2]);
+        Vec3d dt(update[3], update[4], update[5]);
+        // // _estimate.so3()     = _estimate.so3() * SO3::exp(dω);
+        // // _estimate.translation() += dt;
+        // TODO
+        if (dω.norm() > 1e-4 || dt.norm() > 1e-4) {
+            std::cout << "id: " << this->id() << ", update dω: " << to_string(dω) << ", dt: " << to_string(dt) << std::endl;
+        }
         // make sure any internal, pre‐computed representations, e.g. the homogeneous‐transform matrix, cached Jacobians, Hessian,
         // as out-of-date
         updateCache();
@@ -321,6 +326,9 @@ class EdgeSE3 : public g2o::BaseBinaryEdge<6, SE3, PoseVertex, PoseVertex> {
         PoseVertex *v2 = (PoseVertex *)_vertices[1];
         SE3 T_12       = v1->estimate().inverse() * v2->estimate();
         _error         = (_measurement.inverse() * T_12).log();
+
+        // //TODO
+        // std::cout<<"error: "<<to_string(_error)<<std::endl;
     }
 
     virtual bool read(std::istream &is) override {

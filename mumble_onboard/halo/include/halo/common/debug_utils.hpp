@@ -18,9 +18,35 @@ inline std::ostream &operator<<(std::ostream &os, const Sophus::SE3d &pose) {
     return os;
 }
 
+// catch-all for any Eigen vector or expression
+template <typename Derived>
+inline std::string to_string(const Eigen::DenseBase<Derived> &v) {
+    std::stringstream ss;
+    ss << '[';
+    for (int i = 0, n = v.size(); i < n; ++i) {
+        ss << v.derived()(i);
+        if (i + 1 < n)
+            ss << ", ";
+    }
+    ss << ']';
+    return ss.str();
+}
+
 inline std::string to_string(const Eigen::Vector3d &v) {
     std::stringstream ss;
     ss << "[" << v.x() << ", " << v.y() << ", " << v.z() << "]";
+    return ss.str();
+}
+
+inline std::string to_string(const Eigen::Matrix<double, 6, 1> &v) {
+    std::stringstream ss;
+    ss << '[';
+    for (int i = 0; i < 6; ++i) {
+        ss << v[i];
+        if (i + 1 < 6)
+            ss << ", ";
+    }
+    ss << ']';
     return ss.str();
 }
 

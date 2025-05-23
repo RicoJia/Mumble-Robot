@@ -47,15 +47,15 @@ print_inc_ndt_debug_info: false # Whether to print debug info for inc ndt
 min_id_interval: 5       # Minimum ID difference between candidate keyframes
 min_distance: 3.0       # Minimum distance between candidate frames
 skip_id: 5              # Number of IDs to skip after selecting a candidate
-ndt_score_th: 2.5       # NDT score threshold for valid loop closures
-ground_z_val: -1.0 # NOT IN USE NOW Z value of the ground plane, which is used to filter out the ground points
+ndt_score_th: 5.0 #2.5       # NDT score threshold for valid loop closures
+ground_z_val: -1.0 # [BEWARE]: This is only for loop detection, not for map creation. Z value of the ground plane, which is used to filter out the ground points
 loop_closure_submap_interval: 1 # Interval for submap generation from keyframes
 
 #######################################################################
 # Backend Optimization Parameters
 #######################################################################
 lidar_neighbor_num: 3  # for one lidar frame, we add edges to the next lidar_neighbor_num keyframes
-lidar_translation_noise: 0.05 # in meter
-lidar_angular_noise: 0.008  # radians
+lidar_translation_noise: 0.1 # in meter
+lidar_angular_noise: 0.08  # 5 deg radians
 rk_delta_squared: 5.2    # δ^2 for robust kernel: ρ(s)=δ^2 * ln(1+ l2_loss / δ^2​).
 turn_on_backend_optimization: true # Whether to turn on backend optimization

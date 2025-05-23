@@ -65,13 +65,12 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
             }
         }
         keyframes_.emplace_back(std::make_shared<KeyFrame3D>());
-        // TODO
-        std::cout << "Key frame detected!" << std::endl;
         last_kf_              = keyframes_.back();
         last_kf_->timestamp_  = state.timestamp_;
         last_kf_->id_         = keyframes_.size() - 1;
         last_kf_->lidar_pose_ = current_pose;
         last_kf_->cloud_      = scan;
+        std::cout << "Key frame detected! Id: " << last_kf_->id_ << std::endl;
     }
 
     std::shared_ptr<KeyFrame3D> last_kf_ = nullptr;
