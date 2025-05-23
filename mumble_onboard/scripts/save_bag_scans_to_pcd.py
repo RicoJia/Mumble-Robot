@@ -5,7 +5,7 @@ filtering points by a configurable range.
 
 Usage:
     ros2 run mumble_onboard save_bag_scans_to_pcd.py --bag-path /home/mumble_robot/bags/mojave_apt1/ --max-range 4.5 \
-        [--output-dir /tmp] \
+        [--output-dir /tmp/scans] \
         [--min-range 0.3] [--max-range 40.0]
 
 Dependencies:
@@ -62,7 +62,7 @@ def main(argv=None):
         description='Export PointCloud2 messages to .pcd with filtering')
     parser.add_argument('-b', '--bag-path', required=True,
                         help='Path to ROS2 bag directory')
-    parser.add_argument('-o', '--output-dir', default='/tmp',
+    parser.add_argument('-o', '--output-dir', default='/tmp/scans',
                         help='Directory for output .pcd files')
     parser.add_argument('--min-range', type=float, default=0.0,
                         help='Keep points >= this distance (m)')

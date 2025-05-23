@@ -18,6 +18,7 @@
 
 namespace halo {
 struct LoopCandidate {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     size_t idx1_ = 0;
     size_t idx2_ = 0;
     SE3 T12_;

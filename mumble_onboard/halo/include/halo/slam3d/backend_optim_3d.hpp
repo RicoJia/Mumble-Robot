@@ -150,8 +150,8 @@ class HaloSLAM3DOptim {
 
         // std::cout << "RTK 误差：" << print_info(gnss_edge_, rtk_outlier_th_);
         // LOG(INFO) << "RTK 平移误差：" << print_info(gnss_trans_edge_, rtk_outlier_th_);
-        std::cout << "lidar edges: " << get_edges_info(lidar_edges_, 0.0);
-        std::cout << "loop edges: " << get_edges_info(loop_edges_, options_.get<double>("rk_delta_squared"));
+        std::cout << "lidar edges: " << get_edges_info(lidar_edges_, 0.0) << std::endl;
+        std::cout << "loop edges: " << get_edges_info(loop_edges_, options_.get<double>("rk_delta_squared")) << std::endl;
     }
 
     /**

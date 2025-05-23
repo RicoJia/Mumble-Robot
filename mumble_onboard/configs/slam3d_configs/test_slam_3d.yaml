@@ -2,11 +2,11 @@
 # front end
 #######################################################################
 visualize: false # The final result will be saved regardless
-kf_angle_thre: 0.52 #30 deg
+kf_angle_thre: 0.26 #30 deg
 kf_dist_thre:  1.0  #0.3m
 keyframe_frame_gap: 10 # TODO
 
-nearest_distance_range: 0.3 # in meters
+nearest_distance_range: 0.8 #TODO # in meters
 
 # add_scan_leaf_size is used in scan matching, visualize_scan_leaf_size is a secondary filter for visualization
 add_scan_leaf_size: 0.01
@@ -45,17 +45,17 @@ print_inc_ndt_debug_info: false # Whether to print debug info for inc ndt
 #######################################################################
 
 min_id_interval: 5       # Minimum ID difference between candidate keyframes
-min_distance: 5.0       # Minimum distance between candidate frames
+min_distance: 3.0       # Minimum distance between candidate frames
 skip_id: 5              # Number of IDs to skip after selecting a candidate
 ndt_score_th: 2.5       # NDT score threshold for valid loop closures
-ground_z_val: 0.1 # Z value of the ground plane, which is used to filter out the ground points
+ground_z_val: -1.0 # NOT IN USE NOW Z value of the ground plane, which is used to filter out the ground points
 loop_closure_submap_interval: 1 # Interval for submap generation from keyframes
 
 #######################################################################
 # Backend Optimization Parameters
 #######################################################################
 lidar_neighbor_num: 3  # for one lidar frame, we add edges to the next lidar_neighbor_num keyframes
-lidar_translation_noise: 0.01 # in meter
-lidar_angular_noise: 0.002  # radians
+lidar_translation_noise: 0.05 # in meter
+lidar_angular_noise: 0.008  # radians
 rk_delta_squared: 5.2    # δ^2 for robust kernel: ρ(s)=δ^2 * ln(1+ l2_loss / δ^2​).
 turn_on_backend_optimization: true # Whether to turn on backend optimization

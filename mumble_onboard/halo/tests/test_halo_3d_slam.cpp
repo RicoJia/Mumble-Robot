@@ -87,6 +87,7 @@ TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
         });
     bag_io.spin();
     auto keyframe_deq_ptr = halo_slam_3d_front_end.get_keyframes();
+    save_keyframes_map(*keyframe_deq_ptr, "/tmp/slam3d/test_halo_3d_slam_before_optim.pcd");
 
     YamlLoadedConfig options_;
     options_.add_option<bool>("turn_on_backend_optimization", true);
@@ -105,7 +106,7 @@ TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
         halo_slam3d_optim.run(keyframe_deq_ptr, candidates_ptr);
     }
 
-    save_keyframes_map(*keyframe_deq_ptr, "/tmp/test_halo_3d_slam.pcd");
+    save_keyframes_map(*keyframe_deq_ptr, "/tmp/slam3d/test_halo_3d_slam_after_optim.pcd");
 
     // inc_ndt_3d_lo.save_map("/tmp/test_incremental_3d_ndt.pcd");
 }

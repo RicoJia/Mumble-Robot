@@ -29,4 +29,5 @@ The docker compose orchestration architecture:
 - `save_bag_scans_to_pcd.py`: save point cloud2 messages into individual pcd files on a specified path
 - `pcd_consecutive_viewer.py`: visualize `.pcd` files in a directory using arrow keys. It also automatically saves the camera perspective from last time in a `.json` file.
 - `run_ndt_test.sh`: run the entire 3d SLAM pipeline, and visualize.
+- `test_halo_3d_slam.cpp` copies bags from ground station laptop
 
