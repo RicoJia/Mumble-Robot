@@ -62,6 +62,8 @@ loop_detection_ndt_epsilon: 0.05 # in meters
 # Larger maximum step lengths will be able to clear greater distances in fewer iterations but run the risk of overshooting and ending up in an undesirable local minimum. 
 loop_detection_ndt_step_size: 0.7 # in meters
 
+save_loop_detection_pcd: true # This will save 3 pcd files for each loop candidate, which could slow down the process. Be careful with this option.
+
 #######################################################################
 # Backend Optimization Parameters
 #######################################################################

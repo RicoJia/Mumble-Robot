@@ -113,7 +113,7 @@ TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
         std::cout
             << "Loop candidate: " << c.idx1_
             << " (frontend_id=" << kf1->frontend_id_ << ")"
-            << ", "     << c.idx2_
+            << ", " << c.idx2_
             << " (frontend_id=" << kf2->frontend_id_ << ")"
             << ", ndt_score=" << c.ndt_score_
             << std::endl;
@@ -125,8 +125,6 @@ TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
     }
 
     save_keyframes_map(*keyframe_deq_ptr, "/tmp/slam3d/test_halo_3d_slam_after_optim.pcd");
-
-    // inc_ndt_3d_lo.save_map("/tmp/test_incremental_3d_ndt.pcd");
 }
 
 int main(int argc, char **argv) {
