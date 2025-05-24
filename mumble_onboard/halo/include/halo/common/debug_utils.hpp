@@ -18,6 +18,12 @@ inline std::ostream &operator<<(std::ostream &os, const Sophus::SE3d &pose) {
     return os;
 }
 
+inline std::ostream &operator<<(std::ostream &os, const Eigen::Matrix4f &mat) {
+    os << "[Rotation]\n" << mat.block<3, 3>(0, 0) ;
+    os << ", [Translation] " << mat.block<3, 1>(0, 3).transpose() << "\n";
+    return os;
+}
+
 // catch-all for any Eigen vector or expression
 template <typename Derived>
 inline std::string to_string(const Eigen::DenseBase<Derived> &v) {

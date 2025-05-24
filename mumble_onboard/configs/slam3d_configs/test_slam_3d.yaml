@@ -6,11 +6,11 @@ kf_angle_thre: 0.26 #30 deg
 kf_dist_thre:  1.0  #0.3m
 keyframe_frame_gap: 10 # TODO
 
-nearest_distance_range: 0.8 #TODO # in meters
+nearest_distance_range: 0.4 #TODO # in meters
 
 # add_scan_leaf_size is used in scan matching, visualize_scan_leaf_size is a secondary filter for visualization
-add_scan_leaf_size: 0.01
-visualize_scan_leaf_size: 0.01
+add_scan_leaf_size: 0.02
+visualize_scan_leaf_size: 0.02
 visualizer_spin_time: 5000 #5000 #in ms
 
 #######################################################################
@@ -37,7 +37,6 @@ max_pts_in_voxel: 50000
 eps: 7e-3 #TODO
 resolution: 3.0 # This could make a difference
 max_voxel_number: 100000  # above which we pop the oldest voxel
-consecutive_idx_check_range: 10 # [-range, +range] keyframes would be checked
 print_inc_ndt_debug_info: false # Whether to print debug info for inc ndt
 
 #######################################################################
@@ -47,9 +46,21 @@ print_inc_ndt_debug_info: false # Whether to print debug info for inc ndt
 min_id_interval: 5       # Minimum ID difference between candidate keyframes
 min_distance: 3.0       # Minimum distance between candidate frames
 skip_id: 5              # Number of IDs to skip after selecting a candidate
-ndt_score_th: 5.0 #2.5       # NDT score threshold for valid loop closures
+ndt_score_th: 6.0 #2.5       # NDT score threshold for valid loop closures
 ground_z_val: -1.0 # [BEWARE]: This is only for loop detection, not for map creation. Z value of the ground plane, which is used to filter out the ground points
 loop_closure_submap_interval: 1 # Interval for submap generation from keyframes
+consecutive_idx_check_range: 1 # [-range, +range] keyframes would be checked TODO: original value was 10
+
+# The Transformation Epsilon parameter defines minimum, allowable, incremental change of the transformation vector,
+# [x, y, z, roll, pitch, yaw] in meters and radians respectively. Once the incremental change dips below this threshold, 
+# the alignment terminates.
+loop_detection_ndt_epsilon: 0.05 # in meters
+
+# The Step Size parameter defines the maximum step length allowed by the More-Thuente line search. 
+# This line search algorithm determines the best step length below this maximum value, 
+# shrinking the step length as you near the optimal solution. 
+# Larger maximum step lengths will be able to clear greater distances in fewer iterations but run the risk of overshooting and ending up in an undesirable local minimum. 
+loop_detection_ndt_step_size: 0.7 # in meters
 
 #######################################################################
 # Backend Optimization Parameters
