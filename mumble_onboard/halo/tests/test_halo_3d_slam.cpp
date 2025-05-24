@@ -105,7 +105,18 @@ TEST(HALOSLAM3DTest, test_halo_lidar_only_slam_3d) {
     auto candidates_ptr = loop_detection_3d.get_successful_candidates();
 
     for (const auto &c : *candidates_ptr) {
-        std::cout << "Loop candidate: " << c.idx1_ << " " << c.idx2_ << " " << c.ndt_score_ << std::endl;
+        // grab the KeyFrame3D shared_ptr for both ends of the loop-candidate
+        const auto &kf1 = (*keyframe_deq_ptr)[c.idx1_];
+        const auto &kf2 = (*keyframe_deq_ptr)[c.idx2_];
+
+        // now you can print the frontend_id_ on each
+        std::cout
+            << "Loop candidate: " << c.idx1_
+            << " (frontend_id=" << kf1->frontend_id_ << ")"
+            << ", "     << c.idx2_
+            << " (frontend_id=" << kf2->frontend_id_ << ")"
+            << ", ndt_score=" << c.ndt_score_
+            << std::endl;
     }
 
     if (options_.get<bool>("turn_on_backend_optimization")) {

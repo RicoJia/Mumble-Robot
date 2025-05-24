@@ -14,6 +14,9 @@
 #include <deque>
 #include <algorithm>   // std::swap
 
+#include <filesystem>            // C++17
+#include <pcl/io/pcd_io.h>       // for savePCDFileBinary
+
 namespace halo {
 
 // ======================== Conversions ========================
@@ -236,6 +239,11 @@ class CloudViewer {
   private:
     pcl::visualization::PCLVisualizer::Ptr viewer;
 };
+
+inline void save_pcd_file(const std::string& out_dir, const std::string& path, const PCLCloudXYZIPtr& cloud){
+    std::filesystem::create_directories(out_dir);
+    pcl::io::savePCDFileBinary(out_dir + "/" + path, *cloud);
+}
 
 // ======================== Hashing ========================
 

@@ -134,8 +134,9 @@ class HaloSLAM3DOptim {
 
             auto e = new EdgeSE3(v1, v2, c.T12_);
             // experimental code
-            const double w = std::exp(-c.ndt_score_);   // example
-            e->setInformation(info_);                   // TODO: to try w * info_
+            const double w = c.ndt_score_;   // example
+            std::cout<<"w: "<<w<<std::endl;
+            e->setInformation(w * info_);                   // TODO: to try w * info_
 
             auto *rk = new g2o::RobustKernelCauchy;
             rk->setDelta(options_.get<double>("rk_delta_squared"));
