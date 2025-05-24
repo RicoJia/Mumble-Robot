@@ -91,7 +91,8 @@ def main(argv=None):
     node.get_logger().info(f'Using topic: {topic}')
     reader.set_filter(rosbag2_py._storage.StorageFilter(topics=[topic]))
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    out_dir = os.path.join(args.output_dir, bag_name)
+    os.makedirs(out_dir, exist_ok=True)
     idx = 0
     while reader.has_next():
         _, raw, _ = reader.read_next()
@@ -112,7 +113,7 @@ def main(argv=None):
             pcd = pcd.voxel_down_sample(args.voxel_size)
 
         # Save .pcd
-        fn = os.path.join(args.output_dir, f"{bag_name}_{idx}.pcd")
+        fn = os.path.join(out_dir, f"{bag_name}_{idx}.pcd")
         o3d.io.write_point_cloud(fn, pcd, write_ascii=False)
         node.get_logger().info(f'Saved {fn} ({len(pcd.points)} pts)')
         idx += 1

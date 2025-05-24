@@ -17,6 +17,7 @@ struct KeyFrame3D {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     double timestamp_ = 0;             // 时间戳
     size_t id_        = 0;             // 关键帧id，唯一
+    size_t frontend_id_        = 0;    // frame id in front end
     SE3 lidar_pose_;                   // 雷达位姿
     SE3 rtk_pose_;                     // rtk 位姿
     SE3 opti_pose_1_;                  // 第一阶段优化pose

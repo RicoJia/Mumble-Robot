@@ -15,6 +15,7 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
     HaloSLAM3DFrontendImpl(const std::string &config_yaml = "") : lio_(std::make_unique<IEKFLIO>(config_yaml)) {
         options_.add_option<double>("kf_angle_thre", 0.52);
         options_.add_option<double>("kf_dist_thre", 1.0);
+        options_.add_option<size_t>("keyframe_frame_gap", 10);
         options_.load_from_yaml(config_yaml);
     }
     ~HaloSLAM3DFrontendImpl() = default;
@@ -28,6 +29,7 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
         lio_->add_cloud(cloud);
         NavState current_state = lio_->get_current_state();
         extract_key_frame(current_state);
+        cloud_cnt_++;
     }
 
     /**
@@ -60,7 +62,9 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
             if (relative_pose.translation().norm() <=
                     options_.get<double>("kf_dist_thre") &&
                 relative_pose.so3().log().norm() <=
-                    options_.get<double>("kf_angle_thre")) {
+                    options_.get<double>("kf_angle_thre") &&
+                cloud_cnt_ - last_kf_->frontend_id_ < options_.get<size_t>("keyframe_frame_gap")
+                ) {
                 return;
             }
         }
@@ -70,6 +74,7 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
         last_kf_->id_         = keyframes_.size() - 1;
         last_kf_->lidar_pose_ = current_pose;
         last_kf_->cloud_      = scan;
+        last_kf_->frontend_id_ = cloud_cnt_;
         std::cout << "Key frame detected! Id: " << last_kf_->id_ << std::endl;
     }
 
@@ -77,6 +82,7 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
     std::deque<std::shared_ptr<KeyFrame3D>> keyframes_;
     std::unique_ptr<IEKFLIO> lio_;
     YamlLoadedConfig options_;
+    size_t cloud_cnt_ = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

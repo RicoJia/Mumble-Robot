@@ -136,5 +136,4 @@ void IEKFLIO::add_cloud(PCLCloudXYZIPtr cloud) {
 PCLCloudXYZIPtr IEKFLIO::get_current_scan() const {
     return impl_->get_current_scan();
 }
-
 }   // namespace halo
