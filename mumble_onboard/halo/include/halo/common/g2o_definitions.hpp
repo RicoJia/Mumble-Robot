@@ -1,4 +1,5 @@
 #pragma once
+
 #include <g2o/core/base_multi_edge.h>
 #include <g2o/core/base_unary_edge.h>
 #include <g2o/core/base_vertex.h>
@@ -105,11 +106,12 @@ class EdgeICP2D_PT2PT : public g2o::BaseUnaryEdge<2, Vec2d, VertexSE2> {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     EdgeICP2D_PT2PT(size_t point_idx, std::vector<NNMatch> *matches_ptr,
                     PCLCloud2DPtr source_map_cloud, const PCLCloud2DPtr pcl_target_cloud,
-                    const std::vector<ScanObj> *source_scan_objs_ptr) : point_idx_(point_idx),
-                                                                        matches_ptr_(matches_ptr),
-                                                                        source_map_cloud_(source_map_cloud),
-                                                                        pcl_target_cloud_(pcl_target_cloud),
-                                                                        source_scan_objs_ptr_(source_scan_objs_ptr) {
+                    const std::vector<ScanObj> *source_scan_objs_ptr, double pt_max_valid_squared_dist) : point_idx_(point_idx),
+                                                                                                          matches_ptr_(matches_ptr),
+                                                                                                          source_map_cloud_(source_map_cloud),
+                                                                                                          pcl_target_cloud_(pcl_target_cloud),
+                                                                                                          source_scan_objs_ptr_(source_scan_objs_ptr),
+                                                                                                          pt_max_valid_squared_dist(pt_max_valid_squared_dist) {
     }
 
     void computeError() override {
@@ -121,7 +123,7 @@ class EdgeICP2D_PT2PT : public g2o::BaseUnaryEdge<2, Vec2d, VertexSE2> {
         double dist       = math::get_squared_distance(target_vec, source_vec);
 
         // Invalid point
-        if (dist > PT_MAX_VALID_SQUARED_DIST) {
+        if (dist > pt_max_valid_squared_dist) {
             _error = Vec2d(0, 0);
             setLevel(1);   // marks the edge out of bound, so it will be ignored during optimization
             std::cerr << "Could happen - EdgeICP2D_PT2PT: point match is too far" << dist << std::endl;
@@ -155,6 +157,7 @@ class EdgeICP2D_PT2PT : public g2o::BaseUnaryEdge<2, Vec2d, VertexSE2> {
     PCLCloud2DPtr source_map_cloud_                   = nullptr;
     PCLCloud2DPtr pcl_target_cloud_                   = nullptr;
     const std::vector<ScanObj> *source_scan_objs_ptr_ = nullptr;
+    double pt_max_valid_squared_dist                  = 400;   // 20m
 };
 
 // Binary edges connect with two vertices
@@ -245,4 +248,125 @@ class Edge2DLikelihoodField : public g2o::BaseUnaryEdge<1, double, VertexSE2> {
     int half_map_size_2d_;
 };
 
+//////////////////////////////////////////////////////////////////////////////
+// 3D Optimization Classes
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief Full 6-dof SE3 pose vertex. It will be wrapped in a g2o::VertexSE3 for g2o_viewer visualization
+ * or loading from .g2o file. Here’s the typical flow in g2o
+ * g2o reads the first token of each line (e.g. "VERTEX_SE3:QUAT")
+ */
+class PoseVertex : public g2o::BaseVertex<6, SE3> {
+  public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    PoseVertex() {}
+
+    virtual void setToOriginImpl() override {
+        _estimate = SE3();
+    }
+    virtual bool read(std::istream &is) override {
+        double data[7];
+        for (int i = 0; i < 7; i++) {
+            is >> data[i];
+        }
+        setEstimate(SE3(Quatd(data[6], data[3], data[4], data[5]), Vec3d(data[0], data[1], data[2])));
+        return true;
+    }
+
+    virtual bool write(std::ostream &os) const override {
+        os << "VERTEX_SE3:QUAT ";
+        os << id() << " ";
+        Quatd q = _estimate.unit_quaternion();
+        os << _estimate.translation().transpose() << " ";
+        os << q.coeffs()[0] << " " << q.coeffs()[1] << " " << q.coeffs()[2] << " " << q.coeffs()[3] << std::endl;
+        return true;
+    }
+
+    /**
+     * @brief
+     *
+     * @param update_ for VertexPose : BaseVertex<6, SE3>,  g2o knows the minimal dimension is 6. So update_ points to an array of six doubles:
+     * 0	1	2	3	4	5
+       ωₓ	ωᵧ	ω_z	tₓ	tᵧ	t_z
+       @note In debug mode, this function could cause data alignment issue
+     */
+    virtual void oplusImpl(const double *update) override {
+        // Right perturbation
+        // Will this cause a problem? with Eigen::Map, there is an alignment issue
+
+        _estimate.so3() = _estimate.so3() * SO3::exp(Eigen::Map<const Vec3d>(&update[0]));
+        _estimate.translation() += Eigen::Map<const Vec3d>(&update[3]);
+
+        // // TODO
+        Vec3d dω(update[0], update[1], update[2]);
+        Vec3d dt(update[3], update[4], update[5]);
+        // // _estimate.so3()     = _estimate.so3() * SO3::exp(dω);
+        // // _estimate.translation() += dt;
+        // TODO
+        if (dω.norm() > 1e-2 || dt.norm() > 1e-2) {
+            std::cout << "id: " << this->id() << ", update dω: " << to_string(dω) << ", dt: " << to_string(dt) << std::endl;
+        }
+        // make sure any internal, pre‐computed representations, e.g. the homogeneous‐transform matrix, cached Jacobians, Hessian,
+        // as out-of-date
+        updateCache();
+    }
+};
+
+class EdgeSE3 : public g2o::BaseBinaryEdge<6, SE3, PoseVertex, PoseVertex> {
+  public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    EdgeSE3(PoseVertex *v1, PoseVertex *v2, const SE3 &T_12) {
+        setVertex(0, v1);
+        setVertex(1, v2);
+        setMeasurement(T_12);
+    }
+    void computeError() override {
+        PoseVertex *v1 = (PoseVertex *)_vertices[0];
+        PoseVertex *v2 = (PoseVertex *)_vertices[1];
+        SE3 T_12       = v1->estimate().inverse() * v2->estimate();
+        _error         = (_measurement.inverse() * T_12).log();
+
+        // //TODO
+        // std::cout<<"error: "<<to_string(_error)<<std::endl;
+    }
+
+    virtual bool read(std::istream &is) override {
+        double data[7];
+        for (int i = 0; i < 7; i++) {
+            is >> data[i];
+        }
+        Quatd q(data[6], data[3], data[4], data[5]);
+        q.normalize();
+        setMeasurement(SE3(q, Vec3d(data[0], data[1], data[2])));
+        for (int i = 0; i < information().rows() && is.good(); i++) {
+            for (int j = i; j < information().cols() && is.good(); j++) {
+                is >> information()(i, j);
+                if (i != j)
+                    information()(j, i) = information()(i, j);
+            }
+        }
+        return true;
+    }
+
+    virtual bool write(std::ostream &os) const override {
+        os << "EDGE_SE3:QUAT ";
+        auto *v1 = static_cast<PoseVertex *>(_vertices[0]);
+        auto *v2 = static_cast<PoseVertex *>(_vertices[1]);
+        os << v1->id() << " " << v2->id() << " ";
+        SE3 m                = _measurement;
+        Eigen::Quaterniond q = m.unit_quaternion();
+        os << m.translation().transpose() << " ";
+        os << q.coeffs()[0] << " " << q.coeffs()[1] << " " << q.coeffs()[2] << " " << q.coeffs()[3] << " ";
+
+        // information matrix
+        for (int i = 0; i < information().rows(); i++) {
+            for (int j = i; j < information().cols(); j++) {
+                os << information()(i, j) << " ";
+            }
+        }
+        os << std::endl;
+        return true;
+    }
+};
 };   // namespace halo

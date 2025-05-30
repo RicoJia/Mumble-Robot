@@ -14,7 +14,7 @@ inline constexpr double TWO_PI = 2.0 * M_PI;
 // General Adaptors
 //////////////////////////////////////////////////////////////////////////////
 
-Eigen::Matrix<double, Eigen::Dynamic, 3> deque_2_matrix(const std::deque<Eigen::Vector3d> &points) {
+inline Eigen::Matrix<double, Eigen::Dynamic, 3> deque_2_matrix(const std::deque<Eigen::Vector3d> &points) {
     // Allocate a matrix with number of rows equal to the number of points and 3 columns.
     Eigen::Matrix<double, Eigen::Dynamic, 3> mat(points.size(), 3);
 
@@ -36,9 +36,9 @@ Eigen::Matrix<double, Eigen::Dynamic, 3> deque_2_matrix(const std::deque<Eigen::
  * We cap the ratio of singular values to the largest ones, instead of adding a small value to the diagonal
  * This is because the covariance matrix is still ill-formed, if the ratio is too large?
  */
-Eigen::Matrix3d robustInfo(const Eigen::Matrix3d &cov,
-                           double rel_floor = 1e-2,   // floor as % of σ_max
-                           double abs_floor = 1e-4)   // or absolute floor
+inline Eigen::Matrix3d robustInfo(const Eigen::Matrix3d &cov,
+                                  double rel_floor = 1e-2,   // floor as % of σ_max
+                                  double abs_floor = 1e-4)   // or absolute floor
 {
     // For symmetric PSD matrices Eigen's SelfAdjointEigenSolver is cheaper,
     // gives eigenvalues λ and eigenvectors V (cov = V Λ Vᵀ).

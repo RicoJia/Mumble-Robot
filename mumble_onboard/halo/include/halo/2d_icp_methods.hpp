@@ -19,11 +19,6 @@ constexpr double PL_ICP_MAX_NEIGHBOR_DIST_SQUARED = 4.0;   // squared value, kin
 constexpr size_t PL_ICP_K_NEAREST_NUM             = 5;
 constexpr size_t PL_ICP_MIN_LINE_POINT_NUM        = 3;   // should always be greater than 2
 
-struct PointLine2DICPData {
-    Vec3f params_;   //[a,b,c] in ax + by + c = 0
-    size_t idx_in_source_cloud_ = INVALID_INDEX;
-};
-
 struct AlignResult {
     bool success;
     SE2 pose;

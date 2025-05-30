@@ -5,26 +5,13 @@
 #include <halo/common/math_utils.hpp>
 #include <halo/common/point_cloud_processing.hpp>
 #include <halo/common/data_structures.hpp>
+#include <halo/common/yaml_loaded_config.hpp>
 
 #include <pcl/registration/icp.h>
 #include <pcl/registration/ndt.h>
 #include <numeric>
 
 namespace halo {
-
-// consistent with Gao's impl ✅
-struct IncrementalNDTOptions {
-    size_t max_iterations                    = 15;
-    double max_distance                      = 30.0;
-    double max_optimization_distance_squared = 20.0;   // in meters
-    size_t min_pts_in_voxel                  = 5;
-    size_t max_pts_in_voxel                  = 50;       // To check
-    double eps                               = 1e-2;     // 1e-3;
-    bool remove_centroid_                    = false;    // by setting to false, we use the point cloud center translation
-    double resolution                        = 1.0;      // 1m
-    double res_outlier_th                    = 5.0;      // 异常值拒绝阈值
-    size_t max_voxel_number                  = 100000;   // above which we pop the oldest voxel
-};
 
 /** Workflow
  * 1. Set source: store the source cloud
@@ -86,7 +73,7 @@ class IncrementalNDT3D {
             cov_                       = (size_ * (cov_ + normalized_mean * normalized_mean.transpose()) +
                     other.size_ * (other.cov_ + other_normalized_mean * other_normalized_mean.transpose())) /
                    (size_ + other.size_);
-            mean_ = new_mean;                             // TODO: swap is faster than copy?
+            mean_ = new_mean;   // TODO: swap is faster than copy?
             // TODO: try simple +10^-3
             info_ = math::robustInfo(cov_, 1e-2, 1e-4);   // robustInfo(cov, 1e-2, 1e-4);
             size_ += other.size_;
@@ -102,16 +89,29 @@ class IncrementalNDT3D {
 
   public:
     // Step 1
-    explicit IncrementalNDT3D(const IncrementalNDTOptions &options) : options_(options),
-                                                                      neighbor_window_(generate_neighbor_window_3d<neighbor_count>()),
-                                                                      lru_hashmap_(options_.max_voxel_number) {
+    explicit IncrementalNDT3D(const std::string &yaml_path) : neighbor_window_(generate_neighbor_window_3d<neighbor_count>()) {
+        // consistent with Gao's impl ✅
+        options_.add_option<size_t>("max_iterations", 20);
+        options_.add_option<double>("farthest_distance_range", 30.0);
+        options_.add_option<double>("opt_err_rejection_distance_sq", 9.0);
+        options_.add_option<size_t>("min_pts_in_voxel", 5);
+        options_.add_option<size_t>("max_pts_in_voxel", 5000);
+        options_.add_option<double>("eps", 5e-3);
+        options_.add_option<double>("resolution", 1.0);
+        options_.add_option<double>("res_outlier_th", 5.0);
+        options_.add_option<size_t>("max_voxel_number", 100000);
+        options_.add_option<bool>("print_inc_ndt_debug_info", true);
+
+        options_.load_from_yaml(yaml_path);
+
+        lru_hashmap_.initialize_if_havent(options_.get<size_t>("max_voxel_number"));
     }
     ~IncrementalNDT3D() = default;
 
     // Step 2
     void set_source(const PCLCloudXYZIPtr &source) {
         source_.reset(new halo::PCLCloudXYZI);
-        add_cloud_with_distance_filtering<false>(options_.max_distance, source, source_);
+        add_cloud_with_distance_filtering<false>(options_.get<double>("farthest_distance_range"), source, source_);
     }
 
     /** Step 3 Workflow:
@@ -122,20 +122,23 @@ class IncrementalNDT3D {
     bool align_gauss_newton(SE3 &relative_pose) {
         assert(source_ != nullptr);
 
+        if (options_.get<bool>("print_inc_ndt_debug_info")) {
+            std::cout << "before GN: " << relative_pose << std::endl;
+        }
+
         std::vector<size_t> indices(source_->points.size());
         std::iota(indices.begin(), indices.end(), 0);
-        for (size_t i = 0; i < options_.max_iterations; ++i) {
+        for (size_t i = 0; i < options_.get<size_t>("max_iterations"); ++i) {
             std::vector<IncNDTOptimizationData> intermediate_res(source_->points.size());
             // iterate thru all source points
             // TODO: only last neighbor is contributing to the residual
-            // TODO: remove_centroid?
             std::for_each(
                 std::execution::par_unseq,
                 indices.begin(), indices.end(),
                 [&](const auto &idx) {
                     auto pt     = source_->points.at(idx);
                     auto pt_map = relative_pose * halo::Vec3d(pt.x, pt.y, pt.z);
-                    auto coord  = get_grid_point_coord(pt_map, options_.resolution);
+                    auto coord  = get_grid_point_coord(pt_map, options_.get<double>("resolution"));
                     for (const auto &delta : neighbor_window_) {
                         Vec3i dcoord = coord + delta;
                         // iterator: size_t, VoxelData
@@ -143,7 +146,7 @@ class IncrementalNDT3D {
                         if (voxel_ptr != nullptr) {
                             Vec3d e      = pt_map - voxel_ptr->mean_;
                             double error = e.transpose() * voxel_ptr->info_ * e;
-                            if (std::isnan(error) || error > options_.max_optimization_distance_squared) {
+                            if (std::isnan(error) || error > options_.get<double>("opt_err_rejection_distance_sq")) {
                                 continue;
                             }
                             Eigen::Matrix<double, 3, 6> J;
@@ -153,10 +156,12 @@ class IncrementalNDT3D {
                             intermediate_res[idx].e         = e;
                             intermediate_res[idx].error     = error;
                             intermediate_res[idx].voxel_ptr = voxel_ptr;
-                            if (intermediate_res[idx].error < 0) {
-                                std::cout << "Error is negative: " << intermediate_res[idx].error
-                                          << ", pt: " << pt_map.transpose() << ", mean: " << voxel_ptr->mean_.transpose() << "e: " << e.transpose()
-                                          << ", info: " << voxel_ptr->info_ << std::endl;
+                            if (options_.get<bool>("print_inc_ndt_debug_info")) {
+                                if (intermediate_res[idx].error < 0) {
+                                    std::cout << "Error is negative: " << intermediate_res[idx].error
+                                              << ", pt: " << pt_map.transpose() << ", mean: " << voxel_ptr->mean_.transpose() << "e: " << e.transpose()
+                                              << ", info: " << voxel_ptr->info_ << std::endl;
+                                }
                             }
                         }
                     }
@@ -181,15 +186,18 @@ class IncrementalNDT3D {
             // Update pose separately
             relative_pose.so3() = relative_pose.so3() * SO3::exp(dx.head<3>());
             relative_pose.translation() += dx.tail<3>();   // TODO: try pre-multiplicating relative_pose.so3()
-            std::cerr << "Iteration " << i << ", error: " << total_error
-                      << "pose: " << relative_pose << ", dx: " << dx.transpose() << ", dx norm: " << dx.norm() << std::endl;
+            if (options_.get<bool>("print_inc_ndt_debug_info")) {
+                std::cerr << "Iteration " << i << ", error: " << total_error
+                          << "pose: " << relative_pose << ", dx: " << dx.transpose() << ", dx norm: " << dx.norm() << std::endl;
+            }
             // Error is large in this case: covrariance is small. inv_cov is in the order of 10^4.
             // Then error is disproportionately large
-            if (dx.norm() < options_.eps) {
+            if (dx.norm() < options_.get<double>("eps")) {
                 return true;
             }
         }
 
+        // Returning true, otherwise, false will halt the entire process
         return false;
     }
 
@@ -200,12 +208,12 @@ class IncrementalNDT3D {
      */
     void add_cloud(const PCLCloudXYZIPtr &cloud_world) {
         std::unordered_map<size_t, std::deque<Vec3d>> point_cloud_hash_lookup =
-            split_point_cloud_by_hash(cloud_world, options_.resolution);
+            split_point_cloud_by_hash(cloud_world, options_.get<double>("resolution"));
         // Not parallelizing because it could cause race condition
         std::for_each(
             point_cloud_hash_lookup.begin(), point_cloud_hash_lookup.end(), [&](const auto &key_data_pair) {
                 const auto &dq_vec3d = point_cloud_hash_lookup.at(key_data_pair.first);
-                if (dq_vec3d.size() < options_.min_pts_in_voxel)
+                if (dq_vec3d.size() < options_.get<size_t>("min_pts_in_voxel"))
                     return;
                 lru_hashmap_.add(key_data_pair.first, VoxelData(key_data_pair.first), true);
             });
@@ -214,13 +222,13 @@ class IncrementalNDT3D {
             // std::execution::par_unseq,   // TODO: need lock in update_existing_voxel_data
             point_cloud_hash_lookup.begin(), point_cloud_hash_lookup.end(), [&](const auto &key_data_pair) {
                 const auto &dq_vec3d = point_cloud_hash_lookup.at(key_data_pair.first);
-                if (dq_vec3d.size() < options_.min_pts_in_voxel)
+                if (dq_vec3d.size() < options_.get<size_t>("min_pts_in_voxel"))
                     return;
                 auto voxel_ptr = lru_hashmap_.get(key_data_pair.first);
                 if (voxel_ptr == nullptr) {
                     std::cerr << "Voxel does not exist, there's a bug!" << std::endl;
                 }
-                if (voxel_ptr->size_ >= options_.max_pts_in_voxel) {
+                if (voxel_ptr->size_ >= options_.get<size_t>("max_pts_in_voxel")) {
                     return;
                 }
                 VoxelData voxel_data(key_data_pair.first, key_data_pair.second);
@@ -232,7 +240,7 @@ class IncrementalNDT3D {
     size_t size() const { return lru_hashmap_.size(); }
 
   private:
-    IncrementalNDTOptions options_;
+    YamlLoadedConfig options_;
     std::vector<Eigen::Vector3i> neighbor_window_;
     PCLCloudXYZIPtr source_;
     halo::LRUHashMap<size_t, VoxelData, true> lru_hashmap_;

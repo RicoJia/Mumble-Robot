@@ -12,7 +12,7 @@ namespace halo {
 class IMUInitialization {
   public:
     struct Options {
-        double init_time           = 10.0;   // seconds
+        double init_time           = 80.0;   // seconds
         double max_static_gyro_var = 0.5;    // 静态下陀螺测量方差
         double max_static_acce_var = 0.05;   // 静态下加计测量方差
     };
@@ -49,8 +49,8 @@ class IMUInitialization {
             return false;
         }
         bg_ = mean_gyro;
-        g_  = mean_acc / mean_acc.norm() * 9.81;   // 9.81 m/s^2
-        ba_ = mean_acc - g_;
+        g_  = -mean_acc / mean_acc.norm() * 9.80665;   // 9.81 m/s^2
+        ba_ = mean_acc + g_;
 
         is_initialized_ = true;
         return true;

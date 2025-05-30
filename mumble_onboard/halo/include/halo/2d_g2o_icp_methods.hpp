@@ -105,7 +105,7 @@ class ICP2DG2O : public ICP2D {
 
         // Add edges:
         for (size_t point_idx = 0; point_idx < n; ++point_idx) {
-            auto e = new EdgeICP2D_PT2PT(point_idx, &matches, source_map_cloud, pcl_target_cloud_, &source_scan_objs_);
+            auto e = new EdgeICP2D_PT2PT(point_idx, &matches, source_map_cloud, pcl_target_cloud_, &source_scan_objs_, PT_MAX_VALID_SQUARED_DIST);
             e->setInformation(Eigen::Matrix<double, 2, 2>::Identity());
             e->setVertex(0, v);   // 0 is the index of the vertex within this edge
             auto rk               = new g2o::RobustKernelHuber;

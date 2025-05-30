@@ -1,7 +1,35 @@
+#pragma once
+
+#include <any>
 #include <typeindex>
 #include <string>
 #include <unordered_map>
+#include <sstream>
 #include <yaml-cpp/yaml.h>
+
+using std::stringstream;
+
+// That gives a working node.as<std::vector<double>>() in your reload lambda.
+namespace YAML {
+template <typename T>
+struct convert<std::vector<T>> {
+    static Node encode(const std::vector<T> &rhs) {
+        Node node(NodeType::Sequence);
+        for (auto const &v : rhs)
+            node.push_back(v);
+        return node;
+    }
+
+    static bool decode(const Node &node, std::vector<T> &rhs) {
+        if (!node.IsSequence())
+            return false;
+        rhs.clear();
+        for (auto const &element : node)
+            rhs.push_back(element.as<T>());
+        return true;
+    }
+};
+}   // namespace YAML
 
 /**
  * Usage:
@@ -46,7 +74,7 @@ class YamlLoadedConfig {
     }
 
     void load_from_yaml(const std::string file_path) {
-        YAML::Node root = YAML::LoadFile(file_path);
+        YAML::Node root = file_path.empty() ? YAML::Node{} : YAML::LoadFile(file_path);
         for (auto &[k, fld] : fields_) {
             fld.reload_func(root);
         }
@@ -59,8 +87,10 @@ class YamlLoadedConfig {
             try {
                 return std::any_cast<T &>(it->second.value);
             } catch (const std::bad_any_cast &e) {
-                std::cerr << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
-                          << ", but wanted: " << typeid(T).name() << '\n';
+                stringstream ss;
+                ss << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
+                   << ", but wanted: " << typeid(T).name() << '\n';
+                throw std::runtime_error(ss.str());
             }
         } else {
             throw std::runtime_error("Field '" + name + "' not found");
@@ -74,8 +104,10 @@ class YamlLoadedConfig {
             try {
                 return std::any_cast<const T &>(it->second.value);
             } catch (const std::bad_any_cast &e) {
-                std::cerr << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
-                          << ", but wanted: " << typeid(T).name() << '\n';
+                stringstream ss;
+                ss << "Field '" << name << "' exists but fails to be casted. Type: " << it->second.type.name()
+                   << ", but wanted: " << typeid(T).name() << '\n';
+                throw std::runtime_error(ss.str());
             }
         } else {
             throw std::runtime_error("Field '" + name + "' not found");

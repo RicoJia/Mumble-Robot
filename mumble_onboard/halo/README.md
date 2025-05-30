@@ -148,7 +148,6 @@ This implementation is a proof of concept with SIMD and multi-threaded optimzati
 - angles are wrapped to `[-pi, pi]`. Please adjust the lidar `angle_min` and `angle_max` accordingly
 
 ## Generic Tools
-- `visualize_pcd.py`: visualize a 3D point cloud in pcd 
 - `yaml_loaded_config.hpp`: handy configuration object that can be set by an yaml file without manual loading every single field
 
 ## Acknowledgements
