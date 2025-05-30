@@ -5,10 +5,14 @@
    "name": "Debug My Executable",
    "type": "cppdbg",
    "request": "launch",
-   "program": "${workspaceFolder}/build/mumble_onboard/halo/test_yaml_loaded_config",  // change me for your tests
+   "program": "${workspaceFolder}/build/mumble_onboard/halo/test_halo_3d_slam",  // change me for your tests
 //    "program": "${workspaceFolder}/build/mumble_onboard/halo/test_3d_loamlike_feature_extraction",  // change me for your tests
 //    "program": "${workspaceFolder}/build/mumble_onboard/halo/test_3d_icp",  // change me for your tests
    "args": [
+    "--bag_path", "bags/mojave_room4",
+    "--start_msg_index", "10",
+    "--stopping_msg_index", "12",
+    "--yaml_config_path", "src/mumble_onboard/configs/slam3d_configs/test_slam_3d.yaml"
 //         "-s", "data/ch7/EPFL/aquarius_source.pcd",
 //         "-t", "./data/ch7/EPFL/aquarius_target.pcd",
 //         "-g", "./data/ch7/EPFL/aquarius_pose.txt"
