@@ -304,7 +304,7 @@ class PoseVertex : public g2o::BaseVertex<6, SE3> {
         // // _estimate.so3()     = _estimate.so3() * SO3::exp(dω);
         // // _estimate.translation() += dt;
         // TODO
-        if (dω.norm() > 1e-4 || dt.norm() > 1e-4) {
+        if (dω.norm() > 1e-2 || dt.norm() > 1e-2) {
             std::cout << "id: " << this->id() << ", update dω: " << to_string(dω) << ", dt: " << to_string(dt) << std::endl;
         }
         // make sure any internal, pre‐computed representations, e.g. the homogeneous‐transform matrix, cached Jacobians, Hessian,

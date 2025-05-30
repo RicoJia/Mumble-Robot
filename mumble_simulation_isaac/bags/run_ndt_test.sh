@@ -4,6 +4,7 @@
 
 START_IDX=$1
 STOP_IDX=$2
+INDIVIDUAL_SCANS=$3
 
 # Optional: check if arguments were passed
 if [ -z "$START_IDX" ] || [ -z "$STOP_IDX" ]; then
@@ -11,13 +12,16 @@ if [ -z "$START_IDX" ] || [ -z "$STOP_IDX" ]; then
   exit 1
 fi
 
-rm -rf /tmp/slam3d/*.pcd
+# TODO
+# rm -rf /tmp/slam3d/*.pcd
+# rm -rf /tmp/loop_detection_results/*.pcd
 
 # ./build/mumble_onboard/halo/test_halo_3d_slam --bag_path bags/mojave_room5 --start_msg_index=130 --stopping_msg_index 140 --yaml_config_path="src/mumble_onboard/configs/slam3d_configs/test_slam_3d.yaml" && python3 /home/mumble_robot/src/mumble_onboard/halo/scripts/visualize_pcd.py -p /tmp/test_halo_3d_slam.pcd
 
 /home/mumble_robot/build/mumble_onboard/halo/test_halo_3d_slam \
-  --bag_path /home/mumble_robot/bags/mojave_apt3 \
+  --bag_path /home/mumble_robot/bags/mojave_apt2 \
   --start_msg_index="$START_IDX" \
   --stopping_msg_index="$STOP_IDX" \
+  --individual_scans="$INDIVIDUAL_SCANS" \
   --yaml_config_path="/home/mumble_robot/src/mumble_onboard/configs/slam3d_configs/test_slam_3d.yaml" \
   && ros2 run mumble_onboard pcd_sequence_viewer.py /tmp/slam3d

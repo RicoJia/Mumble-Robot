@@ -2,6 +2,8 @@
 #include <halo/slam3d/frontend_3d.hpp>
 #include <halo/common/yaml_loaded_config.hpp>
 #include <halo/slam3d/iekf_lio.hpp>
+#include <halo/common/point_cloud_processing.hpp>
+#include <halo/common/debug_utils.hpp>
 
 using std::deque;
 
@@ -63,19 +65,27 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
                     options_.get<double>("kf_dist_thre") &&
                 relative_pose.so3().log().norm() <=
                     options_.get<double>("kf_angle_thre") &&
-                cloud_cnt_ - last_kf_->frontend_id_ < options_.get<size_t>("keyframe_frame_gap")
-                ) {
+                cloud_cnt_ - last_kf_->frontend_id_ < options_.get<size_t>("keyframe_frame_gap")) {
                 return;
             }
         }
         keyframes_.emplace_back(std::make_shared<KeyFrame3D>());
-        last_kf_              = keyframes_.back();
-        last_kf_->timestamp_  = state.timestamp_;
-        last_kf_->id_         = keyframes_.size() - 1;
-        last_kf_->lidar_pose_ = current_pose;
-        last_kf_->cloud_      = scan;
+        last_kf_               = keyframes_.back();
+        last_kf_->timestamp_   = state.timestamp_;
+        last_kf_->id_          = keyframes_.size() - 1;
+        last_kf_->lidar_pose_  = current_pose;
+        last_kf_->cloud_       = scan;
         last_kf_->frontend_id_ = cloud_cnt_;
         std::cout << "Key frame detected! Id: " << last_kf_->id_ << std::endl;
+
+        // TODO: experimental, to remove
+        PCLCloudXYZIPtr transformed(new PCLCloudXYZI);
+        Eigen::Matrix4f T = last_kf_->lidar_pose_.matrix().cast<float>();
+        pcl::transformPointCloud(*last_kf_->cloud_, *transformed, T);
+        lio_->add_pyramid_ndt_target(transformed);   // add to pyramid ndt
+
+        // TODO
+        std::cout << "kf pose: " << last_kf_->lidar_pose_ << std::endl;
     }
 
     std::shared_ptr<KeyFrame3D> last_kf_ = nullptr;

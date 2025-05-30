@@ -9,6 +9,28 @@
 
 using std::stringstream;
 
+// That gives a working node.as<std::vector<double>>() in your reload lambda.
+namespace YAML {
+template <typename T>
+struct convert<std::vector<T>> {
+    static Node encode(const std::vector<T> &rhs) {
+        Node node(NodeType::Sequence);
+        for (auto const &v : rhs)
+            node.push_back(v);
+        return node;
+    }
+
+    static bool decode(const Node &node, std::vector<T> &rhs) {
+        if (!node.IsSequence())
+            return false;
+        rhs.clear();
+        for (auto const &element : node)
+            rhs.push_back(element.as<T>());
+        return true;
+    }
+};
+}   // namespace YAML
+
 /**
  * Usage:
  * YamlLoadedConfig config;

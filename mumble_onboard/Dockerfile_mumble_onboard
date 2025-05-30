@@ -65,8 +65,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/
 
 RUN apt-get update && apt-get install -y \
-    ros-humble-sensor-msgs-py
-    && rm -rf /var/lib/apt/lists/
+    ros-humble-sensor-msgs-py && \
+    rm -rf /var/lib/apt/lists/
 
 # [ACHTUNG]: Install gdb and PCL. We need to manually install pcl 1.14.0 for an important viewer bugfix
 

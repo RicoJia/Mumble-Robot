@@ -13,14 +13,24 @@ inline std::ostream &operator<<(std::ostream &os, const Sophus::SE2d &pose) {
 }
 
 inline std::ostream &operator<<(std::ostream &os, const Sophus::SE3d &pose) {
+    // TODO
+    std::cout << "pose.so3(): " << pose.so3().matrix() << std::endl;
     os << "  [SO3] " << pose.so3().log().transpose();
     os << "  [Translation] " << pose.translation().transpose() << "\n";
     return os;
 }
 
 inline std::ostream &operator<<(std::ostream &os, const Eigen::Matrix4f &mat) {
-    os << "[Rotation]\n" << mat.block<3, 3>(0, 0) ;
+    os << "[Rotation]\n"
+       << mat.block<3, 3>(0, 0);
     os << ", [Translation] " << mat.block<3, 1>(0, 3).transpose() << "\n";
+    return os;
+}
+
+inline std::ostream &operator<<(std::ostream &os, const Sophus::SO3d &so3) {
+    os << "SO3: "
+       << "\n"
+       << so3.matrix() << "\n";
     return os;
 }
 

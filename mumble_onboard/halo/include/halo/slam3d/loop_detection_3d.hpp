@@ -69,50 +69,56 @@ class LoopDetection3D {
         // TODO: in Gao's implementation, if we recently already have an iter_first and iter_second,
         // We would skip their neighbors. That could speed things up
 
-        // TODO - test code, must remove
-        if (keyframes_ptr->size() >= 2) {
-            // for (int i = 0; i < keyframes_ptr->size() - 1; ++i) {
-            //     for (int j = 10; i+j < keyframes_ptr->size() - 1; ++j) {
-            auto kf1 = (*keyframes_ptr)[1];
-            auto kf2 = (*keyframes_ptr)[38];
+        // // TODO - test code, must remove
+        // if (keyframes_ptr->size() >= 2) {
+        //     // for (int i = 0; i < keyframes_ptr->size() - 1; ++i) {
+        //     //     for (int j = 10; i+j < keyframes_ptr->size() - 1; ++j) {
+        //     auto kf1 = (*keyframes_ptr)[1];
+        //     auto kf2 = (*keyframes_ptr)[38];
 
-            // optional: still guard by your config thresholds
-            Vec3d delta = kf1->lidar_pose_.translation() - kf2->lidar_pose_.translation();
-            loop_candidates_.emplace_back(
-                kf1->id_,   // id1
-                kf2->id_,   // id2
-                // use opti_pose_ instead of lidar_pose if you have it:
-                kf1->lidar_pose_.inverse() * kf2->lidar_pose_,
-                0.0   // ndt_score
-            );
-            //     }
+        //     // optional: still guard by your config thresholds
+        //     Vec3d delta = kf1->lidar_pose_.translation() - kf2->lidar_pose_.translation();
+        //     loop_candidates_.emplace_back(
+        //         kf1->id_,   // id1
+        //         kf2->id_,   // id2
+        //         // use opti_pose_ instead of lidar_pose if you have it:
+        //         kf1->lidar_pose_.inverse() * kf2->lidar_pose_,
+        //         0.0   // ndt_score
+        //     );
+        //     //     }
 
-            // }
-        }
-
-        // // Double for loop
-        // for (auto iter_first = keyframes_ptr->begin(); iter_first != keyframes_ptr->end(); ++iter_first) {
-        //     auto kf_first = *iter_first;
-
-        //     for (auto iter_second = iter_first + 1; iter_second != keyframes_ptr->end(); ++iter_second) {
-        //         auto kf_second = *iter_second;
-        //         if (abs(int(kf_first->id_) - int(kf_second->id_)) < options_.get<int>("min_id_interval"))
-        //             // If two IDs are too close, do not consider loop closure
-        //             continue;
-
-        //         // TODO: PLEASE USE opti_pose_1, instead of lidar_pose
-        //         Vec3d dist = kf_first->lidar_pose_.translation() - kf_second->lidar_pose_.translation();
-        //         if (dist.norm() < options_.get<double>("min_distance")) {
-        //             loop_candidates_.emplace_back(
-        //                 kf_first->id_,    // id1
-        //                 kf_second->id_,   // id2
-        //                 // TODO: PLEASE USE opti_pose_1, instead of lidar_pose
-        //                 kf_first->lidar_pose_.inverse() * kf_second->lidar_pose_,   // Tij
-        //                 0.0                                                         // ndt_score
-        //             );
-        //         }
-        //     }
+        //     // }
         // }
+
+        // Double for loop
+        for (auto iter_first = keyframes_ptr->begin(); iter_first != keyframes_ptr->end(); ++iter_first) {
+            auto kf_first = *iter_first;
+
+            // how many elements remain (including *iter_first)
+            auto remaining = std::distance(iter_first, keyframes_ptr->end());
+            if (remaining <= options_.get<int>("min_id_interval")) {
+                // no valid second candidates left, break out
+                break;
+            }
+
+            // What if iter_first + options_.get<int>("min_id_interval") exeeds the end?
+
+            for (auto iter_second = std::next(iter_first, options_.get<int>("min_id_interval")); iter_second != keyframes_ptr->end(); ++iter_second) {
+                auto kf_second = *iter_second;
+
+                // TODO: PLEASE USE opti_pose_1, instead of lidar_pose
+                Vec3d dist = kf_first->lidar_pose_.translation() - kf_second->lidar_pose_.translation();
+                if (dist.norm() < options_.get<double>("min_distance")) {
+                    loop_candidates_.emplace_back(
+                        kf_first->id_,    // id1
+                        kf_second->id_,   // id2
+                        // TODO: PLEASE USE opti_pose_1, instead of lidar_pose
+                        kf_first->lidar_pose_.inverse() * kf_second->lidar_pose_,   // Tij
+                        0.0                                                         // ndt_score
+                    );
+                }
+            }
+        }
     }
     void compute_loop_candidates(std::deque<KeyFrame3DPtr> *keyframes_ptr) {
         std::for_each(std::execution::par_unseq, loop_candidates_.begin(), loop_candidates_.end(),
@@ -231,8 +237,8 @@ class LoopDetection3D {
         ///////////////////////////////////////////////////////////////////////////////////////////
 
         for (const auto &resolution : res) {
-            // TODO
-            std::cout << "Tw2: " << Tw2 << std::endl;
+            // // TODO
+            // std::cout << "Tw2: " << Tw2 << std::endl;
 
             PCLCloudXYZIPtr submap_kf1(new PCLCloudXYZI);
             pcl::copyPointCloud(*submap_kf1_orig, *submap_kf1);
@@ -240,17 +246,20 @@ class LoopDetection3D {
             pcl::copyPointCloud(*submap_kf2_orig, *submap_kf2);
 
             ndt.setResolution(resolution);
+            // TODO: experimenting wihtout filtering
             // need filtering
-            downsample_point_cloud(submap_kf1, resolution * 0.1);
-            downsample_point_cloud(submap_kf2, resolution * 0.1);
+            // downsample_point_cloud(submap_kf1, resolution * 0.1);
+            // downsample_point_cloud(submap_kf2, resolution * 0.1);
+            downsample_point_cloud(submap_kf1, resolution * 0.01);
+            downsample_point_cloud(submap_kf2, resolution * 0.01);
 
             ndt.setInputSource(submap_kf2);
             ndt.setInputTarget(submap_kf1);
             ndt.align(*output, Tw2);
             Tw2 = ndt.getFinalTransformation();
         }
-        // TODO
-        std::cout << "Tw2: " << Tw2 << std::endl;
+        // // TODO
+        // std::cout << "Tw2: " << Tw2 << std::endl;
 
         Mat4d T = Tw2.cast<double>();
         Quatd q(T.block<3, 3>(0, 0));
@@ -278,9 +287,8 @@ class LoopDetection3D {
             PCLCloudXYZIPtr merged(new PCLCloudXYZI);
             *merged = *submap_kf1_orig;        // copy submap1
             *merged += *transformed_submap2;   // append transformed submap2
-            save_pcd_file("/tmp/loop_detection_results/", base + "_after_optim.pcd", merged);
-            // TODO: test code
-            save_pcd_file("/tmp/loop_detection_results/", base + "_after_optim_raw.pcd", output);
+            save_pcd_file("/tmp/loop_detection_results/", base + "_merged_after_optim.pcd", merged);
+            save_pcd_file("/tmp/loop_detection_results/", base + "_raw_after_optim.pcd", merged);
         }
         ///////////////////////////////////////////////////////////////////////////////////////////
     }

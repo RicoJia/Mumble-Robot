@@ -17,6 +17,9 @@ class IEKFLIO {
     void add_cloud(PCLCloudXYZIPtr cloud);
     PCLCloudXYZIPtr get_current_scan() const;
 
+    // TODO: experimental, to remove
+    void add_pyramid_ndt_target(PCLCloudXYZIPtr keyframe_cloud);
+
   private:
     struct IEKFLIOImpl;
     std::unique_ptr<IEKFLIOImpl> impl_;

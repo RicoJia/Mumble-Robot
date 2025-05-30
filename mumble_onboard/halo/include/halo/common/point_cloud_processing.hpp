@@ -4,6 +4,9 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl_conversions/pcl_conversions.h>   // for pcl::fromROSMsg
 #include <pcl/common/transforms.h>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/surface/mls.h>
+#include <pcl/search/kdtree.h>
 #include <type_traits>
 #include <chrono>
 #include <execution>
@@ -14,8 +17,8 @@
 #include <deque>
 #include <algorithm>   // std::swap
 
-#include <filesystem>            // C++17
-#include <pcl/io/pcd_io.h>       // for savePCDFileBinary
+#include <filesystem>        // C++17
+#include <pcl/io/pcd_io.h>   // for savePCDFileBinary
 
 namespace halo {
 
@@ -121,6 +124,40 @@ void downsample_point_cloud(
 
     // swap contents so the original pointer now holds the downsampled cloud
     cloud->swap(*output);
+}
+
+template <typename CloudPtr>
+void radius_outlier_removal(
+    CloudPtr &cloud,
+    double radius,
+    double min_neighbors) {
+    pcl::RadiusOutlierRemoval<pcl::PointXYZI> ror;
+    ror.setInputCloud(cloud);
+    ror.setRadiusSearch(radius);                  // 30 cm neighbourhood
+    ror.setMinNeighborsInRadius(min_neighbors);   // at least 2 neighbours in the radius
+    PCLCloudXYZIPtr denoised(new PCLCloudXYZI);
+    ror.filter(*denoised);
+    cloud.swap(denoised);
+}
+
+inline void moving_least_squares_smooth(const PCLCloudXYZIPtr &cloud,
+                                        float search_radius     = 0.1f,
+                                        bool use_polynomial_fit = true,
+                                        int polynomial_order    = 2,
+                                        bool compute_normals    = false) {
+    // 1) set up a search structure
+    pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>());
+
+    pcl::MovingLeastSquares<pcl::PointXYZI, pcl::PointXYZI> mls;
+    mls.setInputCloud(cloud);
+    mls.setSearchMethod(tree);
+    mls.setSearchRadius(search_radius);
+    mls.setPolynomialOrder(polynomial_order);
+    mls.setComputeNormals(compute_normals);
+
+    pcl::PointCloud<pcl::PointXYZI> smoothed;
+    mls.process(smoothed);
+    *cloud = smoothed;
 }
 
 template <typename CloudPtr>
@@ -240,7 +277,7 @@ class CloudViewer {
     pcl::visualization::PCLVisualizer::Ptr viewer;
 };
 
-inline void save_pcd_file(const std::string& out_dir, const std::string& path, const PCLCloudXYZIPtr& cloud){
+inline void save_pcd_file(const std::string &out_dir, const std::string &path, const PCLCloudXYZIPtr &cloud) {
     std::filesystem::create_directories(out_dir);
     pcl::io::savePCDFileBinary(out_dir + "/" + path, *cloud);
 }
