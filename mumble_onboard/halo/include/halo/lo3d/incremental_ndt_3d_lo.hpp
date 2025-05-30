@@ -53,8 +53,6 @@ class IncrementalNDTLO {
             std::cout << "keyframe detected" << std::endl;
             cnt_frame_ = 0;
             transformed_cloud.reset(new PCLCloudXYZI);
-            // TODO: see if this works. If so, please filter them first.
-            // pcl::transformPointCloud(*cloud, *transformed_cloud, world_pose.matrix().cast<float>());
             pcl::transformPointCloud(*orig_cloud, *transformed_cloud, world_pose.matrix().cast<float>());
             inc_ndt_3d_.add_cloud(transformed_cloud);
         } else {
