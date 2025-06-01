@@ -16,16 +16,16 @@ public:
         if (0 < dt && dt < 0.1){
             const Vec3d& a_car = d.acc, &w_car = d.gyro;
 
-            // p_ += v_ * dt + 0.5 * (R_ * (a_car - ba_) + g_)  * dt * dt;
             // TODO: test code
             // This must precede velocity update.
-            p_ += v_ * dt;
+            p_ += v_ * dt + 0.5 * (R_ * (a_car - ba_) + g_)  * dt * dt;
             v_ += (R_ * (a_car - ba_) + g_) * dt;
             R_ = R_ * Sophus::SO3d::exp((w_car - bg_) * dt);
-            //TODO
-            std::cout<<"pose: "<<Sophus::SE3d{R_, p_}<<", dt: "<<dt<<", (R(a_car - ba_) +g_): "<<to_string((R_ * (a_car - ba_) + g_))<<", w_car - bg_: "<<to_string(w_car - bg_)
-            << "v: "<<to_string(v_)
-            <<std::endl;
+            #ifdef PRINT_DEBUG_MSGS
+                std::cout<<"pose: "<<Sophus::SE3d{R_, p_}<<", dt: "<<dt<<", (R(a_car - ba_) +g_): "<<to_string((R_ * (a_car - ba_) + g_))<<", w_car - bg_: "<<to_string(w_car - bg_)
+                << "v: "<<to_string(v_)
+                <<std::endl;
+            #endif
         } else {
             if (dt >= 0.1){
                 std::cerr<<"IMU dt > 0.1: "<<dt<<'\n';
