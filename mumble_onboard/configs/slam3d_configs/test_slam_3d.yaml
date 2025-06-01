@@ -20,11 +20,14 @@ iekf_kf_dist_thre:  1.0  #0.3m
 #######################################################################
 
 farthest_distance_range: 4.5 #4.5 # in meters
-add_scan_leaf_size: 0.05 # TODO
+add_scan_leaf_size: 0.06 # TODO
 
 #######################################################################
-# Inc NDT Scan Matching Parameters
+# NDT Scan Matching Parameters
 #######################################################################
+
+# We have two options: Incremental NDT (faster, but accuracy is lower), or Pyramid NDT (PCL implementation, slower but better)
+use_pyramid_ndt: true # Whether to use pyramid NDT
 
 # add_scan_leaf_size is used in scan matching, visualize_scan_leaf_size is a secondary filter for visualization
 visualize_scan_leaf_size: 0.1
@@ -41,13 +44,13 @@ resolution: 0.5 # This could make a difference
 max_voxel_number: 100000  # above which we pop the oldest voxel
 print_inc_ndt_debug_info: true # Whether to print debug info for inc ndt
 
-####### Pyramid NDT Parameters #######
-use_pyramid_ndt: true # Whether to use pyramid NDT
-loop_detection_ndt_epsilon: 0.001
-loop_detection_ndt_step_size: 0.2
-loop_detection_ndt_max_iterations: 20
-pyramid_ndt_resolutions: [0.5] # Needs to be in descending order
-moving_least_squares_search_radius: -1.0 # in meters. TO disable, set to a negative value TODO: SLOW
+# ####### Pyramid NDT Parameters #######
+front_end_pyramid_ndt:
+  pyramid_ndt_epsilon: 0.001
+  pyramid_ndt_step_size: 0.2
+  pyramid_ndt_max_iterations: 20
+  pyramid_ndt_resolutions: [0.5] # Needs to be in descending order
+  moving_least_squares_search_radius: -1.0 # in meters. TO disable, set to a negative value TODO: SLOW
 
 #######################################################################
 # Loop closure Parameters
@@ -61,16 +64,17 @@ ground_z_val: -1.0 # [BEWARE]: This is only for loop detection, not for map crea
 loop_closure_submap_interval: 1 # Interval for submap generation from keyframes
 consecutive_idx_check_range: 1 # [-range, +range] keyframes would be checked TODO: original value was 10
 
-# The Transformation Epsilon parameter defines minimum, allowable, incremental change of the transformation vector,
-# [x, y, z, roll, pitch, yaw] in meters and radians respectively. Once the incremental change dips below this threshold, 
-# the alignment terminates.
-# loop_detection_ndt_epsilon: 0.05 # in meters TODO
+loop_detection_pyramid_ndt:
+  # The Transformation Epsilon parameter defines minimum, allowable, incremental change of the transformation vector,
+  # [x, y, z, roll, pitch, yaw] in meters and radians respectively. Once the incremental change dips below this threshold, 
+  # the alignment terminates.
+  pyramid_ndt_epsilon: 0.05 # in meters TODO
 
-# The Step Size parameter defines the maximum step length allowed by the More-Thuente line search. 
-# This line search algorithm determines the best step length below this maximum value, 
-# shrinking the step length as you near the optimal solution. 
-# Larger maximum step lengths will be able to clear greater distances in fewer iterations but run the risk of overshooting and ending up in an undesirable local minimum. 
-# loop_detection_ndt_step_size: 0.7 # in meters TODO
+  # The Step Size parameter defines the maximum step length allowed by the More-Thuente line search. 
+  # This line search algorithm determines the best step length below this maximum value, 
+  # shrinking the step length as you near the optimal solution. 
+  # Larger maximum step lengths will be able to clear greater distances in fewer iterations but run the risk of overshooting and ending up in an undesirable local minimum. 
+  pyramid_ndt_step_size: 0.7 # in meters TODO
 
 save_loop_detection_pcd: false # This will save 2 pcd files for each loop candidate, which could slow down the process. Be careful with this option.
 

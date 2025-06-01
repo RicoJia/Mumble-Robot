@@ -84,8 +84,9 @@ class HaloSLAM3DFrontend::HaloSLAM3DFrontendImpl {
         pcl::transformPointCloud(*last_kf_->cloud_, *transformed, T);
         lio_->add_pyramid_ndt_target(transformed);   // add to pyramid ndt
 
-        // TODO
+#ifdef PRINT_DEBUG_MSGS
         std::cout << "kf pose: " << last_kf_->lidar_pose_ << std::endl;
+#endif
     }
 
     std::shared_ptr<KeyFrame3D> last_kf_ = nullptr;

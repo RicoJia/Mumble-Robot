@@ -4,6 +4,11 @@ project(mumble_onboard LANGUAGES CXX)
 # Ensure we use the same vectorization flags as prebuilt PCL & g2o
 add_compile_options(-march=native -msse4.2 -mavx2 -mfpmath=sse)
 
+option(PRINT_DEBUG_MSGS "Enable debug‐print messages" OFF)
+if(PRINT_DEBUG_MSGS)
+  add_compile_definitions(PRINT_DEBUG_MSGS)
+endif()
+
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()

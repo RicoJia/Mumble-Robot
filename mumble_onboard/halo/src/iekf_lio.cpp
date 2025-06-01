@@ -12,23 +12,23 @@ namespace halo {
 
 class PyramidNDT {
   public:
-    PyramidNDT(const std::string &config_yaml) {
+    PyramidNDT(const std::string &config_yaml, const std::string &config_ns) {
         options_.add_option<std::vector<double>>(
             "pyramid_ndt_resolutions",
-            std::vector<double>{3.0});
-        options_.add_option<double>("loop_detection_ndt_epsilon", 0.05);
-        options_.add_option<double>("loop_detection_ndt_step_size", 1.0);
-        options_.add_option<int>("loop_detection_ndt_max_iter", 40);
-        options_.add_option<double>("add_scan_leaf_size", 0.05);
-        options_.add_option<double>("moving_least_squares_search_radius", 0.2),
+            std::vector<double>{3.0}, config_ns);
+        options_.add_option<double>("pyramid_ndt_epsilon", 0.05, config_ns);
+        options_.add_option<double>("pyramid_ndt_step_size", 1.0, config_ns);
+        options_.add_option<int>("pyramid_ndt_max_iterations", 40, config_ns);
+        options_.add_option<double>("add_scan_leaf_size", 0.05);   // This is shared
+        options_.add_option<double>("moving_least_squares_search_radius", 0.2, config_ns),
 
             options_.load_from_yaml(config_yaml);
 
         // TODO: experimental
         // configure once
-        ndt_.setTransformationEpsilon(options_.get<double>("loop_detection_ndt_epsilon"));
-        ndt_.setStepSize(options_.get<double>("loop_detection_ndt_step_size"));
-        ndt_.setMaximumIterations(options_.get<int>("loop_detection_ndt_max_iter"));
+        ndt_.setTransformationEpsilon(options_.get<double>("pyramid_ndt_epsilon"));
+        ndt_.setStepSize(options_.get<double>("pyramid_ndt_step_size"));
+        ndt_.setMaximumIterations(options_.get<int>("pyramid_ndt_max_iterations"));
         ndt_.setMinPointPerVoxel(6);   // stabilises small voxels
         pcl::console::setVerbosityLevel(pcl::console::L_VERBOSE);
 
@@ -111,7 +111,8 @@ class PyramidNDT {
 
 class IEKFLIO::IEKFLIOImpl {
   public:
-    IEKFLIOImpl(const std::string &config_yaml = "") : pyramid_ndt_(config_yaml), inc_ndt_3d_(config_yaml) {
+    IEKFLIOImpl(const std::string &config_yaml = "") : pyramid_ndt_(config_yaml, "front_end_pyramid_ndt"),
+                                                       inc_ndt_3d_(config_yaml) {
         options_.add_option<double>("iekf_kf_angle_thre", 0.26);
         options_.add_option<double>("iekf_kf_dist_thre", 1.0);
         options_.add_option<float>("add_scan_leaf_size", 0.5);
