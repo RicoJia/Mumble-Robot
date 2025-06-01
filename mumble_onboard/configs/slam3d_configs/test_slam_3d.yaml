@@ -1,0 +1,88 @@
+#######################################################################
+# front end
+#######################################################################
+visualize: false # The final result will be saved regardless
+kf_angle_thre: 0.26 #30 deg
+kf_dist_thre:  0.5  #0.3m
+keyframe_frame_gap: 1 # TODO
+
+nearest_distance_range: 0.4 #TODO # in meters
+
+#######################################################################
+# IEKF Parameters
+#######################################################################
+
+iekf_kf_angle_thre: 0.26 #15 deg
+iekf_kf_dist_thre:  1.0  #0.3m
+
+#######################################################################
+# Shared Parameters
+#######################################################################
+
+farthest_distance_range: 4.5 #4.5 # in meters
+add_scan_leaf_size: 0.06 # TODO
+
+#######################################################################
+# NDT Scan Matching Parameters
+#######################################################################
+
+# We have two options: Incremental NDT (faster, but accuracy is lower), or Pyramid NDT (PCL implementation, slower but better)
+use_pyramid_ndt: true # Whether to use pyramid NDT
+
+# add_scan_leaf_size is used in scan matching, visualize_scan_leaf_size is a secondary filter for visualization
+visualize_scan_leaf_size: 0.1
+visualizer_spin_time: 5000 #5000 #in ms
+outlier_removal_radius: 0.08 # in meters
+outlier_removal_min_neighbors: 9
+
+max_iterations: 20
+opt_err_rejection_distance_sq: 8.0  #in meters
+min_pts_in_voxel: 5
+max_pts_in_voxel: 50000
+eps: 1e-2 #TODO
+resolution: 0.5 # This could make a difference
+max_voxel_number: 100000  # above which we pop the oldest voxel
+print_inc_ndt_debug_info: true # Whether to print debug info for inc ndt
+
+# ####### Pyramid NDT Parameters #######
+front_end_pyramid_ndt:
+  pyramid_ndt_epsilon: 0.001
+  pyramid_ndt_step_size: 0.2
+  pyramid_ndt_max_iterations: 20
+  pyramid_ndt_resolutions: [0.5] # Needs to be in descending order
+  moving_least_squares_search_radius: -1.0 # in meters. TO disable, set to a negative value TODO: SLOW
+
+#######################################################################
+# Loop closure Parameters
+#######################################################################
+
+min_id_interval: 300       # Minimum ID difference between candidate keyframes
+min_distance: 6.0       # Minimum distance between candidate frames
+skip_id: 20              # Number of IDs to skip after selecting a candidate
+ndt_score_th: 0.01 #6.0       # NDT score threshold for valid loop closures
+ground_z_val: -1.0 # [BEWARE]: This is only for loop detection, not for map creation. Z value of the ground plane, which is used to filter out the ground points
+loop_closure_submap_interval: 1 # Interval for submap generation from keyframes
+consecutive_idx_check_range: 1 # [-range, +range] keyframes would be checked TODO: original value was 10
+
+loop_detection_pyramid_ndt:
+  # The Transformation Epsilon parameter defines minimum, allowable, incremental change of the transformation vector,
+  # [x, y, z, roll, pitch, yaw] in meters and radians respectively. Once the incremental change dips below this threshold, 
+  # the alignment terminates.
+  pyramid_ndt_epsilon: 0.05 # in meters TODO
+
+  # The Step Size parameter defines the maximum step length allowed by the More-Thuente line search. 
+  # This line search algorithm determines the best step length below this maximum value, 
+  # shrinking the step length as you near the optimal solution. 
+  # Larger maximum step lengths will be able to clear greater distances in fewer iterations but run the risk of overshooting and ending up in an undesirable local minimum. 
+  pyramid_ndt_step_size: 0.7 # in meters TODO
+
+save_loop_detection_pcd: false # This will save 2 pcd files for each loop candidate, which could slow down the process. Be careful with this option.
+
+#######################################################################
+# Backend Optimization Parameters
+#######################################################################
+lidar_neighbor_num: 3  # for one lidar frame, we add edges to the next lidar_neighbor_num keyframes
+lidar_translation_noise: 0.1 # in meter
+lidar_angular_noise: 0.08  # 5 deg radians
+rk_delta_squared: 5.2    # δ^2 for robust kernel: ρ(s)=δ^2 * ln(1+ l2_loss / δ^2​).
+turn_on_backend_optimization: false # Whether to turn on backend optimization

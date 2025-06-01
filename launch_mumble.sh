@@ -87,7 +87,8 @@ else
     ARCH=$(uname -m)
     SCRIPT_DIR=$(dirname $(realpath $0))
     check_sudo
-    launch_runtime $1
+    # TODO
+    # launch_runtime $1
     launch_onboard $1
     # launch_isaac_sim $1
 fi

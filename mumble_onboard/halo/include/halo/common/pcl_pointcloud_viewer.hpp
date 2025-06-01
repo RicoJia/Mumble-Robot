@@ -22,6 +22,28 @@ class PCLMapViewer {
         vtkObject::GlobalWarningDisplayOff();
     }
 
+    void SetPoseAndCloudNoViz(PCLCloudXYZIPtr cloud_world) {
+        voxel_filter_.setInputCloud(cloud_world);
+        voxel_filter_.filter(*tmp_cloud_);
+
+        *local_map_ += *tmp_cloud_;
+        tmp_cloud_->clear();
+        voxel_filter_.setInputCloud(local_map_);
+        voxel_filter_.filter(*tmp_cloud_);
+        // swap or copy the filtered result back into local_map_
+        local_map_->swap(*tmp_cloud_);
+
+        if (local_map_->size() > 600000) {
+            leaf_size_ *= 1.26;
+            voxel_filter_.setLeafSize(leaf_size_, leaf_size_, leaf_size_);
+            LOG(INFO) << "viewer set leaf size to " << leaf_size_;
+        }
+    }
+
+    void set_spin_time(int spin_time) {
+        spin_time_ = spin_time;
+    }
+
     /**
      * 增加一个Pose和它的点云（世界系）
      * @param pose
@@ -61,7 +83,7 @@ class PCLMapViewer {
                     view_pt.x(), view_pt.y(), view_pt.z(),
                     up_dir.x(), up_dir.y(), up_dir.z());
             }
-            viewer_->spinOnce(1);
+            viewer_->spinOnce(spin_time_);
             cnt_frame_ = 0;
         }
 
@@ -102,5 +124,6 @@ class PCLMapViewer {
     bool viz_on_car_     = false;   // 是否在车上可视化
     size_t viz_speedups_ = 1;       // 可视化速度加速倍数
     size_t cnt_frame_    = 0;       // 计数器
+    int spin_time_       = 1;
 };
 }   // namespace halo

@@ -4,6 +4,9 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl_conversions/pcl_conversions.h>   // for pcl::fromROSMsg
 #include <pcl/common/transforms.h>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/surface/mls.h>
+#include <pcl/search/kdtree.h>
 #include <type_traits>
 #include <chrono>
 #include <execution>
@@ -12,6 +15,10 @@
 #include <ranges>
 #include <thread>
 #include <deque>
+#include <algorithm>   // std::swap
+
+#include <filesystem>        // C++17
+#include <pcl/io/pcd_io.h>   // for savePCDFileBinary
 
 namespace halo {
 
@@ -32,8 +39,7 @@ inline PCLPointXYZI to_pcl_point_xyzi(const Eigen::Matrix<S, 3, 1> &pt) {
 inline static PCLCloudXYZIPtr convert_2_pclcloud_xyz_i(const sensor_msgs::msg::PointCloud2 &msg) {
     // then convert into a PCL point-cloud
     PCLCloudXYZIPtr cloud(new pcl::PointCloud<pcl::PointXYZI>());
-    pcl::fromROSMsg(msg, *cloud);
-
+    pcl::fromROSMsg(msg, *cloud);   // might emit "Failed to find match for field 'intensity"
     return cloud;
 }
 
@@ -85,7 +91,7 @@ inline PCLCloudXYZIPtr apply_transform(PCLCloudXYZIPtr &cloud, const halo::SE3 &
         cloud->width  = static_cast<uint32_t>(cloud->points.size());
     } else {
         // keep original row count
-        cloud->width  = static_cast<uint32_t>(cloud->points.size()) / cloud->height;
+        cloud->width = static_cast<uint32_t>(cloud->points.size()) / cloud->height;
     }
     PCLCloudXYZIPtr transformed_cloud(new PCLCloudXYZI);
     pcl::transformPointCloud(*cloud, *transformed_cloud, pose.matrix().cast<float>());
@@ -100,11 +106,12 @@ inline PCLCloudXYZIPtr apply_transform(PCLCloudXYZIPtr &cloud, const halo::SE3 &
  * specifically, it's the line `voxel.filter(*output);`
  */
 template <typename CloudPtr>
-inline void downsample_point_cloud(
+void downsample_point_cloud(
     CloudPtr &cloud,
     float voxel_size = 0.1f) {
     using PointCloud = typename CloudPtr::element_type;   // e.g. pcl::PointCloud<YourPointT>
     using PointT     = typename PointCloud::PointType;
+
     // set up the filter for your PointT
     pcl::VoxelGrid<PointT> voxel;
     voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
@@ -112,10 +119,71 @@ inline void downsample_point_cloud(
 
     // allocate output of the same type
     auto output = std::make_shared<pcl::PointCloud<PointT>>();
+    // If leaf size is too small, there'd be a warning
     voxel.filter(*output);
 
     // swap contents so the original pointer now holds the downsampled cloud
     cloud->swap(*output);
+}
+
+template <typename CloudPtr>
+void radius_outlier_removal(
+    CloudPtr &cloud,
+    double radius,
+    double min_neighbors) {
+    pcl::RadiusOutlierRemoval<pcl::PointXYZI> ror;
+    ror.setInputCloud(cloud);
+    ror.setRadiusSearch(radius);                  // 30 cm neighbourhood
+    ror.setMinNeighborsInRadius(min_neighbors);   // at least 2 neighbours in the radius
+    PCLCloudXYZIPtr denoised(new PCLCloudXYZI);
+    ror.filter(*denoised);
+    cloud.swap(denoised);
+}
+
+inline void moving_least_squares_smooth(const PCLCloudXYZIPtr &cloud,
+                                        float search_radius     = 0.1f,
+                                        bool use_polynomial_fit = true,
+                                        int polynomial_order    = 2,
+                                        bool compute_normals    = false) {
+    // 1) set up a search structure
+    pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>());
+
+    pcl::MovingLeastSquares<pcl::PointXYZI, pcl::PointXYZI> mls;
+    mls.setInputCloud(cloud);
+    mls.setSearchMethod(tree);
+    mls.setSearchRadius(search_radius);
+    mls.setPolynomialOrder(polynomial_order);
+    mls.setComputeNormals(compute_normals);
+
+    pcl::PointCloud<pcl::PointXYZI> smoothed;
+    mls.process(smoothed);
+    *cloud = smoothed;
+}
+
+template <typename CloudPtr>
+void distance_filter(
+    CloudPtr &cloud,
+    double min_dist,
+    double max_dist) {
+    const double min_d2 = min_dist * min_dist;
+    const double max_d2 = max_dist * max_dist;
+    // build a temp cloud
+    using PointCloud = typename CloudPtr::element_type;   // e.g. pcl::PointCloud<YourPointT>
+    using PointT     = typename PointCloud::PointType;
+    pcl::PointCloud<PointT> tmp;
+    tmp.reserve(cloud->size());
+
+    for (const auto &pt : cloud->points) {
+        double d2 = pt.x * pt.x + pt.y * pt.y + pt.z * pt.z;
+        if (max_d2 >= d2 && d2 >= min_d2)
+            tmp.push_back(pt);
+    }
+
+    // swap tmp back into the original cloud
+    cloud->points.swap(tmp.points);
+    cloud->width    = static_cast<uint32_t>(cloud->points.size());
+    cloud->height   = 1;
+    cloud->is_dense = true;
 }
 
 inline Vec3d get_point_cloud_center(PCLCloudXYZIPtr &point_cloud) {
@@ -144,6 +212,20 @@ void add_cloud_with_distance_filtering(
     }
 }
 
+inline PCLCloudXYZIPtr remove_ground_cp(const PCLCloudXYZIPtr &cloud, float z_min) {
+    PCLCloudXYZIPtr output(new PCLCloudXYZI);
+    for (const auto &pt : cloud->points) {
+        if (pt.z > z_min) {
+            output->points.emplace_back(pt);
+        }
+    }
+
+    output->height   = 1;
+    output->is_dense = false;
+    output->width    = static_cast<uint32_t>(output->points.size());
+    return output;
+}
+
 // ======================== PCL IO ========================
 
 template <typename CloudType>
@@ -151,8 +233,6 @@ void save_pcd_file(const std::string &file_path, CloudType &cloud) {
     cloud.height = 1;
     cloud.width  = cloud.size();
     pcl::io::savePCDFileASCII(file_path, cloud);
-    // TODO
-    std::cout << "Saved point cloud to" << file_path << std::endl;
 }
 
 /**
@@ -197,14 +277,19 @@ class CloudViewer {
     pcl::visualization::PCLVisualizer::Ptr viewer;
 };
 
+inline void save_pcd_file(const std::string &out_dir, const std::string &path, const PCLCloudXYZIPtr &cloud) {
+    std::filesystem::create_directories(out_dir);
+    pcl::io::savePCDFileBinary(out_dir + "/" + path, *cloud);
+}
+
 // ======================== Hashing ========================
 
 // TODO: to move, and replace below
-Vec3i get_grid_point_coord(const PCLPointXYZI &pt, const float &resolution) {
+inline Vec3i get_grid_point_coord(const PCLPointXYZI &pt, const float &resolution) {
     return Vec3i(int(pt.x * resolution), int(pt.y * resolution), int(pt.z * resolution));
 }
 
-Vec3i get_grid_point_coord(const Vec3d &pt, const float &resolution) {
+inline Vec3i get_grid_point_coord(const Vec3d &pt, const float &resolution) {
     return Vec3i(int(pt(0) * resolution), int(pt(1) * resolution), int(pt(2) * resolution));
 }
 
@@ -213,7 +298,7 @@ Vec3i get_grid_point_coord(const Vec3d &pt, const float &resolution) {
  and put them into "point matrices" in an unordered_map.
  a "point matrix" (each row is x,y,z).
  */
-std::unordered_map<size_t, std::deque<Vec3d>> split_point_cloud_by_hash(const PCLCloudXYZIPtr &cloud, const float &resolution) {
+inline std::unordered_map<size_t, std::deque<Vec3d>> split_point_cloud_by_hash(const PCLCloudXYZIPtr &cloud, const float &resolution) {
     std::unordered_map<size_t, std::deque<Vec3d>> hash_buckets;
     for (const auto &pt : cloud->points) {
         Vec3d coord           = to_vec_3d(pt);

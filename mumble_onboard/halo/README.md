@@ -94,6 +94,15 @@ target_link_libraries(my_executable
 </p>
 </div>
 
+- PCL NDT Odometer (using real-life preact-mojave)
+
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="https://i.postimg.cc/fR5L3J1D/front-end-demo.gif" height="300" alt=""/>
+    </figure>
+</p>
+</div>
 
 ### Scan Matching
 
@@ -143,7 +152,18 @@ We can tell that there are no visual matching anomalies between the algorithms. 
 
 This implementation is a proof of concept with SIMD and multi-threaded optimzations on sub-components. However, in this implementation, front end scan matching and back end optimization are done in the same thread.
 
-## Conventions
+## Developer Notes
+
+### How To Test
+
+- Turn on debugging messages in compilation and run an test pipeline:
+
+```
+colcon_build_source --cmake-args -DPRINT_DEBUG_MSGS=OFF
+./bags/run_ndt_test.sh 0 400 7,15,20,25,31,43,49,53,58,63,73,78,82,85,88,92,96,99,102,105,108,110,113,132,134,138,142,147,152,157,162,167,172,177,182,187,192,197,202,207,212,217,222,227,232,237,242,247,248,250,252,254,257,260,262,267
+```
+
+### Conventions
 
 - angles are wrapped to `[-pi, pi]`. Please adjust the lidar `angle_min` and `angle_max` accordingly
 

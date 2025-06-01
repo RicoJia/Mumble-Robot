@@ -11,6 +11,7 @@
 #include <utility>
 #include <pcl/io/pcd_io.h>
 #include <pcl/search/kdtree.h>
+#include <limits>
 
 #include "rclcpp/serialization.hpp"
 #include "rosbag2_transport/reader_writer_factory.hpp"
@@ -268,7 +269,9 @@ class RAIITimer {
 
 class ROS2BagIo {
   public:
-    explicit ROS2BagIo(const std::string bag_file) : bag_file_(bag_file) {
+    explicit ROS2BagIo(const std::string bag_file, const size_t stopping_msg_index = std::numeric_limits<size_t>::max()) : 
+        bag_file_(bag_file), 
+        stopping_msg_index_(stopping_msg_index) {
         rosbag2_storage::StorageOptions storage_options;
         storage_options.uri = bag_file_;
         reader_             = rosbag2_transport::ReaderWriterFactory::make_reader(storage_options);
@@ -302,10 +305,15 @@ class ROS2BagIo {
     }
 
     void spin() {
+        size_t num_msgs = 0;
         while (!is_shutdown_ && reader_->has_next()) {
             rosbag2_storage::SerializedBagMessageSharedPtr msg = reader_->read_next();
             if (auto it = callbacks_.find(msg->topic_name); it != callbacks_.end()) {
                 it->second(msg);
+            }
+            if (num_msgs++ > stopping_msg_index_) {
+                std::cout << "Stopping at message index: " << stopping_msg_index_ << std::endl;
+                break;
             }
         }
         is_shutdown_ = true;
@@ -318,6 +326,7 @@ class ROS2BagIo {
   private:
     std::string bag_file_;
     bool is_shutdown_ = false;
+    size_t stopping_msg_index_;
     std::unique_ptr<rosbag2_cpp::Reader> reader_;
     std::unordered_map<
         std::string,
