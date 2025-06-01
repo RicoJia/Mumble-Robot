@@ -99,7 +99,7 @@ target_link_libraries(my_executable
 <div style="text-align: center;">
 <p align="center">
     <figure>
-        <img src="https://i.postimg.cc/fR5L3J1D/front-end-demo.gif" height="300" alt=""/>
+        <img src="./media/front-end-demo.gif" height="300" alt=""/>
     </figure>
 </p>
 </div>
