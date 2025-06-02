@@ -62,6 +62,14 @@ target_link_libraries(my_executable
 
 ## 3D SLAM Components & Frameworks
 
+<div style="text-align: center;">
+<p align="center">
+    <figure>
+        <img src="https://i.postimg.cc/W3gCRCNm/Screenshot-from-2025-06-01-19-46-04.png" height="300" alt=""/>
+    </figure>
+</p>
+</div>
+
 ### Lidar Odometers
 
 - NDT Odometer
