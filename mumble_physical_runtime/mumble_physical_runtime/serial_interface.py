@@ -31,8 +31,8 @@ from mumble_physical_runtime.waveshare_control import BaseController, test_imu
 READ_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
 imu_msg = Imu()
 MOTOR_COMMAND_END_TIME = time.perf_counter()
-MOTOR_STOP_CHECK_PERIOD = 1.0 / 30.0  # NO MORE THAN THIS
-MOTOR_COMMAND_VALID_TIME = 15 * MOTOR_STOP_CHECK_PERIOD
+MOTOR_STOP_CHECK_PERIOD = 1.0 / 50.0  # NO MORE THAN THIS
+MOTOR_COMMAND_VALID_TIME = 8 * MOTOR_STOP_CHECK_PERIOD
 TEN_SECONDS = 10.0
 WHEEL_BASE = 0.13
 
@@ -47,7 +47,7 @@ def cmd_vel_cb(base, twist: Twist):
     left_speed = v - WHEEL_BASE * omega / 2.0
     right_speed = v + WHEEL_BASE * omega / 2.0
     # TODO Remember to remove
-    print(f"Rico: TODO: {left_speed, right_speed}")
+    print(f"Rico: speed {left_speed, right_speed}")
     global MOTOR_COMMAND_END_TIME
     MOTOR_COMMAND_END_TIME = time.perf_counter() + MOTOR_COMMAND_VALID_TIME
     base.base_speed_ctrl(left_speed, right_speed)
@@ -56,7 +56,7 @@ def cmd_vel_cb(base, twist: Twist):
 def motor_stop_check_cb(base):
     global MOTOR_COMMAND_END_TIME
     if MOTOR_COMMAND_END_TIME < time.perf_counter():
-        logger.info(f"Stop,")
+        logger.warn(f"Stop, end time{MOTOR_COMMAND_END_TIME}, current time: {time.perf_counter()}")
         base.base_speed_ctrl(0.0, 0.0)
         MOTOR_COMMAND_END_TIME = time.perf_counter() + TEN_SECONDS
 
@@ -120,17 +120,17 @@ def main(args=None):
     node.create_timer(MOTOR_STOP_CHECK_PERIOD, partial(motor_stop_check_cb, base))
 
     device_address = find_lidar_usb_device()
-    # If USB is not found, we will see an exception here.
-    lidar = RPLidar(None, device_address)
-    scan_pub = node.create_publisher(LaserScan, "scan", qos_profile)
-    lidar_thread_instance = threading.Thread(
-        target=lidar_thread, args=(lidar, scan_pub, node)
-    )
-    lidar_thread_instance.start()
+    # # If USB is not found, we will see an exception here.
+    # lidar = RPLidar(None, device_address)
+    # scan_pub = node.create_publisher(LaserScan, "scan", qos_profile)
+    # lidar_thread_instance = threading.Thread(
+    #     target=lidar_thread, args=(lidar, scan_pub, node)
+    # )
+    # lidar_thread_instance.start()
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)
     executor.spin()
     node.destroy_node()
     rclpy.shutdown()
-    lidar_thread_instance.join()
+    # lidar_thread_instance.join()

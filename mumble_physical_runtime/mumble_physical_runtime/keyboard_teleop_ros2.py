@@ -55,7 +55,7 @@ class KeyboardTeleopNode(Node):
         listen_keyboard(
             on_press=self.on_key_press,
             on_release=None,
-            delay_second_char=0.03,
+            delay_second_char=0.01,
             delay_other_chars=0.01,
         )
 
